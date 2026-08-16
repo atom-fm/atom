@@ -36,14 +36,20 @@ jobs:
               uses: actions/cache@v5
               with:
                   path: ${{ steps.composer-cache.outputs.dir }}
-                  key: composer-${{ runner.os }}-php-8.4-${{ hashFiles('composer.lock') }}
+                  key: composer-${{ runner.os }}-php-8.4-${{ hashFiles('**/composer.lock') }}
                   restore-keys: composer-${{ runner.os }}-php-8.4-
 
             - name: Validate Composer configuration
-              run: composer validate --strict
+              run: composer validate --strict && composer validate --strict --working-dir=packages/framework
 
-            - name: Install dependencies
-              run: composer install --no-interaction --prefer-dist --no-progress
+            - name: Install framework dependencies
+              run: composer install --working-dir=packages/framework --no-interaction --prefer-dist --no-progress
+
+            - name: Install application dependencies
+              run: |
+                  composer install --working-dir=packages/starter --no-interaction --prefer-dist --no-progress
+                  composer install --working-dir=apps/sample --no-interaction --prefer-dist --no-progress
+                  composer install --working-dir=apps/showcase --no-interaction --prefer-dist --no-progress
 
             - name: Run quality checks
               run: composer check

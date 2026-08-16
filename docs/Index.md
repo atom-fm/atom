@@ -74,11 +74,13 @@ Pages own browser-facing workflows. Controllers are still useful for APIs.
 
 ```text
 .
-├── src/
-├── tests/
+├── packages/
+│   ├── framework/
+│   └── starter/
 ├── docs/
-├── sample/
-└── showcase/
+└── apps/
+    ├── sample/
+    └── showcase/
 ```
 
 The sample app depends on the local framework package through:
@@ -88,7 +90,7 @@ The sample app depends on the local framework package through:
   "repositories": [
     {
       "type": "path",
-      "url": ".."
+      "url": "../../packages/framework"
     }
   ]
 }
@@ -96,7 +98,7 @@ The sample app depends on the local framework package through:
 
 This keeps framework and sample development together while still leaving room to split packages later.
 
-Local sample configuration can live in `sample/.env`:
+Local sample configuration can live in `apps/sample/.env`:
 
 ```env
 APP_ENV=local

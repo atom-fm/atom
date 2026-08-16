@@ -328,7 +328,7 @@ $contents = $templates->render("database/migration.php.tpl");
 Templates live under:
 
 ```text
-src/Templates/
+packages/framework/src/Templates/
 ```
 
 Applications can override them by placing files with the same relative path under:

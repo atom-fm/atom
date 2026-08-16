@@ -1,0 +1,440 @@
+.atom-alert {
+    --atom-alert-color: var(--atom-color-base-content);
+    --atom-alert-bg: var(--atom-color-base-200);
+    --atom-alert-fg: var(--atom-color-base-content);
+    --atom-alert-soft-bg: var(--atom-color-base-200);
+    --atom-alert-soft-fg: var(--atom-color-text);
+    --atom-alert-border: color-mix(in oklab, var(--atom-alert-bg), #000 6%);
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: var(--atom-space-4);
+    min-height: 44px;
+    padding: 13px 15px;
+    border: 1px solid var(--atom-alert-border);
+    border-radius: var(--atom-radius-box);
+    background: var(--atom-alert-bg);
+    color: var(--atom-alert-fg);
+    line-height: 1.45;
+}
+
+.atom-alert__content {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 2px;
+    min-width: 0;
+}
+
+.atom-alert__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    padding-top: 1px;
+}
+
+.atom-alert__icon .atom-icon {
+    width: 1.25em;
+    height: 1.25em;
+    border-radius: 0;
+    background: transparent;
+    color: currentColor;
+    font-size: 1.12rem;
+}
+
+.atom-alert__title {
+    display: block;
+    font-weight: 750;
+    line-height: 1.25;
+}
+
+.atom-alert__description,
+.atom-alert__body {
+    margin: 0;
+    color: color-mix(in oklch, currentColor 92%, var(--atom-color-base-100));
+}
+
+.atom-alert__actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--atom-space-2);
+    margin-left: auto;
+}
+
+.atom-alert[data-size="sm"] {
+    min-height: 36px;
+    padding: 9px 11px;
+    font-size: 0.875rem;
+}
+
+.atom-alert[data-size="lg"] {
+    min-height: 52px;
+    padding: 17px 19px;
+    font-size: 1.05rem;
+}
+
+.atom-alert[data-variant="primary"] {
+    --atom-alert-color: var(--atom-color-primary);
+    --atom-alert-bg: var(--atom-color-primary);
+    --atom-alert-fg: var(--atom-color-primary-content);
+    --atom-alert-soft-bg: var(--atom-color-base-100);
+    --atom-alert-soft-fg: var(--atom-color-primary-text);
+    --atom-alert-border: color-mix(in oklab, var(--atom-alert-bg), #000 6%);
+}
+
+.atom-alert[data-variant="secondary"] {
+    --atom-alert-color: var(--atom-color-secondary);
+    --atom-alert-bg: var(--atom-color-secondary);
+    --atom-alert-fg: var(--atom-color-secondary-content);
+    --atom-alert-soft-bg: var(--atom-color-base-100);
+    --atom-alert-soft-fg: var(--atom-color-secondary-text);
+    --atom-alert-border: color-mix(in oklab, var(--atom-alert-bg), #000 6%);
+}
+
+.atom-alert[data-variant="success"] {
+    --atom-alert-color: var(--atom-color-success);
+    --atom-alert-bg: var(--atom-color-success);
+    --atom-alert-fg: var(--atom-color-success-content);
+    --atom-alert-soft-bg: var(--atom-color-base-100);
+    --atom-alert-soft-fg: var(--atom-color-success-text);
+    --atom-alert-border: color-mix(in oklab, var(--atom-alert-bg), #000 6%);
+}
+
+.atom-alert[data-variant="info"] {
+    --atom-alert-color: var(--atom-color-info);
+    --atom-alert-bg: var(--atom-color-info);
+    --atom-alert-fg: var(--atom-color-info-content);
+    --atom-alert-soft-bg: var(--atom-color-base-100);
+    --atom-alert-soft-fg: var(--atom-color-info-text);
+    --atom-alert-border: color-mix(in oklab, var(--atom-alert-bg), #000 6%);
+}
+
+.atom-alert[data-variant="warning"] {
+    --atom-alert-color: var(--atom-color-warning);
+    --atom-alert-bg: var(--atom-color-warning);
+    --atom-alert-fg: var(--atom-color-warning-content);
+    --atom-alert-soft-bg: var(--atom-color-base-100);
+    --atom-alert-soft-fg: var(--atom-color-warning-text);
+    --atom-alert-border: color-mix(in oklab, var(--atom-alert-bg), #000 6%);
+}
+
+.atom-alert[data-variant="danger"] {
+    --atom-alert-color: var(--atom-color-danger);
+    --atom-alert-bg: var(--atom-color-danger);
+    --atom-alert-fg: var(--atom-color-danger-content);
+    --atom-alert-soft-bg: var(--atom-color-base-100);
+    --atom-alert-soft-fg: var(--atom-color-danger-text);
+    --atom-alert-border: color-mix(in oklab, var(--atom-alert-bg), #000 6%);
+}
+
+.atom-alert[data-appearance="soft"] {
+    border-color: color-mix(in oklab, var(--atom-alert-color) 24%, var(--atom-alert-soft-bg));
+    background: color-mix(in oklab, var(--atom-alert-color) 10%, var(--atom-alert-soft-bg));
+    color: var(--atom-alert-soft-fg);
+}
+
+.atom-alert[data-appearance="outline"] {
+    border-color: var(--atom-alert-color);
+    background: transparent;
+    color: var(--atom-alert-soft-fg);
+}
+
+.atom-alert[data-appearance="ghost"] {
+    border-color: transparent;
+    background: transparent;
+    color: var(--atom-alert-soft-fg);
+}
+
+.atom-toast-region {
+    position: fixed;
+    z-index: 60;
+    display: grid;
+    gap: var(--atom-space-2);
+    width: min(360px, calc(100vw - 32px));
+    pointer-events: none;
+}
+
+.atom-toast-region[data-position="top-end"] {
+    top: 16px;
+    right: 16px;
+}
+
+.atom-toast-region[data-position="top-start"] {
+    top: 16px;
+    left: 16px;
+}
+
+.atom-toast-region[data-position="bottom-end"] {
+    right: 16px;
+    bottom: 16px;
+}
+
+.atom-toast-region[data-position="bottom-start"] {
+    bottom: 16px;
+    left: 16px;
+}
+
+.atom-toast {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--atom-space-3);
+    padding: 13px 14px;
+    border: 1px solid var(--atom-color-line);
+    border-radius: var(--atom-radius);
+    background: var(--atom-color-surface);
+    color: var(--atom-color-text);
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+    pointer-events: auto;
+    animation: atom-toast-bottom-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.atom-toast-region[data-position^="top"] .atom-toast {
+    animation-name: atom-toast-top-in;
+}
+
+.atom-toast-region[data-atom-leaving] {
+    pointer-events: none;
+}
+
+.atom-toast-region[data-atom-leaving] .atom-toast {
+    animation: atom-toast-bottom-out 140ms ease-in both;
+}
+
+.atom-toast-region[data-atom-leaving][data-position^="top"] .atom-toast {
+    animation-name: atom-toast-top-out;
+}
+
+.atom-toast__content {
+    display: grid;
+    gap: var(--atom-space-1);
+    min-width: 0;
+}
+
+.atom-toast__title {
+    display: block;
+    font-weight: 750;
+}
+
+.atom-toast__description,
+.atom-toast__body {
+    margin: 0;
+    color: var(--atom-color-muted);
+}
+
+.atom-toast__actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--atom-space-2);
+}
+
+.atom-toast[data-variant="success"] {
+    border-color: var(--atom-color-success-line);
+    background: var(--atom-color-success-soft);
+    color: var(--atom-color-success-text);
+}
+
+.atom-toast[data-variant="info"] {
+    border-color: var(--atom-color-info-line);
+    background: var(--atom-color-info-soft);
+    color: var(--atom-color-info-text);
+}
+
+.atom-toast[data-variant="warning"] {
+    border-color: var(--atom-color-warning-line);
+    background: var(--atom-color-warning-soft);
+    color: var(--atom-color-warning-text);
+}
+
+.atom-toast[data-variant="danger"] {
+    border-color: var(--atom-color-danger-line);
+    background: var(--atom-color-danger-soft);
+    color: var(--atom-color-danger-text);
+}
+
+.atom-toast[data-variant="success"] .atom-toast__description,
+.atom-toast[data-variant="success"] .atom-toast__body,
+.atom-toast[data-variant="info"] .atom-toast__description,
+.atom-toast[data-variant="info"] .atom-toast__body,
+.atom-toast[data-variant="warning"] .atom-toast__description,
+.atom-toast[data-variant="warning"] .atom-toast__body,
+.atom-toast[data-variant="danger"] .atom-toast__description,
+.atom-toast[data-variant="danger"] .atom-toast__body {
+    color: inherit;
+}
+
+.atom-snackbar-region {
+    position: fixed;
+    z-index: 65;
+    width: min(520px, calc(100vw - 32px));
+    pointer-events: none;
+}
+
+.atom-snackbar-region[data-position="bottom-center"] {
+    right: 50%;
+    bottom: 16px;
+    transform: translateX(50%);
+}
+
+.atom-snackbar-region[data-position="bottom-start"] {
+    bottom: 16px;
+    left: 16px;
+}
+
+.atom-snackbar-region[data-position="bottom-end"] {
+    right: 16px;
+    bottom: 16px;
+}
+
+.atom-snackbar-region[data-position="top-center"] {
+    top: 16px;
+    right: 50%;
+    transform: translateX(50%);
+}
+
+.atom-snackbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--atom-space-3);
+    min-height: 48px;
+    padding: 10px 12px 10px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--atom-radius);
+    background: #111827;
+    color: #f9fafb;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.24);
+    pointer-events: auto;
+    animation: atom-snackbar-bottom-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.atom-snackbar-region[data-position^="top"] .atom-snackbar {
+    animation-name: atom-snackbar-top-in;
+}
+
+.atom-snackbar-region[data-atom-leaving] {
+    pointer-events: none;
+}
+
+.atom-snackbar-region[data-atom-leaving] .atom-snackbar {
+    animation: atom-snackbar-bottom-out 140ms ease-in both;
+}
+
+.atom-snackbar-region[data-atom-leaving][data-position^="top"] .atom-snackbar {
+    animation-name: atom-snackbar-top-out;
+}
+
+.atom-snackbar__message {
+    min-width: 0;
+    line-height: 1.45;
+}
+
+.atom-snackbar__actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: var(--atom-space-2);
+}
+
+.atom-snackbar__actions .atom-button {
+    border-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
+.atom-snackbar__actions .atom-button:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.atom-snackbar[data-variant="success"] {
+    background: var(--atom-color-success-text);
+}
+
+.atom-snackbar[data-variant="info"] {
+    background: var(--atom-color-info-text);
+}
+
+.atom-snackbar[data-variant="warning"] {
+    background: var(--atom-color-warning-text);
+}
+
+.atom-snackbar[data-variant="danger"] {
+    background: var(--atom-color-danger-text);
+}
+
+@keyframes atom-toast-top-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+}
+
+@keyframes atom-toast-bottom-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+@keyframes atom-snackbar-top-in {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+}
+
+@keyframes atom-snackbar-bottom-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+@keyframes atom-toast-top-out {
+    to {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+}
+
+@keyframes atom-toast-bottom-out {
+    to {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+@keyframes atom-snackbar-top-out {
+    to {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+}
+
+@keyframes atom-snackbar-bottom-out {
+    to {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .atom-toast,
+    .atom-snackbar {
+        animation: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .atom-snackbar {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .atom-snackbar__actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

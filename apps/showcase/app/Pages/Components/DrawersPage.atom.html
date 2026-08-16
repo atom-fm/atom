@@ -1,0 +1,47 @@
+<ShowcasePageHeader title="Drawers" description="Drawers provide contextual content and actions without replacing the current page." badge="Overlay" />
+
+<Stack gap="md">
+    <ComponentExample title="Details drawer" description="Drawers open from the end edge by default and can bind directly to a DrawerModel.">
+        <Button atom:action="detailsDrawer.open(42)">View article details</Button>
+
+        <Drawer :model="$this->detailsDrawer" title="Article details" description="Review contextual information without leaving the current page." closeAction="detailsDrawer.close()">
+            <Stack gap="md">
+                <Alert variant="info" title="Selected article" description="Article 42 is currently in draft." />
+                <Stack gap="sm">
+                    <strong>Publishing checklist</strong>
+                    <span>Summary and category are complete.</span>
+                    <span>The publication date has not been selected.</span>
+                </Stack>
+            </Stack>
+
+            <Drawer.Actions>
+                <Button variant="ghost" atom:action="detailsDrawer.close()">Close</Button>
+                <Button atom:action="detailsDrawer.close()">Edit article</Button>
+            </Drawer.Actions>
+        </Drawer>
+    </ComponentExample>
+
+    <ComponentExample title="Start drawer" description="Use start placement for navigation or filters that conceptually enter from the leading edge.">
+        <Button variant="secondary" atom:action="filtersDrawer.open()">Open filters</Button>
+
+        <Drawer :model="$this->filtersDrawer" position="start" size="sm" title="Filter articles" description="Choose which articles appear in the list." closeAction="filtersDrawer.close()">
+            <Stack gap="md">
+                <Stack gap="sm">
+                    <strong>Status</strong>
+                    <Inline gap="sm">
+                        <Badge variant="primary">All</Badge>
+                        <Badge>Draft</Badge>
+                        <Badge>Published</Badge>
+                    </Inline>
+                </Stack>
+                <Divider />
+                <span>Additional filter controls can be composed inside the scrollable drawer body.</span>
+            </Stack>
+
+            <Drawer.Actions>
+                <Button variant="ghost" atom:action="filtersDrawer.close()">Reset</Button>
+                <Button atom:action="filtersDrawer.close()">Apply filters</Button>
+            </Drawer.Actions>
+        </Drawer>
+    </ComponentExample>
+</Stack>

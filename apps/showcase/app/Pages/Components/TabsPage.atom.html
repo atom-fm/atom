@@ -1,0 +1,37 @@
+<ShowcasePageHeader title="Tabs" description="Tabs can be plain links to the same page, letting URL state decide which content renders." badge="Primitive" />
+
+<Stack gap="md">
+    <ComponentExample title="URL backed tabs" description="Each tab points to the same page with a different query value.">
+        <Stack gap="sm">
+            <Tabs :active="$this->tab">
+                <Tab name="overview" label="Overview" href="/components/tabs?tab=overview" atom:navigate atom:preserve-state>Overview tab content is rendered from the current URL.</Tab>
+                <Tab name="drafts" label="Drafts" href="/components/tabs?tab=drafts" atom:navigate atom:preserve-state>Drafts tab content is rendered from the current URL.</Tab>
+                <Tab name="settings" label="Settings" href="/components/tabs?tab=settings" atom:navigate atom:preserve-state>Settings tab content is rendered from the current URL.</Tab>
+            </Tabs>
+        </Stack>
+    </ComponentExample>
+
+    <ComponentExample title="Action backed tabs" description="TabsModel stores active tab state and Tabs can generate the action for each tab.">
+        <Tabs :model="$this->localTabs" action="localTabs.select('{name}')">
+            <Tab name="preview" label="Preview">Preview is the active tab stored in page state.</Tab>
+            <Tab name="source" label="Source">Source tab content changed without changing the URL.</Tab>
+            <Tab name="history" label="History">History tab content is rendered from the same Tabs component.</Tab>
+        </Tabs>
+    </ComponentExample>
+
+    <ComponentExample title="Icons" description="Set icon on a tab when a familiar symbol helps distinguish compact sections.">
+        <Tabs :model="$this->iconTabs" action="iconTabs.select('{name}')">
+            <Tab name="preview" label="Preview" icon="lucide:eye">Preview tab with an icon.</Tab>
+            <Tab name="source" label="Source" icon="lucide:code-2">Source tab with an icon.</Tab>
+            <Tab name="history" label="History" icon="lucide:history">History tab with an icon.</Tab>
+        </Tabs>
+    </ComponentExample>
+
+    <ComponentExample title="Badges" description="Set badge and badgeVariant to show compact counts or status alongside a tab label.">
+        <Tabs :model="$this->badgeTabs" action="badgeTabs.select('{name}')">
+            <Tab name="inbox" label="Inbox" badge="12" badgeVariant="danger">Inbox contains 12 unread messages.</Tab>
+            <Tab name="drafts" label="Drafts" badge="4" badgeVariant="warning">Drafts contains 4 unfinished items.</Tab>
+            <Tab name="resolved" label="Resolved" badge="28" badgeVariant="success">Resolved contains 28 completed items.</Tab>
+        </Tabs>
+    </ComponentExample>
+</Stack>

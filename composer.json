@@ -1,36 +1,31 @@
 {
-    "name": "atom/framework",
-    "description": "Atom Framework",
-    "keywords": [
-        "framework",
-        "Atom"
-    ],
+    "name": "atom/monorepo",
+    "type": "project",
+    "description": "Development workspace for the Atom framework, packages, and applications",
     "license": "MIT",
-    "require": {
-        "php": "^8.4",
-        "symfony/mailer": "^8.0.12",
-        "dragonmantank/cron-expression": "^3.6"
-    },
-    "require-dev": {
-        "phpunit/phpunit": "^11.0",
-        "phpstan/phpstan": "^2.2"
-    },
-    "autoload": {
-        "psr-4": {
-            "Atom\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Atom\\Tests\\": "tests/"
-        }
-    },
     "scripts": {
-        "test": "phpunit",
-        "analyse": "phpstan analyse --memory-limit=512M",
+        "install:framework": "composer --working-dir=packages/framework install",
+        "install:starter": "composer --working-dir=packages/starter install",
+        "install:sample": "composer --working-dir=apps/sample install",
+        "install:showcase": "composer --working-dir=apps/showcase install",
+        "setup": [
+            "@install:framework",
+            "@install:starter",
+            "@install:sample",
+            "@install:showcase"
+        ],
+        "framework:check": "composer --working-dir=packages/framework check",
+        "starter:validate": "composer --working-dir=packages/starter validate --strict",
+        "sample:validate": "composer --working-dir=apps/sample validate --strict",
+        "showcase:validate": "composer --working-dir=apps/showcase validate --strict",
+        "validate:packages": [
+            "@starter:validate",
+            "@sample:validate",
+            "@showcase:validate"
+        ],
         "check": [
-            "@analyse",
-            "@test"
+            "@framework:check",
+            "@validate:packages"
         ]
     }
 }

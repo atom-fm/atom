@@ -1,0 +1,5 @@
+/vendor
+/resource/cache
+/storage/cache
+/storage/*.lock
+/storage/*.sqlite

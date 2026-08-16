@@ -119,6 +119,7 @@ If either side is missing it, Atom falls back to updating `body`.
 - `atom:navigate`
 - `atom:action`
 - `atom:submit`
+- `atom:transition`
 - `atom:update-root`
 - page state submission
 - `Atom.update`
@@ -143,6 +144,25 @@ Atom.setUpdateEngine({
     }
 });
 ```
+
+## Exit Transitions
+
+Add `atom:transition` to an element when the MorphDOM adapter should defer its removal for a CSS exit animation:
+
+```html
+<div class="app-overlay" atom:transition>...</div>
+```
+
+When the next server response omits the element, the adapter adds `data-atom-leaving`, makes the element inert and hidden from assistive technology, and waits for its finite CSS animations before removing it:
+
+```css
+.app-overlay[data-atom-leaving] {
+    animation: app-overlay-out 160ms ease-in both;
+    pointer-events: none;
+}
+```
+
+Put the attribute on the outer lifecycle boundary only. Animations on its descendants are included automatically. A timeout prevents cancelled or stalled animations from leaving stale elements behind, and a rapid update that restores the element cancels its pending removal. Without the MorphDOM adapter, removal remains immediate.
 
 ## Design Rule
 

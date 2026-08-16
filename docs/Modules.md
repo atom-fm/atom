@@ -175,6 +175,8 @@ Components can use dotted names to keep module UI tags grouped:
 $context->component("BlogTools.AppShell", AppShell::class);
 ```
 
+Components registered through a module context are private to that module. Every module receives a sealed child registry that falls back to application-global components. A local definition takes precedence over a global tag with the same name, without changing the application registry.
+
 When a module provides several components, expose them as a reusable `ComponentSet` and import the set through the context:
 
 ```php
@@ -192,7 +194,16 @@ public function register(ModuleContext $context): void
 }
 ```
 
-The set separates component definitions from where they are registered. This allows another module to reuse the mappings and prepares them for module-local registry scopes.
+The set separates component definitions from where they are registered. Another module can import the same mappings without exposing those tags to the application.
+
+Use an explicit export only when a module intentionally provides tags to ordinary application templates:
+
+```php
+$context->exportComponent("BlogCard", BlogCard::class);
+$context->exportComponents(BlogPublicComponents::definitions());
+```
+
+The built-in Components and Client modules export their definitions because applications register them specifically to use their tags. Feature modules such as Accounts and API Explorer keep their implementation components private.
 
 Then a module page template can render:
 
@@ -201,6 +212,23 @@ Then a module page template can render:
     <h1>{{ $this->title }}</h1>
 </BlogTools.AppShell>
 ```
+
+## Module Route Scope
+
+Every route, discovered page, page action, and new resource route registered through `ModuleContext` receives the same immutable `ModuleScope` metadata. A matched route exposes its owner directly:
+
+```php
+$scope = $matchedRoute->moduleScope();
+
+$scope?->id;
+$scope?->module;
+$scope?->basePath;
+$scope?->components;
+```
+
+During dispatch, `ModuleScope` and its `ComponentRegistry` are available through dependency injection. Page rendering automatically uses that registry, including nested components and layouts. Routes registered directly on the application router have no module scope and use the application registry.
+
+Calling `$context->root()` changes only where a module registers a route; it preserves the owning module scope. If a shared resource route already exists, its original owner remains unchanged.
 
 Modules can also register services into the application container:
 

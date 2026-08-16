@@ -1,4 +1,7 @@
-/vendor
-/resource/cache
+**/vendor
+**/resource/cache
+**/storage/cache
+**/storage/*.sqlite
+**/storage/*.lock
 /.phpunit.result.cache
 /Test.php

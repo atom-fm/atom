@@ -69,7 +69,22 @@ public function register(ModuleContext $context): void
 
 Sets are immutable. Add a definition by creating a derived set with `with()`, or combine disjoint sets with `merge()`. Duplicate tags and classes that do not implement `ComponentInterface` fail immediately. Registry imports are atomic: if any imported tag is already registered, none of the set is added.
 
-The built-in `Components`, `Client`, `Accounts`, and `ApiExplorer` modules expose their mappings through a `definitions()` method. This contract will also allow module-local registries to import shared component sets without exporting them to the application.
+The built-in `Components`, `Client`, `Accounts`, and `ApiExplorer` modules expose their mappings through a `definitions()` method. Module imports are local by default; use `ModuleContext::exportComponents()` only for definitions intended for application templates.
+
+## Registry Scopes
+
+Application components live in the global registry. Each module owns a sealed child registry:
+
+```text
+Module component registry
+    ├── private module definitions
+    ├── privately imported component sets
+    └── parent: application registry
+```
+
+Resolution checks the module registry first and then its application parent. This allows a module to use a stable local `Table` definition even when the application has registered another component with the same tag. Private module tags are not visible to application pages or other modules.
+
+The registry is sealed after module registration, preventing code that later discovers the module through a route from changing its component definitions.
 
 Framework internals may also use component class names directly, but application templates should usually prefer registered names.
 
@@ -87,6 +102,7 @@ The Components module registers its default UI and form component set:
 <Divider>or</Divider>
 <Details summary="Advanced options">...</Details>
 <Panel title="Articles">...</Panel>
+<Drawer :model="$this->drawer" title="Article details" closeAction="drawer.close()">...</Drawer>
 <Stack gap="sm">...</Stack>
 <Inline align="center" justify="between">...</Inline>
 <Form submit="save" csrf>...</Form>
@@ -97,6 +113,9 @@ The Components module registers its default UI and form component set:
 <TextField label="Title" name="title" maxlength="120" />
 <TextAreaField label="Body" name="body" />
 <SelectField label="Category" name="category_id" bind="categoryId" :options="$this->categories" />
+<PasswordField label="Password" name="password" autocomplete="current-password" />
+<FileField label="Attachment" name="attachment" accept=".pdf,image/*" />
+<InputGroup>...</InputGroup>
 <CheckField label="Published" name="isPublished" />
 <HiddenField name="id" />
 <FieldError name="title" />
@@ -124,9 +143,35 @@ Use the optional asset components from an `.atom.html` layout when the Client an
 
 Use `Badge` for compact status or metadata, and `Tag` for pill-shaped classification labels. `Divider` supports `horizontal` and `vertical` orientations.
 
+`Drawer` is a modal side surface with `start` or `end` placement, `sm`, `md`, or `lg` sizing, and an optional `Drawer.Actions` fragment. Bind a `DrawerModel` when page actions should open and close it while preserving an associated value.
+
+`Tab` accepts optional `icon`, `badge`, and `badgeVariant` values. Icons use the same resolver as the standalone `Icon` component, while tab badges render with the compact soft badge style.
+
 `TextInput` and `TextArea` read values from the current page property matching `name`, unless a `value` attribute is provided. They render framework control classes such as `atom-input` and `atom-textarea`. When validation errors exist, they render `aria-invalid`, `aria-describedby`, and the `is-invalid` class.
 
-`TextField`, `TextAreaField`, `SelectField`, and `CheckField` are composite field entries. They render the field wrapper, control, validation state, and field error.
+`TextField`, `TextAreaField`, `SelectField`, `CheckField`, `RadioField`, and `SwitchField` are composite field entries. They render the field wrapper, control, validation state, help text, and field error.
+
+Composite fields forward ordinary HTML attributes to their controls. Use native attributes such as `required`, `readonly`, `disabled`, `placeholder`, and `autocomplete` instead of framework-specific equivalents:
+
+```html
+<TextField label="Email" name="email" type="email" autocomplete="email" required />
+<TextField label="Generated slug" name="slug" readonly />
+<SwitchField label="Unavailable" name="enabled" disabled />
+```
+
+Use `InputGroup` with `InputGroup.Prefix` and `InputGroup.Suffix` fragments when a raw control needs an icon, unit, URL segment, or other compact adornment:
+
+```html
+<Field label="Website" name="website">
+    <InputGroup>
+        <InputGroup.Prefix>https://</InputGroup.Prefix>
+        <TextInput name="website" />
+        <InputGroup.Suffix>.com</InputGroup.Suffix>
+    </InputGroup>
+</Field>
+```
+
+`PasswordField` renders a password input with a progressively enhanced reveal control by default. Set `reveal` to `false` when the toggle is not appropriate. `FileField` provides the standard composite-field label, help, and validation structure around a native file input. Forms that submit files must use `enctype="multipart/form-data"`.
 
 `CheckField` renders a hidden unchecked fallback value before the checkbox, so boolean form models receive `"0"` when the box is unchecked and `"1"` when checked.
 

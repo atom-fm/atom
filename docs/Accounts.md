@@ -4,6 +4,14 @@
 
 The optional Accounts module provides login, registration, password-recovery, and logout pages on top of Atom's [identity and authentication](Identity.md) foundation. Each form uses Atom's page foundation: `get()` prepares the initial page and a `#[PageAction]` handles submission. The module does not impose a user model or database schema; it provides an optional publish bundle with application-owned defaults.
 
+Once an application binds `AccountManagerInterface`, the module also exposes a user creation command:
+
+```powershell
+php atom accounts:user:create admin@example.com change-me "Admin User"
+```
+
+The command uses the same account manager as browser registration, so duplicate-login and persistence rules remain application-owned.
+
 ## Requirements
 
 The application must bind `IdentityProviderInterface` to its user adapter before using the module. To enable registration and password recovery, it can also bind `AccountManagerInterface`:

@@ -13,15 +13,17 @@ The current direction is:
 - a lightweight database/query/ORM layer with migrations and model base classes
 - console command discovery
 
-The repository contains the framework, a sample API application, and a component showcase:
+The repository contains the framework, a minimal starter application, a sample API application, and a component showcase:
 
 ```text
 .
-├── src/          Framework source
-├── tests/        Framework tests
-├── docs/         Framework documentation
-├── sample/       Sample application and API
-└── showcase/     Framework component showcase
+├── packages/
+│   ├── framework/  Core Composer package and tests
+│   └── starter/    Minimal SQLite application with Accounts login
+├── apps/
+│   ├── sample/     Sample application and API
+│   └── showcase/   Framework component showcase
+└── docs/            Framework documentation
 ```
 
 ## Requirements
@@ -32,10 +34,10 @@ The repository contains the framework, a sample API application, and a component
 
 ## Install framework dependencies
 
-From the framework root:
+From the repository root:
 
 ```powershell
-composer install
+composer setup
 composer check
 ```
 
@@ -46,7 +48,7 @@ Run checks individually with `composer analyse` and `composer test`.
 From the framework root:
 
 ```powershell
-cd sample
+cd apps/sample
 composer install
 copy .env.example .env
 php atom migrate:fresh
@@ -69,7 +71,7 @@ The API Explorer lists the sample API routes and lets you inspect and execute th
 From the framework root, in a separate terminal if the sample API is still running:
 
 ```powershell
-cd showcase
+cd apps/showcase
 composer install
 php -S 127.0.0.1:8022 -t public
 ```
@@ -81,7 +83,7 @@ Open `http://127.0.0.1:8022/`. Use the showcase navigation to browse the framewo
 The sample app uses the newer APIs:
 
 ```text
-sample/app/
+apps/sample/app/
 ├── Application.php
 ├── Components/
 │   ├── Layout.php

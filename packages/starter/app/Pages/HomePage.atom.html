@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Atom starter</title>
+</head>
+<body>
+    <main>
+        <h1>Atom starter</h1>
+        <If condition="$this->name !== ''">
+            <p>Signed in as {{ $this->name }}.</p>
+        </If>
+        <If condition="$this->name === ''">
+            <p><a href="/account/login">Sign in</a></p>
+        </If>
+    </main>
+</body>
+</html>
