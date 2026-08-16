@@ -86,3 +86,27 @@ jobs:
                       git tag "$GITHUB_REF_NAME"
                       git push origin "refs/tags/$GITHUB_REF_NAME"
                   fi
+
+            - name: Publish Lucide
+              env:
+                  PACKAGE_SPLIT_TOKEN: ${{ secrets.PACKAGE_SPLIT_TOKEN }}
+              run: |
+                  target="$RUNNER_TEMP/lucide"
+                  git clone "https://x-access-token:${PACKAGE_SPLIT_TOKEN}@github.com/atom-fm/lucide.git" "$target"
+                  rsync -a --delete \
+                      --exclude='.git/' \
+                      --exclude='vendor/' \
+                      --exclude='.phpunit.cache/' \
+                      packages/lucide/ "$target/"
+                  cd "$target"
+                  mv composer.dist.json composer.json
+                  composer update --no-interaction --no-progress
+                  git add --all
+                  if ! git diff --cached --quiet; then
+                      git commit -m "Sync Lucide from atom-fm/atom@${GITHUB_SHA::7}"
+                      git push origin HEAD:master
+                  fi
+                  if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+                      git tag "$GITHUB_REF_NAME"
+                      git push origin "refs/tags/$GITHUB_REF_NAME"
+                  fi
