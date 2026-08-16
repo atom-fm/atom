@@ -4,15 +4,15 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b3693c58f9ca79b2357f0db67763b3aa",
+    "content-hash": "5cfd9a5f5da0e3ebf7ac126887da1eb9",
     "packages": [
         {
-            "name": "atom/framework",
+            "name": "atom-fm/framework",
             "version": "dev-master",
             "dist": {
                 "type": "path",
                 "url": "../framework",
-                "reference": "fe211163f035bb07e9e012a255e361b44b7a3ca9"
+                "reference": "6fc1f04af25d7dac50f7b948e34655852e395cf4"
             },
             "require": {
                 "dragonmantank/cron-expression": "^3.6",
@@ -1172,7 +1172,7 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
-        "atom/framework": 20
+        "atom-fm/framework": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

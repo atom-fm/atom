@@ -1,0 +1,88 @@
+name: Publish packages
+
+on:
+    push:
+        branches:
+            - master
+        tags:
+            - "v*"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: publish-packages
+    cancel-in-progress: false
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+
+        steps:
+            - name: Check out monorepo
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Set up PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.4"
+                  extensions: pdo_sqlite
+                  coverage: none
+                  tools: composer:v2
+
+            - name: Configure publisher identity
+              run: |
+                  git config --global user.name "atom-fm package publisher"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Publish framework
+              env:
+                  PACKAGE_SPLIT_TOKEN: ${{ secrets.PACKAGE_SPLIT_TOKEN }}
+              run: |
+                  target="$RUNNER_TEMP/framework"
+                  git clone "https://x-access-token:${PACKAGE_SPLIT_TOKEN}@github.com/atom-fm/framework.git" "$target"
+                  rsync -a --delete \
+                      --exclude='.git/' \
+                      --exclude='vendor/' \
+                      --exclude='resource/cache/' \
+                      packages/framework/ "$target/"
+                  cd "$target"
+                  git add --all
+                  if ! git diff --cached --quiet; then
+                      git commit -m "Sync framework from atom-fm/atom@${GITHUB_SHA::7}"
+                      git push origin HEAD:master
+                  fi
+                  if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+                      git tag "$GITHUB_REF_NAME"
+                      git push origin "refs/tags/$GITHUB_REF_NAME"
+                  fi
+
+            - name: Publish starter
+              env:
+                  PACKAGE_SPLIT_TOKEN: ${{ secrets.PACKAGE_SPLIT_TOKEN }}
+              run: |
+                  target="$RUNNER_TEMP/starter"
+                  git clone "https://x-access-token:${PACKAGE_SPLIT_TOKEN}@github.com/atom-fm/starter.git" "$target"
+                  rsync -a --delete \
+                      --exclude='.git/' \
+                      --exclude='vendor/' \
+                      --exclude='storage/cache/' \
+                      --exclude='storage/*.sqlite' \
+                      --exclude='storage/*.lock' \
+                      packages/starter/ "$target/"
+                  cd "$target"
+                  mv composer.dist.json composer.json
+                  composer update --no-interaction --no-progress
+                  git add --all
+                  if ! git diff --cached --quiet; then
+                      git commit -m "Sync starter from atom-fm/atom@${GITHUB_SHA::7}"
+                      git push origin HEAD:master
+                  fi
+                  if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+                      git tag "$GITHUB_REF_NAME"
+                      git push origin "refs/tags/$GITHUB_REF_NAME"
+                  fi

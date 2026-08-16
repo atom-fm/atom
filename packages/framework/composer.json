@@ -1,5 +1,5 @@
 {
-    "name": "atom/framework",
+    "name": "atom-fm/framework",
     "type": "library",
     "description": "Atom Framework",
     "keywords": [

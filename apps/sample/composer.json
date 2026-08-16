@@ -16,14 +16,14 @@
             "options": {
                 "symlink": true,
                 "versions": {
-                    "atom/framework": "dev-master"
+                    "atom-fm/framework": "dev-master"
                 }
             }
         }
     ],
     "require": {
         "php": "^8.4",
-        "atom/framework": "dev-master"
+        "atom-fm/framework": "dev-master"
     },
     "require-dev": {
         "filp/whoops": "^2.3"

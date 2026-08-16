@@ -1,5 +1,5 @@
 {
-    "name": "atom/starter",
+    "name": "atom-fm/starter",
     "type": "project",
     "description": "A minimal Atom application with SQLite and Accounts",
     "license": "MIT",
@@ -8,8 +8,8 @@
     "repositories": [{
         "type": "path",
         "url": "../framework",
-        "options": {"symlink": true, "versions": {"atom/framework": "dev-master"}}
+        "options": {"symlink": true, "versions": {"atom-fm/framework": "dev-master"}}
     }],
-    "require": {"php": "^8.4", "atom/framework": "dev-master"},
+    "require": {"php": "^8.4", "atom-fm/framework": "dev-master"},
     "autoload": {"psr-4": {"App\\": "app/"}}
 }

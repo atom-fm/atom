@@ -1,0 +1,25 @@
+{
+    "name": "atom-fm/starter",
+    "type": "project",
+    "description": "A minimal Atom application with SQLite and Accounts",
+    "license": "MIT",
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/atom-fm/framework"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "ext-pdo": "*",
+        "ext-pdo_sqlite": "*",
+        "atom-fm/framework": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    }
+}

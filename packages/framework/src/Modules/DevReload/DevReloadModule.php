@@ -14,7 +14,7 @@ final readonly class DevReloadModule implements ModuleInterface
      * @param string[] $watchPaths
      */
     public function __construct(
-        private array $watchPaths = ["@root/app", "@root/public", "@root/vendor/atom/framework/src"],
+        private array $watchPaths = ["@root/app", "@root/public", "@root/vendor/atom-fm/framework/src"],
         private string $resourcePath = "/resources"
     ) {
     }
