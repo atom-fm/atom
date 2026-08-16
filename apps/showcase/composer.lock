@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ee0f4563abc43d3142284ed2d8cf69b3",
+    "content-hash": "9ef550e5adcef3a458ebab4f1ba69e92",
     "packages": [
         {
             "name": "atom-fm/framework",
@@ -54,6 +54,46 @@
                 "Atom",
                 "framework"
             ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "atom-fm/lucide",
+            "version": "dev-master",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/lucide",
+                "reference": "94852d5e447f9dd6ce4e07bc4a31b5bdc711106b"
+            },
+            "require": {
+                "atom-fm/framework": "dev-master",
+                "php": "^8.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Atom\\Lucide\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Atom\\Lucide\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Lucide icon resolver for Atom Framework",
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -1172,7 +1212,8 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
-        "atom-fm/framework": 20
+        "atom-fm/framework": 20,
+        "atom-fm/lucide": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

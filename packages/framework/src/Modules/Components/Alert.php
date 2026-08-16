@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Atom\Modules\Components;
 
 use Atom\Support\Paths;
+use Atom\Modules\Components\Icons\IconRegistry;
 use Atom\View\Component\AttributeBag;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\Fragment;
@@ -25,7 +26,10 @@ final class Alert implements ComponentInterface
     public string $role = "status";
     public string $class = "";
 
-    public function __construct(private ?Paths $paths = null)
+    public function __construct(
+        private ?Paths $paths = null,
+        private ?IconRegistry $icons = null
+    )
     {
     }
 
@@ -90,7 +94,7 @@ final class Alert implements ComponentInterface
             return "";
         }
 
-        $icon = Icon::from($this->icon, $this->paths);
+        $icon = Icon::from($this->icon, $this->paths, $this->icons);
         $icon->variant = $this->variant === "neutral" ? "" : $this->variant;
 
         return Html::tag("span", ["class" => "atom-alert__icon"], $icon->render());

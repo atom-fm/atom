@@ -141,6 +141,35 @@ Use the optional asset components from an `.atom.html` layout when the Client an
 
 `Avatar` renders an image when `src` is provided and otherwise derives up to two initials from `name`. `StatusDot` requires a `label` when its meaning is not also written next to it. `Details` uses native `<details>` disclosure behavior and does not require JavaScript.
 
+## Icons
+
+`Icon` supports child text or markup, public SVG URLs, local SVG paths resolved through `Paths`, data URIs, and font-icon class names. Named icon catalogues are optional packages registered by prefix.
+
+Install Lucide separately when an application wants the `lucide:` catalogue:
+
+```powershell
+composer require atom-fm/lucide
+```
+
+```php
+use Atom\Di\ServiceProviderRegistry;
+use Atom\Lucide\LucideServiceProvider;
+
+protected function services(ServiceProviderRegistry $providers): void
+{
+    $providers->add(LucideServiceProvider::class);
+}
+```
+
+The registered prefix works anywhere a Components module component accepts an icon:
+
+```html
+<Icon icon="lucide:search" />
+<Button icon="lucide:arrow-right">Continue</Button>
+```
+
+The core framework does not bundle any named icon catalogue. Using an unregistered prefix produces an explicit error.
+
 Use `Badge` for compact status or metadata, and `Tag` for pill-shaped classification labels. `Divider` supports `horizontal` and `vertical` orientations.
 
 `Drawer` is a modal side surface with `start` or `end` placement, `sm`, `md`, or `lg` sizing, and an optional `Drawer.Actions` fragment. Bind a `DrawerModel` when page actions should open and close it while preserving an associated value.

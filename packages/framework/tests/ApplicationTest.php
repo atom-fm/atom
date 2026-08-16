@@ -23,6 +23,9 @@ use Atom\Http\CorsOptions;
 use Atom\Http\MiddlewareRegistry;
 use Atom\Http\RequestIdMiddleware;
 use Atom\Page\PageRegistry;
+use Atom\Modules\Components\Icons\IconProviderInterface;
+use Atom\Modules\Components\Icons\IconRegistry;
+use Atom\Modules\Components\Icons\IconResolverInterface;
 use Atom\Profiler\Profile;
 use Atom\Profiler\Profiler;
 use Atom\Router\Route;
@@ -51,6 +54,7 @@ final class ApplicationTest extends TestCase
 
         $this->assertTrue($app->bootstrapped);
         $this->assertSame("ready", $app->getInjector()->get(TestApplicationMarker::class)->value);
+        $this->assertTrue($app->getInjector()->get(IconRegistry::class)->has("test"));
 
         $match = (new RouteMatcher($app->getRouter()))->match("GET", "/hello/Atom");
 
@@ -290,7 +294,7 @@ final class TestApplication extends Application
     }
 }
 
-final readonly class TestApplicationProvider implements ServiceProviderInterface
+final readonly class TestApplicationProvider implements ServiceProviderInterface, IconProviderInterface
 {
     public function __construct(private TestResponseEmitter $emitter)
     {
@@ -304,6 +308,16 @@ final readonly class TestApplicationProvider implements ServiceProviderInterface
 
         $bindings->bind(ResponseEmitterInterface::class)
             ->toValue($this->emitter);
+    }
+
+    public function icons(IconRegistry $icons): void
+    {
+        $icons->register("test", new class implements IconResolverInterface {
+            public function resolve(string $name): string
+            {
+                return "test:{$name}";
+            }
+        });
     }
 }
 

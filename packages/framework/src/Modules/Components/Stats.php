@@ -9,6 +9,7 @@ use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\Fragment;
 use Atom\View\Html;
 use Atom\Support\Paths;
+use Atom\Modules\Components\Icons\IconRegistry;
 
 final class Stats implements ComponentInterface
 {
@@ -21,7 +22,10 @@ final class Stats implements ComponentInterface
     public string $href = "";
     public string $class = "";
 
-    public function __construct(private ?Paths $paths = null)
+    public function __construct(
+        private ?Paths $paths = null,
+        private ?IconRegistry $icons = null
+    )
     {
     }
 
@@ -51,7 +55,7 @@ final class Stats implements ComponentInterface
             return "";
         }
 
-        return Icon::from($this->icon, $this->paths)->render();
+        return Icon::from($this->icon, $this->paths, $this->icons)->render();
     }
 
     private function main(): string

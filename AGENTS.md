@@ -32,7 +32,8 @@ Important module locations:
 
 ```text
 packages/framework/src/Modules/Client/       Atom browser runtime and MorphDOM adapter
-packages/framework/src/Modules/Components/   UI components, bundled Lucide icons, and component CSS
+packages/framework/src/Modules/Components/   UI components, generic icon resolution, and component CSS
+packages/lucide/                             Optional Lucide icon package and SVG catalogue
 packages/framework/src/Modules/Accounts/     Account and identity feature module
 packages/framework/src/Modules/ApiExplorer/  API Explorer feature module
 packages/framework/src/Modules/ErrorPages/   Default error rendering
@@ -75,7 +76,7 @@ packages/framework/src/Modules/ErrorPages/   Default error rendering
 - Register framework components in `Components::definitions()`.
 - Keep application and module-local components local unless they are intentionally exported.
 - Preserve component registry scoping: module registries are private, parent-aware, and sealed after registration.
-- Use bundled `lucide:name` icons in sample and showcase pages. Do not add local showcase SVG files for ordinary icons.
+- Use the optional `atom-fm/lucide` package in the showcase. Keep application-specific icons local to their application.
 - CSS classes owned by the framework use the `atom-` prefix and framework token variables.
 - Include keyboard focus treatment and `prefers-reduced-motion` behavior for interactive CSS.
 
@@ -109,7 +110,7 @@ When changing client assets:
 - Links required to demonstrate Buttons, Tabs, Pagination, Breadcrumbs, Cards, or navigation components should remain on the same showcase page.
 - Prefer realistic composed examples after the primitive examples.
 - Avoid placeholder wording once a component has a working example.
-- Reuse framework components and bundled Lucide icons rather than showcase-only assets.
+- Reuse framework components and the showcase's Lucide package rather than showcase-only copies of ordinary icons.
 
 ## Modules
 

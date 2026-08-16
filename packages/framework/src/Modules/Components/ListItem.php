@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Atom\Modules\Components;
 
 use Atom\Support\Paths;
+use Atom\Modules\Components\Icons\IconRegistry;
 use Atom\View\Component\AttributeBag;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\Fragment;
@@ -21,7 +22,10 @@ final class ListItem implements ComponentInterface
     public string $href = "";
     public string $class = "";
 
-    public function __construct(private ?Paths $paths = null)
+    public function __construct(
+        private ?Paths $paths = null,
+        private ?IconRegistry $icons = null
+    )
     {
     }
 
@@ -72,6 +76,6 @@ final class ListItem implements ComponentInterface
             return "";
         }
 
-        return Html::tag("div", ["class" => "atom-list-item__icon"], Icon::from($this->icon, $this->paths)->render());
+        return Html::tag("div", ["class" => "atom-list-item__icon"], Icon::from($this->icon, $this->paths, $this->icons)->render());
     }
 }

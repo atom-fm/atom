@@ -5,26 +5,32 @@
     "license": "MIT",
     "scripts": {
         "install:framework": "composer --working-dir=packages/framework install",
+        "install:lucide": "composer --working-dir=packages/lucide install",
         "install:starter": "composer --working-dir=packages/starter install",
         "install:sample": "composer --working-dir=apps/sample install",
         "install:showcase": "composer --working-dir=apps/showcase install",
         "setup": [
             "@install:framework",
+            "@install:lucide",
             "@install:starter",
             "@install:sample",
             "@install:showcase"
         ],
         "framework:check": "composer --working-dir=packages/framework check",
+        "lucide:test": "composer --working-dir=packages/lucide test",
         "starter:validate": "composer --working-dir=packages/starter validate --strict",
+        "lucide:validate": "composer --working-dir=packages/lucide validate --strict",
         "sample:validate": "composer --working-dir=apps/sample validate --strict",
         "showcase:validate": "composer --working-dir=apps/showcase validate --strict",
         "validate:packages": [
+            "@lucide:validate",
             "@starter:validate",
             "@sample:validate",
             "@showcase:validate"
         ],
         "check": [
             "@framework:check",
+            "@lucide:test",
             "@validate:packages"
         ]
     }

@@ -1,0 +1,1 @@
+{"version":2,"defects":[],"times":{"Atom\\Lucide\\Tests\\LucideIconResolverTest::testResolvesAnIconAsInlineSvg":0,"Atom\\Lucide\\Tests\\LucideIconResolverTest::testRejectsInvalidAndTraversalNames":0.001,"Atom\\Lucide\\Tests\\LucideIconResolverTest::testReportsMissingIcons":0,"Atom\\Lucide\\Tests\\LucideIconResolverTest::testProviderRegistersTheLucidePrefix":0.005}}

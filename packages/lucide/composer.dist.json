@@ -1,0 +1,23 @@
+{
+    "name": "atom-fm/lucide",
+    "type": "library",
+    "description": "Lucide icon resolver for Atom Framework",
+    "license": ["MIT", "ISC"],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/atom-fm/framework"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "atom-fm/framework": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "Atom\\Lucide\\": "src/"
+        }
+    }
+}

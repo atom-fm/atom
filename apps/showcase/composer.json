@@ -15,11 +15,22 @@
                     "atom-fm/framework": "dev-master"
                 }
             }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/lucide",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/lucide": "dev-master"
+                }
+            }
         }
     ],
     "require": {
         "php": "^8.4",
-        "atom-fm/framework": "dev-master"
+        "atom-fm/framework": "dev-master",
+        "atom-fm/lucide": "dev-master"
     },
     "autoload": {
         "psr-4": {

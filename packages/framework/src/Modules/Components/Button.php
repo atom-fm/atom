@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Atom\Modules\Components;
 
 use Atom\Support\Paths;
+use Atom\Modules\Components\Icons\IconRegistry;
 use Atom\View\Component\AttributeBag;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\Fragment;
@@ -27,7 +28,10 @@ final class Button implements ComponentInterface
     public bool $loading = false;
     public string $class = "";
 
-    public function __construct(private ?Paths $paths = null)
+    public function __construct(
+        private ?Paths $paths = null,
+        private ?IconRegistry $icons = null
+    )
     {
     }
 
@@ -78,7 +82,7 @@ final class Button implements ComponentInterface
 
     private function renderIcon(string $icon): string
     {
-        return Icon::from($icon, $this->paths)->render();
+        return Icon::from($icon, $this->paths, $this->icons)->render();
     }
 
 }

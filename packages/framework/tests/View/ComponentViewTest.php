@@ -53,6 +53,8 @@ use Atom\Modules\Components\SplitView;
 use Atom\Modules\Components\FormActions;
 use Atom\Modules\Components\Inline;
 use Atom\Modules\Components\Icon;
+use Atom\Modules\Components\Icons\IconRegistry;
+use Atom\Modules\Components\Icons\IconResolverInterface;
 use Atom\Modules\Components\InputGroup;
 use Atom\Modules\Components\Kbd;
 use Atom\Modules\Components\ListComponent;
@@ -322,11 +324,11 @@ final class ComponentViewTest extends TestCase
         $registry->register("Alert", Alert::class);
 
         $html = (new ViewRenderer(components: $registry))->render(
-            (new ViewParser())->parse('<Alert variant="danger" icon="lucide:triangle-alert" text="Careful &lt;Atom&gt;" />')
+            (new ViewParser())->parse('<Alert variant="danger" icon="fa-solid fa-triangle-exclamation" text="Careful &lt;Atom&gt;" />')
         );
 
         $this->assertStringContainsString(
-            '<div class="atom-alert" data-variant="danger" data-appearance="soft" role="status"><span class="atom-alert__icon"><span class="atom-icon" data-variant="danger"><svg',
+            '<div class="atom-alert" data-variant="danger" data-appearance="soft" role="status"><span class="atom-alert__icon"><span class="atom-icon" data-variant="danger"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>',
             $html
         );
         $this->assertStringContainsString(
@@ -1136,29 +1138,30 @@ final class ComponentViewTest extends TestCase
         $this->assertSame('<span class="atom-icon"><i class="fa-solid fa-file" aria-hidden="true"></i></span>', $html);
     }
 
-    public function testComponentsIconRendersBundledLucideIcon(): void
+    public function testComponentsIconRendersRegisteredPrefix(): void
     {
-        $registry = new ComponentRegistry();
-        $registry->register("Icon", Icon::class);
+        $icons = new IconRegistry();
+        $icons->register("test", new class implements IconResolverInterface {
+            public function resolve(string $name): string
+            {
+                return '<svg data-name="' . $name . '"></svg>';
+            }
+        });
 
-        $html = (new ViewRenderer(components: $registry))->render(
-            (new ViewParser())->parse('<Icon icon="lucide:search" />')
-        );
+        $html = Icon::from("test:search", icons: $icons)->render();
 
-        $this->assertStringStartsWith('<span class="atom-icon"><svg', $html);
-        $this->assertStringContainsString('class="lucide lucide-search"', $html);
-        $this->assertStringContainsString('<path d="m21 21-4.34-4.34" />', $html);
+        $this->assertSame('<span class="atom-icon"><svg data-name="search"></svg></span>', $html);
     }
 
     public function testComponentsIconFactoryUsesSingleIconValue(): void
     {
         $source = Icon::from("@app/Resources/icons/article.svg");
         $font = Icon::from("fa-solid fa-file");
-        $lucide = Icon::from("lucide:search");
+        $prefixed = Icon::from("test:search");
 
         $this->assertSame("@app/Resources/icons/article.svg", $source->icon);
         $this->assertSame("fa-solid fa-file", $font->icon);
-        $this->assertSame("lucide:search", $lucide->icon);
+        $this->assertSame("test:search", $prefixed->icon);
     }
 
     public function testComponentsIconCssKeepsDefaultIconsPlainAndFramesOnlySoftAppearance(): void
@@ -1407,8 +1410,8 @@ final class ComponentViewTest extends TestCase
         $html = (new ViewRenderer(components: $registry))->render(
             (new ViewParser())->parse(
                 '<Tabs active="inbox">' .
-                '<Tab name="inbox" label="Inbox" icon="lucide:inbox" badge="12" badgeVariant="danger">Messages</Tab>' .
-                '<Tab name="settings" label="Settings" icon="lucide:settings">Preferences</Tab>' .
+                '<Tab name="inbox" label="Inbox" icon="fa-solid fa-inbox" badge="12" badgeVariant="danger">Messages</Tab>' .
+                '<Tab name="settings" label="Settings" icon="fa-solid fa-gear">Preferences</Tab>' .
                 '</Tabs>'
             )
         );

@@ -38,6 +38,9 @@ use Atom\Module\ModuleRegistry;
 use Atom\Module\ModuleScope;
 use Atom\Modules\ErrorPages\ErrorPageHandlerInterface;
 use Atom\Modules\ErrorPages\ErrorPages;
+use Atom\Modules\Components\Icons\IconProviderInterface;
+use Atom\Modules\Components\Icons\IconRegistry;
+use Atom\Modules\Components\Icons\IconServices;
 use Atom\Page\PageRegistry;
 use Atom\Publish\PublishServices;
 use Atom\Queue\JobRegistry;
@@ -216,6 +219,7 @@ abstract class Application
             ->add(ConsoleServices::class)
             ->add(DispatcherServices::class)
             ->add(IdentityServices::class)
+            ->add(IconServices::class)
             ->add(MailServices::class)
             ->add(PageServices::class)
             ->add(PublishServices::class)
@@ -345,6 +349,14 @@ abstract class Application
             $this->providers = $providers;
             $this->bindings = $bindings;
             $this->injector = new Injector($bindings);
+
+            $icons = $this->injector->get(IconRegistry::class);
+            foreach ($providers->providers() as $provider) {
+                if ($provider instanceof IconProviderInterface) {
+                    $provider->icons($icons);
+                }
+            }
+
             $this->modules = new ModuleRegistry();
             $this->modules->add(ErrorPages::module());
             $this->pages = new PageRegistry();

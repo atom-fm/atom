@@ -9,12 +9,11 @@ use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\Fragment;
 use Atom\View\Html;
 use Atom\Support\Paths;
+use Atom\Modules\Components\Icons\IconRegistry;
 use RuntimeException;
 
 final class Icon implements ComponentInterface
 {
-    private const LUCIDE_PREFIX = "lucide:";
-
     public ?Fragment $content = null;
     public AttributeBag $attributes;
     public string $text = "";
@@ -24,13 +23,16 @@ final class Icon implements ComponentInterface
     public string $size = "";
     public string $class = "";
 
-    public function __construct(private ?Paths $paths = null)
+    public function __construct(
+        private ?Paths $paths = null,
+        private ?IconRegistry $icons = null
+    )
     {
     }
 
-    public static function from(string $value, ?Paths $paths = null): self
+    public static function from(string $value, ?Paths $paths = null, ?IconRegistry $icons = null): self
     {
-        $component = new self($paths);
+        $component = new self($paths, $icons);
         $component->attributes = new AttributeBag();
         $component->icon = $value;
 
@@ -54,12 +56,16 @@ final class Icon implements ComponentInterface
         }
 
         if ($this->icon !== "") {
-            if (str_starts_with($this->icon, self::LUCIDE_PREFIX)) {
-                return $this->lucideContent(substr($this->icon, strlen(self::LUCIDE_PREFIX)));
-            }
-
             if (self::looksLikeSource($this->icon)) {
                 return $this->sourceContent($this->icon);
+            }
+
+            if (preg_match('/^([a-z][a-z0-9-]*):(.*)$/', $this->icon, $match) === 1) {
+                if ($this->icons === null) {
+                    throw new RuntimeException("Icon prefix '{$match[1]}' is not registered.");
+                }
+
+                return $this->icons->resolve($match[1], $match[2]);
             }
 
             return Html::tag("i", ["class" => $this->icon, "aria-hidden" => "true"]);
@@ -84,20 +90,6 @@ final class Icon implements ComponentInterface
         }
 
         return $this->readSvg($path, "Icon '{$source}'");
-    }
-
-    private function lucideContent(string $name): string
-    {
-        if (!preg_match('/^[a-z0-9][a-z0-9-]*$/', $name)) {
-            throw new RuntimeException("Lucide icon name '{$name}' is invalid.");
-        }
-
-        $path = __DIR__ . "/Resources/icons/lucide/{$name}.svg";
-        if (!is_file($path)) {
-            throw new RuntimeException("Lucide icon '{$name}' was not found.");
-        }
-
-        return $this->readSvg($path, "Lucide icon '{$name}'");
     }
 
     private function readSvg(string $path, string $label): string

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Showcase;
 
+use Atom\Di\ServiceProviderRegistry;
+use Atom\Lucide\LucideServiceProvider;
 use Atom\Module\ModuleRegistry;
 use Atom\Modules\Client\Client;
 use Atom\Modules\Components\Components;
@@ -18,6 +20,11 @@ final class Application extends \Atom\Application
     protected function rootPath(): string
     {
         return dirname(__DIR__);
+    }
+
+    protected function services(ServiceProviderRegistry $providers): void
+    {
+        $providers->add(LucideServiceProvider::class);
     }
 
     protected function modules(ModuleRegistry $modules): void

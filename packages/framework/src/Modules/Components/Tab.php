@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Atom\Modules\Components;
 
 use Atom\Support\Paths;
+use Atom\Modules\Components\Icons\IconRegistry;
 use Atom\View\Component\AttributeBag;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\Fragment;
@@ -24,7 +25,10 @@ final class Tab implements ComponentInterface
     public string $action = "";
     public string $class = "";
 
-    public function __construct(private ?Paths $paths = null)
+    public function __construct(
+        private ?Paths $paths = null,
+        private ?IconRegistry $icons = null
+    )
     {
     }
 
@@ -78,7 +82,7 @@ final class Tab implements ComponentInterface
 
         $content = "";
         if ($this->icon !== "") {
-            $icon = Icon::from($this->icon, $this->paths);
+            $icon = Icon::from($this->icon, $this->paths, $this->icons);
             $icon->class = "atom-tab__icon";
             $icon->size = "sm";
             $content .= $icon->render();
