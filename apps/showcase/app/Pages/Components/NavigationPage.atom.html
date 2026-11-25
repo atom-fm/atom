@@ -3,9 +3,9 @@
 <Stack gap="md">
     <ComponentExample title="Breadcrumbs" description="Breadcrumbs collect plain Breadcrumb child tags.">
         <Breadcrumbs>
-            <Breadcrumb href="/components/navigation?section=showcase" atom:navigate>Showcase</Breadcrumb>
-            <Breadcrumb href="/components/navigation?section=components" atom:navigate>Components</Breadcrumb>
-            <Breadcrumb>Navigation</Breadcrumb>
+            <Breadcrumb href="/components/navigation?section=showcase" atom:navigate atom:preserve-scroll>Showcase</Breadcrumb>
+            <Breadcrumb href="/components/navigation?section=components" atom:navigate atom:preserve-scroll>Components</Breadcrumb>
+            <Breadcrumb class="showcase-breadcrumb-current" aria-current="page">Navigation</Breadcrumb>
         </Breadcrumbs>
     </ComponentExample>
 </Stack>

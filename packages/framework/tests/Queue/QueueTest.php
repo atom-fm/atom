@@ -24,14 +24,26 @@ use Atom\Queue\FileQueue;
 use Atom\Queue\JobEnvelope;
 use Atom\Queue\Job;
 use Atom\Queue\JobExecutor;
+use Atom\Queue\JobDispatcherInterface;
 use Atom\Queue\JobInterface;
 use Atom\Queue\JobRegistry;
 use Atom\Queue\QueueJobDispatcher;
+use Atom\Queue\QueueInterface;
 use Atom\Queue\QueueOptions;
 use Atom\Queue\QueueException;
 use Atom\Queue\QueueServices;
 use Atom\Queue\QueueWorker;
 use Atom\Queue\WorkerResult;
+use Atom\Scheduler\ClockInterface;
+use Atom\Scheduler\Schedule;
+use Atom\Scheduler\ScheduleMinuteClaims;
+use Atom\Scheduler\ScheduleRunner;
+use Atom\Scheduler\ScheduleTaskLocks;
+use DateTimeImmutable;
+use Fiber;
+use PDO;
+use PDOStatement;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Atom\Support\Paths;
@@ -198,6 +210,240 @@ final class QueueTest extends TestCase
         $this->assertSame(0, (int) $connection->scalar("SELECT COUNT(*) FROM atom_jobs"));
     }
 
+    #[TestWith([false, 60], "another worker claims and releases with a delay")]
+    #[TestWith([false, 0], "another worker claims and releases immediately")]
+    #[TestWith([true, 60], "an expired owner releases with a delay without changing attempts")]
+    public function testDatabaseQueueRechecksReleasedJobBeforeClaim(bool $alreadyReserved, int $delay): void
+    {
+        $path = "file:queue_" . bin2hex(random_bytes(8)) . "?mode=memory&cache=shared";
+        $firstConnection = new DatabaseConnection(new SqliteDriver($path));
+        $secondConnection = new DatabaseConnection(new SqliteDriver($path));
+        $this->migrateQueue($firstConnection);
+        $first = new DatabaseQueue($firstConnection);
+        $second = new DatabaseQueue($secondConnection);
+        $job = JobEnvelope::for(new RecordingJob("retry"));
+        $first->push($job);
+
+        $owner = null;
+        if ($alreadyReserved) {
+            $owner = $second->reserve("default", 90);
+            $secondConnection->execute("UPDATE atom_jobs SET reserved_at = :expired WHERE id = :id", [
+                "expired" => time() - 91, "id" => $job->id,
+            ]);
+        }
+
+        // Pause after the candidate SELECT has released its cursor, before the claim UPDATE.
+        $pdo = $firstConnection->pdo();
+        $pdo->setAttribute(PDO::ATTR_STATEMENT_CLASS, [PauseAfterQueueRead::class]);
+        $claim = new Fiber(fn() => $first->reserve("default", 90));
+        $claim->start();
+        $this->assertTrue($claim->isSuspended());
+        $pdo->setAttribute(PDO::ATTR_STATEMENT_CLASS, [PDOStatement::class]);
+
+        $owner ??= $second->reserve("default", 90);
+        $this->assertNotNull($owner);
+        $this->assertSame(1, $owner->job->attempts);
+        $releaseTime = time();
+        $second->release($owner, $delay);
+        $claim->resume();
+        $reservation = $claim->getReturn();
+
+        if ($delay > 0) {
+            $this->assertNull($reservation);
+            $row = $secondConnection->first("SELECT available_at, attempts, reservation_id FROM atom_jobs WHERE id = :id", ["id" => $job->id]);
+            $this->assertGreaterThanOrEqual($releaseTime + $delay, (int) $row["available_at"]);
+            $this->assertSame(1, (int) $row["attempts"]);
+            $this->assertNull($row["reservation_id"]);
+
+            $secondConnection->execute("UPDATE atom_jobs SET available_at = :now WHERE id = :id", ["now" => time(), "id" => $job->id]);
+            $reservation = $first->reserve("default", 90);
+        }
+
+        $this->assertNotNull($reservation);
+        $this->assertSame($job->id, $reservation->job->id);
+        $this->assertSame(2, $reservation->job->attempts);
+        $this->assertSame(2, (int) $secondConnection->scalar("SELECT attempts FROM atom_jobs WHERE id = :id", ["id" => $job->id]));
+    }
+
+    #[TestWith([1, WorkerResult::Completed], "final allowed attempt runs")]
+    #[TestWith([2, WorkerResult::Failed], "attempt limit exceeded before execution")]
+    public function testDatabaseQueueWorkerEnforcesAttemptLimitAfterAbandonedReservations(
+        int $abandonedAttempts,
+        WorkerResult $expected
+    ): void {
+        $connection = new DatabaseConnection(SqliteDriver::memory());
+        $this->migrateQueue($connection);
+        $queue = new DatabaseQueue($connection);
+        $job = JobEnvelope::for(new RecordingJob("reclaimed"));
+        $queue->push($job);
+
+        for ($attempt = 1; $attempt <= $abandonedAttempts; $attempt++) {
+            $reservation = $queue->reserve("default", 90);
+            $this->assertNotNull($reservation);
+            $this->assertSame($attempt, $reservation->job->attempts);
+            $connection->execute("UPDATE atom_jobs SET reserved_at = :expired WHERE id = :id", [
+                "expired" => time() - 91,
+                "id" => $job->id,
+            ]);
+        }
+
+        $handler = new RecordingJobHandler();
+        $registry = (new JobRegistry())->register(RecordingJob::class);
+        $bindings = Bindings::create()->value(RecordingJobHandler::class, $handler);
+        $worker = new QueueWorker($queue, new JobExecutor($registry, Injector::create($bindings)), new QueueOptions(maxAttempts: 2));
+
+        $this->assertSame($expected, $worker->runOnce());
+        $this->assertSame(WorkerResult::Empty, $worker->runOnce());
+        $failures = $queue->failed();
+        if ($expected === WorkerResult::Completed) {
+            $this->assertSame(["reclaimed"], $handler->handled);
+            $this->assertSame([], $failures);
+        } else {
+            $this->assertSame([], $handler->handled);
+            $this->assertCount(1, $failures);
+            $this->assertSame($job->id, $failures[0]->job->id);
+            $this->assertSame(3, $failures[0]->job->attempts);
+            $this->assertStringContainsString("exceeded its maximum of 2 attempts", $failures[0]->exception);
+        }
+        $this->assertSame(0, (int) $connection->scalar("SELECT COUNT(*) FROM atom_jobs"));
+    }
+
+    #[TestWith([false, 3], "stale completion")]
+    #[TestWith([true, 3], "stale release after handler failure")]
+    #[TestWith([true, 1], "stale permanent failure")]
+    public function testDatabaseQueueWorkerContinuesAfterLosingReservation(bool $handlerFails, int $maxAttempts): void
+    {
+        $path = "file:queue_" . bin2hex(random_bytes(8)) . "?mode=memory&cache=shared";
+        $connection = new DatabaseConnection(new SqliteDriver($path));
+        $otherConnection = new DatabaseConnection(new SqliteDriver($path));
+        $this->migrateQueue($connection);
+        $queue = new DatabaseQueue($connection);
+        $other = new DatabaseQueue($otherConnection);
+        $job = JobEnvelope::for(new PausingJob());
+        $queue->push($job);
+        $registry = (new JobRegistry())->register(PausingJob::class)->register(RecordingJob::class);
+        $handler = new RecordingJobHandler();
+        $bindings = Bindings::create()->value(RecordingJobHandler::class, $handler);
+        $worker = new QueueWorker($queue, new JobExecutor($registry, Injector::create($bindings)), new QueueOptions(maxAttempts: $maxAttempts));
+
+        $running = new Fiber(fn() => $worker->runOnce());
+        $running->start();
+        $this->assertTrue($running->isSuspended());
+        $otherConnection->execute("UPDATE atom_jobs SET reserved_at = :expired WHERE id = :id", [
+            "expired" => time() - 91,
+            "id" => $job->id,
+        ]);
+        $current = $other->reserve("default", 90);
+        $this->assertNotNull($current);
+        $this->assertSame($job->id, $current->job->id);
+        $this->assertSame(2, $current->job->attempts);
+
+        $running->resume($handlerFails);
+        $this->assertSame(WorkerResult::ReservationLost, $running->getReturn());
+        $this->assertSame([], $queue->failed());
+        $queue->push(JobEnvelope::for(new RecordingJob("next")));
+        $this->assertSame(WorkerResult::Completed, $worker->runOnce());
+        $this->assertSame(["next"], $handler->handled);
+        $other->complete($current);
+        $this->assertSame(WorkerResult::Empty, $worker->runOnce());
+    }
+
+    public function testScheduledDatabaseJobsDeferWithoutAnAttemptWhileAnotherWorkerHandlesTheTask(): void
+    {
+        $root = $this->tempDirectory();
+        $uri = "file:queue_" . bin2hex(random_bytes(8)) . "?mode=memory&cache=shared";
+        $connection = new DatabaseConnection(new SqliteDriver($uri));
+        $otherConnection = new DatabaseConnection(new SqliteDriver($uri));
+        $this->migrateQueue($connection);
+        $queue = new DatabaseQueue($connection);
+        $other = new DatabaseQueue($otherConnection);
+        $options = new QueueOptions(driver: "database", maxAttempts: 1, retryDelay: 60);
+        $bindings = Bindings::create()
+            ->value(Paths::class, new Paths($root))
+            ->value(QueueOptions::class, $options);
+        (new QueueServices())->register($bindings);
+        $bindings->value(QueueInterface::class, $queue);
+        $injector = Injector::create($bindings);
+        $injector->get(JobRegistry::class)->register(PausingJob::class);
+        $firstWorker = $injector->get(QueueWorker::class);
+        $secondWorker = new QueueWorker($other, $injector->get(JobExecutor::class), $options, new ScheduleTaskLocks(new Paths($root)));
+
+        $clock = new class implements ClockInterface {
+            public DateTimeImmutable $time;
+
+            public function now(): DateTimeImmutable
+            {
+                return $this->time;
+            }
+        };
+        $clock->time = new DateTimeImmutable("2026-11-23T09:00:00Z");
+        $schedule = new Schedule();
+        $schedule->job(new PausingJob())->oncePerMinute("poll")->withoutOverlapping("poll");
+        $runner = new ScheduleRunner(
+            $schedule,
+            $clock,
+            new ConsoleApplication($injector),
+            $injector->get(JobDispatcherInterface::class),
+            new ScheduleMinuteClaims(new Paths($root)),
+            new ScheduleTaskLocks(new Paths($root))
+        );
+
+        try {
+            $this->assertSame(1, $runner->run()->count());
+            $first = new Fiber($firstWorker->runOnce(...));
+            $first->start();
+            $this->assertTrue($first->isSuspended());
+
+            $clock->time = $clock->time->modify("+1 minute");
+            $this->assertSame(1, $runner->run()->count());
+            $beforeDeferral = time();
+            $this->assertSame(WorkerResult::Deferred, $secondWorker->runOnce());
+            $this->assertSame(WorkerResult::Empty, $secondWorker->runOnce());
+            $deferred = $otherConnection->first("SELECT id, attempts, available_at FROM atom_jobs WHERE reserved_at IS NULL");
+            $this->assertNotNull($deferred);
+            $this->assertSame(0, (int) $deferred["attempts"]);
+            $this->assertGreaterThanOrEqual($beforeDeferral + 60, (int) $deferred["available_at"]);
+
+            $first->resume(false);
+            $this->assertSame(WorkerResult::Completed, $first->getReturn());
+
+            $otherConnection->execute("UPDATE atom_jobs SET available_at = :now WHERE id = :id", [
+                "now" => time(),
+                "id" => $deferred["id"],
+            ]);
+            $second = new Fiber($secondWorker->runOnce(...));
+            $second->start();
+            $this->assertTrue($second->isSuspended());
+            $this->assertSame(1, (int) $otherConnection->scalar("SELECT attempts FROM atom_jobs WHERE id = :id", ["id" => $deferred["id"]]));
+            $second->resume(false);
+            $this->assertSame(WorkerResult::Completed, $second->getReturn());
+            $this->assertSame([], $queue->failed());
+            $this->assertSame(WorkerResult::Empty, $secondWorker->runOnce());
+        } finally {
+            unset($first, $second);
+            $this->removeDirectory($root);
+        }
+    }
+
+    public function testFileQueueDeferralPreservesTheOverlapKeyAndRefundsTheAttempt(): void
+    {
+        $root = $this->tempDirectory();
+        try {
+            $queue = new FileQueue($root);
+            $queue->push(JobEnvelope::for(new RecordingJob("locked"), overlapKey: "poll"));
+            $first = $queue->reserve("default", 90);
+            $this->assertNotNull($first);
+            $queue->defer($first, 0);
+
+            $second = (new FileQueue($root))->reserve("default", 90);
+            $this->assertNotNull($second);
+            $this->assertSame("poll", $second->job->overlapKey);
+            $this->assertSame(1, $second->job->attempts);
+        } finally {
+            $this->removeDirectory($root);
+        }
+    }
+
     public function testPublishedMigrationCompilesForEverySupportedDatabase(): void
     {
         $migration = require __DIR__ . "/../../src/Queue/Resources/M0001_create_atom_queue_tables.php";
@@ -309,6 +555,31 @@ final class QueueTest extends TestCase
             $file->isDir() ? rmdir($file->getPathname()) : unlink($file->getPathname());
         }
         rmdir($directory);
+    }
+}
+
+final class PauseAfterQueueRead extends PDOStatement
+{
+    public function closeCursor(): bool
+    {
+        $closed = parent::closeCursor();
+        Fiber::suspend();
+        return $closed;
+    }
+}
+
+final readonly class PausingJob extends Job
+{
+    public static function type(): string
+    {
+        return "test.pause";
+    }
+
+    public function handle(): void
+    {
+        if (Fiber::suspend()) {
+            throw new RuntimeException("Handler failed after losing the reservation.");
+        }
     }
 }
 

@@ -16,13 +16,13 @@ use App\Api\Responses\ValidationErrorResponse;
 use Atom\Api\Attributes\ErrorResponse;
 use Atom\Api\Attributes\ResponseOf;
 use Atom\Hydrator\Attributes\FromRoute;
-use Atom\Router\Attributes\Controller;
+use Atom\Router\Attributes\ApiController as ApiControllerAttribute;
 use Atom\Router\Attributes\Delete;
 use Atom\Router\Attributes\Get;
 use Atom\Router\Attributes\Post;
 use Atom\Router\Attributes\Put;
 
-#[Controller("/api")]
+#[ApiControllerAttribute("/api")]
 final readonly class ApiController
 {
     #[Get("articles")]

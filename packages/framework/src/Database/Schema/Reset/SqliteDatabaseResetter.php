@@ -12,15 +12,17 @@ final readonly class SqliteDatabaseResetter implements DatabaseResetterInterface
     {
         $connection->execute("PRAGMA foreign_keys = OFF");
 
-        $tables = $connection->all(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
-        );
+        try {
+            $tables = $connection->all(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            );
 
-        foreach ($tables as $table) {
-            $connection->execute("DROP TABLE " . $this->name((string) $table["name"]));
+            foreach ($tables as $table) {
+                $connection->execute("DROP TABLE " . $this->name((string) $table["name"]));
+            }
+        } finally {
+            $connection->execute("PRAGMA foreign_keys = ON");
         }
-
-        $connection->execute("PRAGMA foreign_keys = ON");
     }
 
     private function name(string $name): string

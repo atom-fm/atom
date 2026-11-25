@@ -13,7 +13,7 @@ use Atom\Router\RouteEntry;
 final readonly class ApiExplorerModule implements ModuleInterface
 {
     public function __construct(
-        private string $apiPathPrefix = "/api"
+        private ?string $apiPathPrefix = null
     ) {
     }
 

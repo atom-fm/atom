@@ -12,13 +12,18 @@
     }
 
     window.Atom.setUpdateEngine({
-        update: function (current, next) {
+        update: function (current, next, options) {
+            var preserveFocusedValue = !options || options.preserveFocusedValue !== false;
+
             window.morphdom(current, next, {
                 childrenOnly: true,
+                onBeforeElChildrenUpdated: function (fromElement) {
+                    return !fromElement[Symbol.for("atom.component")];
+                },
                 onBeforeElUpdated: function (fromElement, toElement) {
                     cancelExit(fromElement);
 
-                    if (isActiveFormElement(fromElement)) {
+                    if (preserveFocusedValue && isActiveFormElement(fromElement)) {
                         copyFormState(fromElement, toElement);
                     }
 

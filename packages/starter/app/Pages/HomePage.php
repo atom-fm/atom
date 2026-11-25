@@ -6,12 +6,13 @@ namespace App\Pages;
 
 use App\Models\User;
 use Atom\Identity\AuthenticatorInterface;
-use Atom\Page\Page;
 use Atom\Page\PageRoute;
 
-#[PageRoute("/", name: "home")]
-final class HomePage extends Page
+#[PageRoute("/", name: "home", title: "Atom Starter")]
+final class HomePage extends AppPage
 {
+    public string $title = "Atom Starter";
+
     public string $name = "";
 
     public function get(AuthenticatorInterface $authenticator): void

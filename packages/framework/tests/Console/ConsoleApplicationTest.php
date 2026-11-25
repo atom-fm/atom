@@ -243,6 +243,7 @@ final class ConsoleApplicationTest extends TestCase
         $console = Injector::create($bindings)->get(ConsoleApplication::class);
 
         $this->assertTrue($console->commands()->has("atom:about"));
+        $this->assertTrue($console->commands()->has("serve"));
         $this->assertTrue($console->commands()->has(DiscoveredHelloCommand::name()));
 
         $output = new BufferedConsoleOutput();

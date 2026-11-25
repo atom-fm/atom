@@ -8,6 +8,11 @@ use Atom\Api\Attributes\ArrayOf;
 use Atom\Api\Attributes\ErrorResponse;
 use Atom\Api\Attributes\ResponseOf;
 use Atom\Api\ApiModelBuilder;
+use Atom\Api\Responses\Created;
+use Atom\Api\Responses\Conflict;
+use Atom\Api\Responses\NotFound;
+use Atom\Api\Responses\UnprocessableContent;
+use Atom\Http\HttpStatus;
 use Atom\Hydrator\Attributes\Dto;
 use Atom\Hydrator\Attributes\FromBody;
 use Atom\Hydrator\Attributes\FromQuery;
@@ -19,22 +24,59 @@ use PHPUnit\Framework\TestCase;
 
 final class ApiModelBuilderTest extends TestCase
 {
+    public function testInfersPayloadAndTypedErrorFromReturnUnion(): void
+    {
+        $router = new Router();
+        $router->add(RouteEntry::get(
+            "/api/users/{id}",
+            static fn (int $id): ApiUserResponse|NotFound => new NotFound("User not found")
+        )->api());
+
+        $endpoint = (new ApiModelBuilder())->describe($router)->endpoints[0];
+        $this->assertSame(ApiUserResponse::class, $endpoint->responseType);
+        $this->assertSame("id", $endpoint->responseFields[0]->name);
+        $this->assertCount(1, $endpoint->errorResponses);
+        $this->assertSame(HttpStatus::NotFound->value, $endpoint->errorResponses[0]->status);
+        $this->assertSame("error", $endpoint->errorResponses[0]->fields[0]->name);
+        $this->assertSame("string", $endpoint->errorResponses[0]->fields[0]->type);
+    }
+
+    public function testInfersCreatedStatusAndPayloadFromReturnUnion(): void
+    {
+        $router = new Router();
+        $router->add(RouteEntry::post("/api/users", [ApiUsersController::class, "create"])->api());
+
+        $endpoint = (new ApiModelBuilder())->describe($router)->endpoints[0];
+        $this->assertSame(HttpStatus::Created->value, $endpoint->successStatus);
+        $this->assertSame(ApiUserResponse::class, $endpoint->responseType);
+        $this->assertSame("id", $endpoint->responseFields[0]->name);
+        $this->assertSame([404, 409, 422], array_column($endpoint->errorResponses, "status"));
+        foreach ($endpoint->errorResponses as $error) {
+            $this->assertSame("error", $error->fields[0]->name);
+        }
+    }
+
     public function testDescribesControllerRouteAndDtoFields(): void
     {
         $router = new Router();
         $router->add(
             RouteEntry::post("/api/users/{id}", [ApiUsersController::class, "update"])
+                ->api()
                 ->name("users.update")
                 ->title("Update user")
                 ->description("Updates one user.")
         );
         $router->add(
             RouteEntry::get("/api/articles", [ApiUsersController::class, "articles"])
+                ->api()
                 ->name("articles.index")
         );
 
+        $router->add(RouteEntry::get("/api/hidden", static fn() => null)
+            ->api()->metadata(new \Atom\Api\ApiHidden()));
         $description = (new ApiModelBuilder())->describe($router);
 
+        $this->assertCount(2, $description->endpoints);
         $endpoint = $description->endpoints[0];
         $this->assertSame(["POST"], $endpoint->methods);
         $this->assertSame("/api/users/{id}", $endpoint->path);
@@ -88,6 +130,12 @@ final class ApiModelBuilderTest extends TestCase
 
 final class ApiUsersController
 {
+    #[ResponseOf(ApiUserResponse::class)]
+    public function create(): Created|NotFound|Conflict|UnprocessableContent
+    {
+        return new Created("/api/users/1", new ApiUserResponse());
+    }
+
     public function update(int $id, ApiCreateUserDto $dto): ApiUserResponse
     {
         return new ApiUserResponse();

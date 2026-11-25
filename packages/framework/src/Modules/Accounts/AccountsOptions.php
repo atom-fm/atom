@@ -24,7 +24,8 @@ final readonly class AccountsOptions
         public ?string $loginTemplate = null,
         public ?string $registerTemplate = null,
         public ?string $forgotPasswordTemplate = null,
-        public ?string $resetPasswordTemplate = null
+        public ?string $resetPasswordTemplate = null,
+        public string $themeStylesheet = ""
     ) {
     }
 }

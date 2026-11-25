@@ -40,7 +40,7 @@ final class Column implements ComponentInterface
                 "is-sortable" => $sortKey !== "",
                 "is-sorted" => $isSorted,
             ], $this->class),
-            "data-align" => $this->align === "" && $this->isActionsColumn() ? "end" : $this->align,
+            "data-align" => $this->align !== "" ? $this->align : ($this->isActionsColumn() ? "end" : null),
             "aria-sort" => $isSorted ? ($this->normalizedDirection($direction) === "desc" ? "descending" : "ascending") : null,
         ], $content);
     }

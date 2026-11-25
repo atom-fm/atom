@@ -1,0 +1,54 @@
+<SupportWorkspace screen="Inbox" :status="$this->status" inbox>
+<Stack gap="md">
+    <PageHeader title="Ticket inbox" description="Find a ticket and open its conversation." />
+
+    <Panel padding="none">
+        <Table aria-label="Support tickets" :items="$this->tickets" as="ticket">
+            <Table.Toolbar>
+                <form action="/examples/support-desk" method="get" role="search" aria-label="Filter support tickets" atom:navigate atom:preserve-scroll>
+                    <Toolbar gap="sm" align="end">
+                        <Toolbar.Start>
+                            <TextField label="Search tickets" name="query" placeholder="Subject or customer" />
+                            <SelectField label="Status" name="status" :options="$this->statuses" />
+                        </Toolbar.Start>
+                        <Toolbar.End>
+                            <Button type="submit" variant="primary">Filter</Button>
+                            <Button href="/examples/support-desk" variant="ghost" atom:navigate atom:preserve-scroll>Clear filters</Button>
+                        </Toolbar.End>
+                    </Toolbar>
+                </form>
+            </Table.Toolbar>
+
+            <Column label="Ticket">
+                <Stack class="article-title-cell">
+                    <a href="{{ $this->ticketUrl($ticket['id']) }}" atom:navigate>{{ $ticket["subject"] }}</a>
+                    <span class="showcase-muted">#{{ $ticket["id"] }}</span>
+                    <span class="support-inbox__customer-inline showcase-muted">{{ $ticket["customer"] }}</span>
+                </Stack>
+            </Column>
+            <Column label="Customer" field="customer" class="support-inbox__customer-column" />
+            <Column label="Status">
+                <Badge appearance="outline" :variant="$this->statusVariant($ticket['status'])">{{ $ticket["status"] }}</Badge>
+            </Column>
+
+            <Table.Empty>
+                <EmptyState title="No matching tickets" description="Try a different search, or return to the full inbox.">
+                    <EmptyState.Actions>
+                        <Button href="/examples/support-desk" appearance="soft" atom:navigate atom:preserve-scroll>View all tickets</Button>
+                    </EmptyState.Actions>
+                </EmptyState>
+            </Table.Empty>
+
+            <Table.Summary>
+                {{ $this->total }} matching {{ $this->total === 1 ? "ticket" : "tickets" }}
+            </Table.Summary>
+
+            <Table.Pagination>
+                @if($this->pages > 1)
+                    <Pagination label="Ticket inbox pages" :page="$this->page" :total="$this->pages" :href="$this->pageUrl()" navigate preserve-scroll />
+                @endif
+            </Table.Pagination>
+        </Table>
+    </Panel>
+</Stack>
+</SupportWorkspace>

@@ -7,10 +7,7 @@ namespace Atom\Router\Attributes;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
-final readonly class Put extends HttpRoute
+final readonly class Put extends HttpVerbRoute
 {
-    public function __construct(string $path)
-    {
-        parent::__construct("PUT", $path);
-    }
+    protected const string METHOD = "PUT";
 }

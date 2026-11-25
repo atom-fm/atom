@@ -20,6 +20,7 @@ use Atom\Scheduler\Schedule;
 use Atom\Scheduler\ScheduleRunner;
 use DateTimeImmutable;
 use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class SchedulerTest extends TestCase
@@ -105,6 +106,104 @@ final class SchedulerTest extends TestCase
         $runOutput = new BufferedConsoleOutput();
         $this->assertSame(0, (new ScheduleCommands($schedule, $runner, $clock, $runOutput))->run());
         $this->assertStringContainsString("Daily record  completed", $runOutput->output());
+    }
+
+    public function testProcessesClaimEachOptedInTaskOncePerMinute(): void
+    {
+        $root = sys_get_temp_dir() . "/atom-scheduler-" . bin2hex(random_bytes(8));
+        mkdir($root);
+        $minute = "2026-11-23T09:00:00Z";
+        $first = $this->startSchedule($root, "first", $minute);
+        try {
+            $deadline = microtime(true) + 8;
+            while (!is_file($root . "/commands") && microtime(true) < $deadline) {
+                usleep(10000);
+            }
+            $this->assertFileExists($root . "/commands", file_get_contents($root . "/first.log"));
+            $second = $this->startSchedule($root, "second", "2026-11-23T10:00:30+01:00");
+            $this->assertSame(0, proc_close($second), file_get_contents($root . "/second.log"));
+            $this->assertSame("first\n", file_get_contents($root . "/commands"));
+            $this->assertSame("dispatched\n", file_get_contents($root . "/jobs"));
+
+            touch($root . "/continue");
+            $this->assertSame(0, proc_close($first), file_get_contents($root . "/first.log"));
+            $repeat = $this->startSchedule($root, "repeat", $minute);
+            $this->assertSame(0, proc_close($repeat), file_get_contents($root . "/repeat.log"));
+            $this->assertSame("first\n", file_get_contents($root . "/commands"));
+            $this->assertSame("dispatched\n", file_get_contents($root . "/jobs"));
+
+            $next = $this->startSchedule($root, "next", "2026-11-23T09:01:00Z");
+            $this->assertSame(0, proc_close($next), file_get_contents($root . "/next.log"));
+            $this->assertSame("first\nnext\n", file_get_contents($root . "/commands"));
+            $this->assertSame("dispatched\ndispatched\n", file_get_contents($root . "/jobs"));
+        } finally {
+            if (is_resource($first)) {
+                touch($root . "/continue");
+                proc_close($first);
+            }
+            $this->removeScheduleFiles($root);
+        }
+    }
+
+    #[TestWith(["command", "commands"])]
+    #[TestWith(["job", "jobs"])]
+    public function testProcessesSkipAnOverlappingTaskInTheNextDueMinute(string $mode, string $record): void
+    {
+        $root = sys_get_temp_dir() . "/atom-scheduler-" . bin2hex(random_bytes(8));
+        mkdir($root);
+        $first = $this->startSchedule($root, "first", "2026-11-23T09:00:00Z", $mode);
+        try {
+            $deadline = microtime(true) + 8;
+            while (!is_file($root . "/" . $record) && microtime(true) < $deadline) {
+                usleep(10000);
+            }
+            $this->assertFileExists($root . "/" . $record, file_get_contents($root . "/first.log"));
+            $second = $this->startSchedule($root, "second", "2026-11-23T09:01:00Z", $mode);
+            $this->assertSame(0, proc_close($second), file_get_contents($root . "/second.log"));
+            $this->assertStringContainsString("No scheduled tasks to run.", file_get_contents($root . "/second.log"));
+            $this->assertSame("first\n", file_get_contents($root . "/" . $record));
+
+            touch($root . "/continue");
+            $this->assertSame(0, proc_close($first), file_get_contents($root . "/first.log"));
+            $next = $this->startSchedule($root, "next", "2026-11-23T09:01:30Z", $mode);
+            $this->assertSame(0, proc_close($next), file_get_contents($root . "/next.log"));
+            $this->assertSame("first\nnext\n", file_get_contents($root . "/" . $record));
+        } finally {
+            if (is_resource($first)) {
+                touch($root . "/continue");
+                proc_close($first);
+            }
+            $this->removeScheduleFiles($root);
+        }
+    }
+
+    private function removeScheduleFiles(string $root): void
+    {
+        foreach (glob($root . "/storage/scheduler/*") ?: [] as $file) {
+            unlink($file);
+        }
+        if (is_dir($root . "/storage/scheduler")) {
+            rmdir($root . "/storage/scheduler");
+            rmdir($root . "/storage");
+        }
+        foreach (glob($root . "/*") ?: [] as $file) {
+            unlink($file);
+        }
+        rmdir($root);
+    }
+
+    /** @return resource */
+    private function startSchedule(string $root, string $process, string $instant, string $mode = "minute")
+    {
+        $log = $root . "/" . $process . ".log";
+        $child = proc_open(
+            [PHP_BINARY, __DIR__ . "/Fixtures/run-schedule.php", $root, $process, $instant, $mode],
+            [0 => ["pipe", "r"], 1 => ["file", $log, "w"], 2 => ["redirect", 1]],
+            $pipes
+        );
+        $this->assertIsResource($child);
+        fclose($pipes[0]);
+        return $child;
     }
 
     public function testApplicationHookRegistersScheduleAndConsoleCommands(): void

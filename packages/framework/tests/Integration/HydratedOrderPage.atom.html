@@ -1,0 +1,9 @@
+<Form :model="$this->order" submit="order.save">
+    <TextField name="quantity" />
+    <TextField name="rush" />
+    <TextField name="address[number]" />
+    <TextField name="address[street]" />
+    <TextField name="address[unit][number]" />
+    <p id="address-error">{{ $this->order->errors()->first("address") }}</p>
+    <p id="result">{{ $this->order->result }}</p>
+</Form>

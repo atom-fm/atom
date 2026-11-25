@@ -14,6 +14,40 @@ abstract class ScheduledTask
     private string $expression = "* * * * *";
     private string $timezone = "UTC";
     private string $label = "";
+    private ?string $minuteClaimKey = null;
+    private ?string $overlapLockKey = null;
+
+    public function withoutOverlapping(string $key): static
+    {
+        $key = trim($key);
+        if ($key === "") {
+            throw new InvalidArgumentException("Scheduled task overlap key cannot be empty.");
+        }
+        $this->overlapLockKey = $key;
+        return $this;
+    }
+
+    /** @internal */
+    public function overlapLockKey(): ?string
+    {
+        return $this->overlapLockKey;
+    }
+
+    public function oncePerMinute(string $key): static
+    {
+        $key = trim($key);
+        if ($key === "") {
+            throw new InvalidArgumentException("Scheduled task claim key cannot be empty.");
+        }
+        $this->minuteClaimKey = $key;
+        return $this;
+    }
+
+    /** @internal */
+    public function minuteClaimKey(): ?string
+    {
+        return $this->minuteClaimKey;
+    }
 
     public function cron(string $expression): static
     {

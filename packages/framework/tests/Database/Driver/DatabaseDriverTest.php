@@ -8,6 +8,7 @@ use Atom\Database\DatabaseDriverInterface;
 use Atom\Database\Driver\MySqlDriver;
 use Atom\Database\Driver\PostgresDriver;
 use Atom\Database\Driver\SqliteDriver;
+use Atom\Database\Driver\TransactionalDdlDriverInterface;
 use Atom\Database\Migration\Driver\MySqlMigrationRepositoryDriver;
 use Atom\Database\Migration\Driver\PostgresMigrationRepositoryDriver;
 use Atom\Database\Migration\Driver\SqliteMigrationRepositoryDriver;
@@ -35,6 +36,7 @@ final class DatabaseDriverTest extends TestCase
     {
         $driver = new MySqlDriver("atom", "localhost", "root", "secret");
 
+        $this->assertNotInstanceOf(TransactionalDdlDriverInterface::class, $driver);
         $this->assertInstanceOf(DatabaseDriverInterface::class, $driver);
         $this->assertInstanceOf(MySqlCompiler::class, $driver->compiler());
         $this->assertInstanceOf(MySqlSchemaCompiler::class, $driver->schemaCompiler());
@@ -48,6 +50,7 @@ final class DatabaseDriverTest extends TestCase
     {
         $driver = SqliteDriver::memory();
 
+        $this->assertInstanceOf(TransactionalDdlDriverInterface::class, $driver);
         $this->assertInstanceOf(DatabaseDriverInterface::class, $driver);
         $this->assertInstanceOf(SqliteCompiler::class, $driver->compiler());
         $this->assertInstanceOf(DatabaseSqliteSchemaCompiler::class, $driver->schemaCompiler());
@@ -61,6 +64,7 @@ final class DatabaseDriverTest extends TestCase
     {
         $driver = new PostgresDriver("atom", "localhost", "root", "secret");
 
+        $this->assertInstanceOf(TransactionalDdlDriverInterface::class, $driver);
         $this->assertInstanceOf(DatabaseDriverInterface::class, $driver);
         $this->assertInstanceOf(PostgresCompiler::class, $driver->compiler());
         $this->assertInstanceOf(PostgresSchemaCompiler::class, $driver->schemaCompiler());

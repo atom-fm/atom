@@ -45,22 +45,7 @@ class Response
 
     public function getReasonPhrase(): string
     {
-        return match ($this->status) {
-            200 => "OK",
-            201 => "Created",
-            204 => "No Content",
-            301 => "Moved Permanently",
-            302 => "Found",
-            400 => "Bad Request",
-            401 => "Unauthorized",
-            403 => "Forbidden",
-            404 => "Not Found",
-            405 => "Method Not Allowed",
-            413 => "Content Too Large",
-            429 => "Too Many Requests",
-            500 => "Internal Server Error",
-            default => "",
-        };
+        return HttpStatus::tryFrom($this->status)?->reasonPhrase() ?? "";
     }
 
     public function redirect(string $location, int $status = 302): self
@@ -75,6 +60,35 @@ class Response
         $this->header("Content-Type", "application/json");
         $this->body = new ContentStream((string) json_encode($data));
         return $this;
+    }
+
+    public function created(string $location, mixed $data): self
+    {
+        return $this->status(HttpStatus::Created->value)->header("Location", $location)->json($data);
+    }
+
+    public function noContent(): self
+    {
+        return $this->status(HttpStatus::NoContent->value)
+            ->header("Content-Type", null)
+            ->header("Content-Length", null)
+            ->header("Transfer-Encoding", null)
+            ->content("");
+    }
+
+    public function notFound(string $message): self
+    {
+        return $this->status(HttpStatus::NotFound->value)->json(["error" => $message]);
+    }
+
+    public function conflict(string $message): self
+    {
+        return $this->status(HttpStatus::Conflict->value)->json(["error" => $message]);
+    }
+
+    public function unprocessableContent(string $message): self
+    {
+        return $this->status(HttpStatus::UnprocessableContent->value)->json(["error" => $message]);
     }
 
     public function header(string $name, string|int|float|bool|null $value): self

@@ -4,8 +4,17 @@ declare(strict_types=1);
 
 namespace Atom\Router;
 
+use Atom\Api\Responses\UnprocessableContent;
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
+use Atom\Http\Request;
+use Atom\Hydrator\Attributes\FromBody;
+use Atom\Hydrator\Attributes\FromQuery;
+use Atom\Hydrator\Attributes\FromRoute;
+use Atom\Hydrator\Exception\HydrationException;
+use Atom\Hydrator\HydrationContext;
+use Atom\Hydrator\HydrationTarget;
+use Atom\Hydrator\RequestHydrator;
 use ReflectionClass;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
@@ -110,6 +119,42 @@ final class Action
     public function execute(?array $arguments = null): mixed
     {
         $arguments ??= $this->actionArguments !== [] ? $this->actionArguments : $this->route->getParams();
+
+        $request = $this->context->get(Request::class);
+        $routeParams = $this->route->getRouteParams();
+        $input = $request instanceof Request
+            ? HydrationContext::fromRequest($request, $routeParams)
+            : new HydrationContext(query: $this->route->getQueryParams(), route: $routeParams);
+        $jsonBody = $request instanceof Request && $request->hasJsonContentType();
+        foreach ($this->handler->getParameters() as $parameter) {
+            $fromRoute = $parameter->getAttributes(FromRoute::class) !== [];
+            $fromQuery = $parameter->getAttributes(FromQuery::class) !== [];
+            if (!$fromRoute && !$fromQuery && ($parameter->getAttributes(FromBody::class) === [] || !$request instanceof Request)) {
+                continue;
+            }
+
+            $target = HydrationTarget::fromParameter($parameter);
+            try {
+                $arguments[$parameter->getName()] = $this->injector->get(RequestHydrator::class, $this->context)
+                    ->bindParameter(
+                        $target,
+                        $input,
+                        $this->handler->getName(),
+                        preserveQueryStrings: $fromQuery,
+                        strictJsonIntegers: $jsonBody
+                    );
+            } catch (HydrationException $exception) {
+                if ($fromQuery) {
+                    throw new InvalidQueryParameterException($exception->getMessage(), previous: $exception);
+                }
+
+                if (!$fromRoute) {
+                    throw new UnprocessableContent("Invalid or missing body field: {$target->sourceName}");
+                }
+
+                throw new InvalidRouteParameterException($exception->getMessage(), previous: $exception);
+            }
+        }
 
         if ($this->handler instanceof ReflectionMethod) {
             return $this->injector->invoke([$this->getController(), $this->handler->getName()], $arguments, $this->context);

@@ -12,6 +12,7 @@ final readonly class Request
     private ParameterCollection $server;
     private HeaderCollection $headers;
     private CookieCollection $cookies;
+    private bool $invalidJsonBody;
 
     /**
      * @param array<string, mixed> $queryParams
@@ -31,26 +32,55 @@ final readonly class Request
         array $headers = []
     ) {
         $this->query = new ParameterCollection($queryParams);
-        $this->post = new ParameterCollection($parsedBody);
         $this->server = new ParameterCollection($serverParams);
         $this->files = new FileCollection($files);
         $this->headers = $headers === [] ? HeaderCollection::fromServer($serverParams) : new HeaderCollection($headers);
         $this->cookies = CookieCollection::fromHeader($this->headers->get("Cookie", "") ?? "");
+
+        $invalidJsonBody = false;
+        if ($body !== "" && $this->hasJsonContentType()) {
+            $decoded = json_decode($body, true);
+            $invalidJsonBody = !is_array($decoded);
+            $parsedBody = $invalidJsonBody ? [] : $decoded;
+        }
+
+        $this->invalidJsonBody = $invalidJsonBody;
+        $this->post = new ParameterCollection($parsedBody);
     }
 
     public static function fromGlobals(): self
     {
         $path = parse_url($_SERVER["REQUEST_URI"] ?? "/", PHP_URL_PATH) ?: "/";
+        $body = file_get_contents("php://input");
 
         return new self(
             $_SERVER["REQUEST_METHOD"] ?? "GET",
             $path,
             $_GET,
             $_POST,
-            file_get_contents("php://input") ?: "",
+            $body === false ? "" : $body,
             $_SERVER,
             $_FILES
         );
+    }
+
+    public function hasInvalidJsonBody(): bool
+    {
+        return $this->invalidJsonBody;
+    }
+
+    public function hasJsonContentType(): bool
+    {
+        $contentType = $this->headers->get("Content-Type", "") ?? "";
+        $mediaType = strtolower(trim(explode(";", $contentType, 2)[0]));
+
+        return $mediaType === "application/json" || str_ends_with($mediaType, "+json");
+    }
+
+    public function acceptsJson(): bool
+    {
+        $accept = strtolower($this->headers->get("Accept", "") ?? "");
+        return str_contains($accept, "application/json") || str_contains($accept, "+json");
     }
 
     public function getMethod(): string
@@ -101,6 +131,13 @@ final readonly class Request
     public function getPath(): string
     {
         return $this->path === "" ? "/" : $this->path;
+    }
+
+    public function getRequestUri(): string
+    {
+        $query = http_build_query($this->getQueryParams(), "", "&", PHP_QUERY_RFC3986);
+
+        return $this->getPath() . ($query === "" ? "" : "?" . $query);
     }
 
     public function isSecure(): bool

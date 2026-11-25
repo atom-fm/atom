@@ -9,6 +9,7 @@ use Atom\View\Html;
 final class TextAreaField extends FieldEntry
 {
     public ?string $value = null;
+    public bool $inferMaxLength = false;
 
     protected function renderControl(): string
     {
@@ -18,6 +19,7 @@ final class TextAreaField extends FieldEntry
             "class" => Html::classes("atom-textarea", $this->fieldClass()),
             "aria-invalid" => $this->hasError() ? "true" : null,
             "aria-describedby" => $this->describedBy(),
+            "maxlength" => $this->inferMaxLength ? $this->inferredMaxLength() : null,
         ], $this->attributes->all()), Html::escape($this->fieldValue()));
     }
 

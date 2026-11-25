@@ -33,7 +33,7 @@ final class Form implements ComponentInterface
             "action" => $this->action,
             "atom:submit" => $this->submit,
             "class" => Html::classes("atom-form", $this->class),
-        ], $this->attributes->all()), $this->csrfField() . ($this->content?->render($this->contentVariables()) ?? ""));
+        ], $this->attributes->all()), $this->csrfField() . $this->actionField() . ($this->content?->render($this->contentVariables()) ?? ""));
     }
 
     /**
@@ -58,6 +58,19 @@ final class Form implements ComponentInterface
             "type" => "hidden",
             "name" => CsrfTokenManagerInterface::FIELD_NAME,
             "value" => $this->csrfTokens->token(),
+        ]);
+    }
+
+    private function actionField(): string
+    {
+        if ($this->submit === "" || strtoupper($this->method) === "GET") {
+            return "";
+        }
+
+        return Html::voidTag("input", [
+            "type" => "hidden",
+            "name" => "_action",
+            "value" => $this->submit,
         ]);
     }
 }

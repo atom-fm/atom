@@ -1,0 +1,77 @@
+<PageHero
+    size="compact"
+    eyebrow="DESIGN SYSTEM"
+    title="One visual language, kept in the open."
+    summary="This page renders the starter's actual design tokens and interface patterns. Tune the values in theme.css and review the result here."
+/>
+
+<div class="design-index" aria-label="Design system sections">
+    <a href="#colors">Colors</a>
+    <a href="#typography">Typography</a>
+    <a href="#spacing">Spacing</a>
+    <a href="#patterns">Patterns</a>
+</div>
+
+<section class="design-section" id="colors" aria-labelledby="colors-title">
+    <header class="design-section__header">
+        <div><p class="ui-eyebrow">01 / COLORS</p><h2 id="colors-title">A restrained, semantic palette.</h2></div>
+        <p>Components consume roles such as surface, text, line, and primary. Site-specific colors should begin here instead of inside component rules.</p>
+    </header>
+    <div class="token-color-grid">
+        <article class="token-color"><div class="token-color__swatch token-color__swatch--ink"></div><strong>Text</strong><code>--atom-color-text</code><span>#171918</span></article>
+        <article class="token-color"><div class="token-color__swatch token-color__swatch--muted"></div><strong>Muted</strong><code>--atom-color-muted</code><span>#626762</span></article>
+        <article class="token-color"><div class="token-color__swatch token-color__swatch--paper"></div><strong>Soft surface</strong><code>--atom-color-soft</code><span>#f4f2eb</span></article>
+        <article class="token-color"><div class="token-color__swatch token-color__swatch--surface"></div><strong>Surface</strong><code>--atom-color-surface</code><span>#ffffff</span></article>
+        <article class="token-color"><div class="token-color__swatch token-color__swatch--line"></div><strong>Line</strong><code>--atom-color-line</code><span>#d8ddd7</span></article>
+        <article class="token-color"><div class="token-color__swatch token-color__swatch--primary"></div><strong>Primary</strong><code>--atom-color-primary</code><span>#245c43</span></article>
+    </div>
+</section>
+
+<section class="design-section" id="typography" aria-labelledby="typography-title">
+    <header class="design-section__header">
+        <div><p class="ui-eyebrow">02 / TYPOGRAPHY</p><h2 id="typography-title">Hierarchy before decoration.</h2></div>
+        <p>The starter uses one compact sans-serif family for clarity and reserves an editorial serif token for moments that need a contrasting voice.</p>
+    </header>
+    <div class="type-specimens">
+        <article><code>--atom-font-size-display</code><p class="type-display">Build clear things.</p></article>
+        <article><code>--atom-font-size-4xl</code><p class="type-editorial">A quieter second voice.</p></article>
+        <article><code>--atom-font-size-2xl</code><p class="type-heading">Readable structure at every scale.</p></article>
+        <article><code>--atom-font-size-lead</code><p class="type-lead">A lead paragraph introduces the point without competing with the page title.</p></article>
+        <article><code>--atom-font-size-md</code><p class="type-body">Body copy remains compact, calm, and comfortable across documentation and presentation pages.</p></article>
+        <article><code>--atom-font-size-xs</code><p class="ui-eyebrow">SMALL SEMANTIC LABEL</p></article>
+    </div>
+</section>
+
+<section class="design-section" id="spacing" aria-labelledby="spacing-title">
+    <header class="design-section__header">
+        <div><p class="ui-eyebrow">03 / SPACING</p><h2 id="spacing-title">A small, predictable rhythm.</h2></div>
+        <p>Use the scale for component internals. Larger page compositions can still use fluid spacing with <code>clamp()</code>.</p>
+    </header>
+    <div class="space-scale">
+        <div><code>1 · 4px</code><span class="space-sample space-sample--1"></span></div>
+        <div><code>2 · 8px</code><span class="space-sample space-sample--2"></span></div>
+        <div><code>3 · 12px</code><span class="space-sample space-sample--3"></span></div>
+        <div><code>4 · 16px</code><span class="space-sample space-sample--4"></span></div>
+        <div><code>6 · 24px</code><span class="space-sample space-sample--6"></span></div>
+        <div><code>8 · 32px</code><span class="space-sample space-sample--8"></span></div>
+        <div><code>12 · 48px</code><span class="space-sample space-sample--12"></span></div>
+        <div><code>16 · 64px</code><span class="space-sample space-sample--16"></span></div>
+    </div>
+</section>
+
+<section class="design-section" id="patterns" aria-labelledby="patterns-title">
+    <header class="design-section__header">
+        <div><p class="ui-eyebrow">04 / PATTERNS</p><h2 id="patterns-title">The current reusable pieces.</h2></div>
+        <p>These are intentionally few. Add a pattern after a real page needs it, then tune it here and where it is used.</p>
+    </header>
+    <div class="pattern-actions">
+        <a class="ui-button" href="#patterns">Primary action</a>
+        <a class="ui-text-link" href="#patterns">Text link</a>
+        <span class="ui-status">Quiet status</span>
+    </div>
+    <FeatureGrid>
+        <Feature marker="01" title="Page hero">A reusable opening with display and compact sizes.</Feature>
+        <Feature marker="02" title="Section intro">A consistent label and heading relationship.</Feature>
+        <Feature marker="03" title="Feature grid">Two- or three-column editorial content that recomposes on narrow screens.</Feature>
+    </FeatureGrid>
+</section>

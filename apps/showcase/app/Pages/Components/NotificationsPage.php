@@ -26,10 +26,16 @@ final class NotificationsPage extends AppPage
     #[PageAction("showToast")]
     public function showToast(string $variant = "success"): void
     {
+        [$title, $message] = match ($variant) {
+            "warning" => ["Review required", "Check the article details before publishing."],
+            "danger" => ["Unable to save", "The article could not be saved. Please try again."],
+            default => ["Article saved", "Your changes have been saved successfully."],
+        };
+
         $this->toast->open(
-            "The page action completed and the toast was rendered by the server.",
+            $message,
             $variant,
-            "Article saved"
+            $title
         );
     }
 

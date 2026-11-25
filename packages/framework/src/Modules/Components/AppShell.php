@@ -14,6 +14,7 @@ final class AppShell implements ComponentInterface
     public ?Fragment $content = null;
     public ?Fragment $sidebar = null;
     public ?Fragment $header = null;
+    public ?Fragment $navbar = null;
     public AttributeBag $attributes;
     public string $title = "";
     public string $class = "";
@@ -21,6 +22,10 @@ final class AppShell implements ComponentInterface
     public function render(): string
     {
         $content = "";
+
+        if ($this->navbar !== null) {
+            $content .= Html::tag("div", ["class" => "atom-app-shell__navbar"], $this->navbar->render());
+        }
 
         if ($this->sidebar !== null) {
             $content .= Html::tag("aside", ["class" => "atom-app-shell__sidebar"], $this->sidebar->render());

@@ -22,9 +22,14 @@ final class PaginationPage extends AppPage
 
     public int $total = 8;
 
+    public int $compactPage = 6;
+
+    public int $compactTotal = 12;
+
     public function get(Request $request): void
     {
         $this->page = min(max(1, $request->query()->int("page", 1)), $this->total);
+        $this->compactPage = min(max(1, $request->query()->int("compactPage", 6)), $this->compactTotal);
     }
 
     #[PageAction("setLocalPage")]

@@ -9,6 +9,7 @@ use ReflectionClass;
 use ReflectionMethod;
 use RuntimeException;
 use Atom\Router\RouteAction;
+use Atom\Router\Attributes\ApiController;
 use Atom\Router\Attributes\Controller;
 use Atom\Router\Attributes\HttpRoute;
 
@@ -41,6 +42,15 @@ final class Route
         }
 
         return self::$router;
+    }
+
+    /**
+     * @param array<string, string|int> $parameters
+     * @param array<string, mixed> $query
+     */
+    public static function url(string $name, array $parameters = [], array $query = []): string
+    {
+        return self::getRouter()->url($name, $parameters, $query);
     }
 
     private static function currentRouter(): Router
@@ -206,28 +216,37 @@ final class Route
     private static function attachController(Router $router, string $controller): void
     {
         $class = new ReflectionClass($controller);
-        $controllerPath = self::getControllerPath($class);
+        $attributes = $class->getAttributes(Controller::class, \ReflectionAttribute::IS_INSTANCEOF);
+        if (count($attributes) > 1) {
+            throw new RuntimeException("{$controller} must declare only one controller attribute.");
+        }
+        $options = $attributes === [] ? new Controller() : $attributes[0]->newInstance();
 
         foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
             foreach ($method->getAttributes(HttpRoute::class, \ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
                 $route = $attribute->newInstance();
-                $router->add(RouteEntry::create(
+                $entry = RouteEntry::create(
                     $route->method,
-                    self::joinPaths($controllerPath, $route->path),
+                    self::joinPaths($options->path, $route->path),
                     [$controller, $method->getName()]
-                ));
+                );
+                if ($options instanceof ApiController) {
+                    $entry->api();
+                }
+                foreach ([...$options->middlewares, ...$route->middlewares] as $middleware) {
+                    $entry->middleware($middleware);
+                }
+                if ($route->name !== null) {
+                    $entry->name($route->name);
+                }
+                if ($route->title !== null) {
+                    $entry->title($route->title);
+                }
+                if ($route->description !== null) {
+                    $entry->description($route->description);
+                }
+                $router->add($entry);
             }
         }
-    }
-
-    private static function getControllerPath(ReflectionClass $class): string
-    {
-        $attributes = $class->getAttributes(Controller::class);
-
-        if (count($attributes) === 0) {
-            return "";
-        }
-
-        return $attributes[0]->newInstance()->path;
     }
 }

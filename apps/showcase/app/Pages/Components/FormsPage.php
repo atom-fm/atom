@@ -8,6 +8,7 @@ use Atom\Page\FormModel;
 use Atom\Page\PageAction;
 use Atom\Page\PageRoute;
 use Atom\Page\State;
+use Atom\Validation\ValidationResult;
 use Showcase\Pages\AppPage;
 
 #[PageRoute("/components/forms", name: "showcase.components.forms")]
@@ -52,6 +53,15 @@ final class FormsPage extends AppPage
             $this->flash("Your form model was hydrated, validated, and saved by a page action.", "success", "Form submitted");
         }
 
+        $this->loadCategories();
+    }
+
+    #[PageAction("resetForm")]
+    public function resetForm(): void
+    {
+        $this->form = new FormsDemoModel();
+        $this->setValidation(ValidationResult::valid());
+        $this->clearFlash();
         $this->loadCategories();
     }
 

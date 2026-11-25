@@ -141,6 +141,30 @@ Use the optional asset components from an `.atom.html` layout when the Client an
 
 `Avatar` renders an image when `src` is provided and otherwise derives up to two initials from `name`. `StatusDot` requires a `label` when its meaning is not also written next to it. `Details` uses native `<details>` disclosure behavior and does not require JavaScript.
 
+## Pagination with Page URI state
+
+Return a `PagedCollection` from the listing query with the rows, total count,
+current page, and page size. Use `PagedCollection::clampPage($requestedPage, $totalCount, $pageSize)`
+before calculating the query offset. Empty results use page 1, and other requests
+are clamped between the first and last pages. Calling `map()` to build display rows
+preserves this pagination metadata. `Table.Pagination` supplies the table's
+collection as the pager's source.
+
+```html
+<Table :items="$this->rows">
+    <Column label="Name" field="name" />
+    <Table.Pagination><Pagination query-key="page" navigate preserve-scroll /></Table.Pagination>
+</Table>
+```
+
+`query-key` accepts a Page's `#[Uri]` property name or its query alias. Each link
+uses `Page::url()` to change that value and carry the other bound values and route
+parameters forward. Use `:uri-overrides="['selection' => null]"` when changing
+pages should clear a selection. Outside a table, pass the collection with
+`:source`, for example `<Pagination :source="$this->images" query-key="imagepage" navigate preserve-scroll />`.
+The links work as native GETs. `navigate` also lets Atom load them through its
+enhanced navigation. The `href` template and `action` modes remain available.
+
 ## Icons
 
 `Icon` supports child text or markup, public SVG URLs, local SVG paths resolved through `Paths`, data URIs, and font-icon class names. Named icon catalogues are optional packages registered by prefix.
@@ -172,6 +196,31 @@ The core framework does not bundle any named icon catalogue. Using an unregister
 
 Use `Badge` for compact status or metadata, and `Tag` for pill-shaped classification labels. `Divider` supports `horizontal` and `vertical` orientations.
 
+Tables provide padded rows, neutral content links with visible keyboard focus, and a full-width toolbar area for either native forms or `Form`. A toolbar inside `Table.Toolbar` uses a plain surface by default; set its `appearance` explicitly to retain a boxed treatment. Use `Toolbar.Start` for fields and `Toolbar.End` for grouped commands. Sections inherit the toolbar's alignment and wrap on narrow screens without page-specific CSS. Use `Badge appearance="outline"` when table statuses need a visible boundary; plain badges remain the default elsewhere.
+
+`AppShell.Navbar` spans the shell above both the sidebar and content. The existing `AppShell.Header` stays above the content column. `Navbar` provides `Navbar.Brand`, regular content, and `Navbar.Actions` fragments, with wrapping, spacing, and keyboard focus styles included. Set `label` on `Navbar` and `Sidebar` to name their navigation landmarks. Shell sidebars move above the content when the shell is 720px wide or less, with navigation columns fitting the available space; this responds to the shell container rather than the browser width.
+
+```html
+<AppShell>
+    <AppShell.Navbar>
+        <Navbar label="Workspace">
+            <Navbar.Brand><a href="/">Support Desk</a></Navbar.Brand>
+            Inbox
+            <Navbar.Actions><Button href="/account">Account</Button></Navbar.Actions>
+        </Navbar>
+    </AppShell.Navbar>
+    <AppShell.Sidebar>
+        <Sidebar label="Queues">
+            <SidebarGroup label="Tickets">
+                <SidebarItem href="/tickets" active>All tickets</SidebarItem>
+                <SidebarItem href="/tickets?status=open">Open</SidebarItem>
+            </SidebarGroup>
+        </Sidebar>
+    </AppShell.Sidebar>
+    <PageHeader title="Ticket inbox" />
+</AppShell>
+```
+
 `Drawer` is a modal side surface with `start` or `end` placement, `sm`, `md`, or `lg` sizing, and an optional `Drawer.Actions` fragment. Bind a `DrawerModel` when page actions should open and close it while preserving an associated value.
 
 `Tab` accepts optional `icon`, `badge`, and `badgeVariant` values. Icons use the same resolver as the standalone `Icon` component, while tab badges render with the compact soft badge style.
@@ -186,6 +235,13 @@ Composite fields forward ordinary HTML attributes to their controls. Use native 
 <TextField label="Email" name="email" type="email" autocomplete="email" required />
 <TextField label="Generated slug" name="slug" readonly />
 <SwitchField label="Unavailable" name="enabled" disabled />
+```
+
+`TextField` and `TextAreaField` can use `infer-max-length` to render the HTML `maxlength` attribute from `#[MaxLength]` on the bound public property. Atom uses the field's `bind` or `name` to find the property on the object model, or on the page when there is no model. An explicit `maxlength` takes precedence, and a bound `:maxlength="null"` suppresses the attribute. Form validation still runs on the server, and conditional rules stay in the form.
+
+```html
+<TextField label="Title" name="title" infer-max-length />
+<TextAreaField label="Body" name="body" infer-max-length />
 ```
 
 Use `InputGroup` with `InputGroup.Prefix` and `InputGroup.Suffix` fragments when a raw control needs an icon, unit, URL segment, or other compact adornment:
@@ -311,6 +367,8 @@ Html::mergeAttributes($defaults, $attributes)
 
 `Html::tag()` does not escape content. Pass escaped text or rendered HTML intentionally.
 
+The HTML helpers reject malformed attribute names. An empty string renders as an explicit attribute value. When using `Html::mergeAttributes()`, empty defaults are omitted and explicitly supplied empty overrides are kept.
+
 ## Default Content
 
 Default child content is assigned to `content`.
@@ -417,6 +475,11 @@ Without an explicit attribute, context can fill the property:
 </Form>
 ```
 
+For non-GET forms, `submit="save"` emits both `atom:submit="save"` and a hidden
+`_action=save` input. The hidden input preserves page-action dispatch when JavaScript
+is disabled. Add `csrf` to emit the session CSRF token as well. Ordinary forms without
+`submit`, and GET forms, do not receive a page-action input.
+
 `Form` renders its child fragment with:
 
 ```php
@@ -428,6 +491,8 @@ $this->content?->render(["model" => $this->model]);
 ## Named Fragments
 
 Named fragments use dotted child elements.
+
+Declare a named fragment directly inside its component. Put conditions or loops inside the fragment body.
 
 ```php
 final class Panel implements ComponentInterface
@@ -652,3 +717,75 @@ Examples:
 - body content without `public ?Fragment $content` or `public ?TemplateFragment $content` fails clearly
 - invalid `#[Children]` mappings name the mapped property
 - invalid render results include the returned type
+
+
+### FormView
+
+Use `FormView` to render an `Atom\Page\Form` with its adjacent template:
+
+```html
+<FormView :form="$this->detailsForm" submit="detailsForm.save" class="product-editor" />
+```
+
+For `ProductDetailsForm.php`, the default template is `ProductDetailsForm.atom.html`
+in the same folder. A form may override `template(): ?string` with a relative or
+absolute path. The framework loads it through the existing template cache and renders
+it using the current component registry, including module-local components.
+
+The form template contains fields and buttons, without another `<Form>` wrapper.
+`$this` and `$form` refer to the form; `$page` remains the containing Page. Native
+fields inherit the form model and display its retained validation errors. Prefer
+form methods for form-specific choices and use `$page` for page navigation.
+
+`FormView` supplies a POST `Form` with CSRF by default. Pass `submit` to select the
+action; Atom supplies both enhanced submission and the hidden `_action` input
+for ordinary POSTs. Use `submit="detailsForm.save"` to call a public Page form's
+`#[PageAction] save(): bool` directly. A `false` return re-renders the Page with the
+form's retained input and errors. A `true` return invokes the Page's optional
+`formSaved(Form $form): ?Response` hook once. That shared hook can set a success
+notice and redirect, or return `null` to re-render. No forwarding Page action is
+required. Plain Page actions remain available when custom orchestration is needed.
+HTML attributes are forwarded to the outer form. `method="get"` and `action` are
+supported for search forms; GET forms emit neither CSRF nor page-action inputs.
+Keep the element self-closing; markup belongs in the form's template.
+
+Group feature pages and forms together, for example:
+
+```text
+Pages/Catalog/
+  Products.php
+  Products.atom.html
+  ProductDetailsForm.php
+  ProductDetailsForm.atom.html
+```
+
+Page discovery is recursive and only registers routed Page subclasses, so colocated
+form classes need no registration. Domain models and reusable application services
+remain outside the Pages folder.
+
+## Adjacent component styles
+
+Place `UserCard.css` beside `UserCard.php`. Registered application and module components (including private module components) are scanned without instantiation. Missing CSS is normal. Files are deduplicated by resolved path and sorted by path; CSS remains global, so use component-specific class names. The bundle contains all registered component styles, regardless of which components a request renders. Existing framework `ComponentsStyles` CSS remains separate.
+
+Enable the development endpoint by registering this module in your application's `modules()` method:
+
+```php
+$modules->add(new \Atom\View\Style\ComponentStylesModule(development: true));
+```
+
+Include the bundle once in the layout:
+
+```html
+<link rel="stylesheet" href="/assets/components.css">
+```
+
+The endpoint recomposes CSS on every request and returns `Cache-Control: no-cache`. Enable it only in development and remove any previously built public file when switching back to development, since static files may take precedence. An optional `path` constructor argument changes the route (relative to the module mount).
+
+For production, omit the development endpoint and run:
+
+```powershell
+php atom styles:build
+php atom styles:build --output=@public/assets/components.css
+```
+
+The command uses the same scanner and composer and atomically writes `@public/assets/components.css`. Rebuild during deployment and update your asset version when the content changes. CSS must be UTF-8, use root-relative or absolute `url(...)` references, and contain no `@import` or `@charset` declarations; unsupported declarations or relative URLs produce build errors rather than broken asset references. Styles are concatenated without minification.

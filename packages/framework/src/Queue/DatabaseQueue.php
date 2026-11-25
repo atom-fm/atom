@@ -8,8 +8,11 @@ use Atom\Database\DatabaseConnection;
 use JsonException;
 use Throwable;
 
-final readonly class DatabaseQueue implements QueueInterface
+final readonly class DatabaseQueue implements DeferrableQueueInterface
 {
+    // Legacy payloads are JSON. This prefix distinguishes envelopes with execution metadata.
+    private const string METADATA_PREFIX = "atom-overlap:";
+
     public function __construct(
         private DatabaseConnection $connection,
         private string $table = "atom_jobs",
@@ -38,10 +41,9 @@ final readonly class DatabaseQueue implements QueueInterface
 
     public function reserve(string $queue, int $retryAfter): ?ReservedJob
     {
-        $now = time();
-        $expired = $now - max(1, $retryAfter);
-
         for ($attempt = 0; $attempt < 10; $attempt++) {
+            $now = time();
+            $expired = $now - max(1, $retryAfter);
             $row = $this->connection->first(
                 "SELECT id, queue, type, payload, attempts, available_at, reserved_at, reservation_id, created_at " .
                 "FROM {$this->table} WHERE queue = :queue AND available_at <= :now " .
@@ -55,11 +57,14 @@ final readonly class DatabaseQueue implements QueueInterface
             $reservationId = bin2hex(random_bytes(16));
             $affected = $this->connection->execute(
                 "UPDATE {$this->table} SET reserved_at = :now, reservation_id = :reservation_id, attempts = attempts + 1 " .
-                "WHERE id = :id AND (reserved_at IS NULL OR reserved_at <= :expired)",
+                "WHERE id = :id AND available_at <= :available_by AND attempts = :expected_attempts " .
+                "AND (reserved_at IS NULL OR reserved_at <= :expired)",
                 [
                     "now" => $now,
                     "reservation_id" => $reservationId,
                     "id" => (string) $row["id"],
+                    "available_by" => $now,
+                    "expected_attempts" => (int) $row["attempts"],
                     "expired" => $expired,
                 ]
             );
@@ -92,9 +97,25 @@ final readonly class DatabaseQueue implements QueueInterface
         );
     }
 
+    public function defer(ReservedJob $job, int $delay): void
+    {
+        $this->guardedExecute(
+            "UPDATE {$this->table} SET available_at = :available_at, reserved_at = NULL, reservation_id = NULL, attempts = attempts - 1 " .
+            "WHERE id = :id AND reservation_id = :reservation_id",
+            $job,
+            "defer",
+            ["available_at" => time() + max(0, $delay)]
+        );
+    }
+
     public function fail(ReservedJob $job, Throwable $exception): void
     {
         $this->connection->transaction(function () use ($job, $exception): void {
+            $this->guardedExecute(
+                "DELETE FROM {$this->table} WHERE id = :id AND reservation_id = :reservation_id",
+                $job,
+                "fail"
+            );
             $this->connection->execute(
                 "INSERT INTO {$this->failedTable} (id, queue, type, payload, attempts, exception, failed_at) " .
                 "VALUES (:id, :queue, :type, :payload, :attempts, :exception, :failed_at)",
@@ -108,11 +129,6 @@ final readonly class DatabaseQueue implements QueueInterface
                     "failed_at" => time(),
                 ]
             );
-            $this->guardedExecute(
-                "DELETE FROM {$this->table} WHERE id = :id AND reservation_id = :reservation_id",
-                $job,
-                "fail"
-            );
         });
     }
 
@@ -125,14 +141,16 @@ final readonly class DatabaseQueue implements QueueInterface
         );
 
         return array_map(function (array $row): FailedJob {
+            [$payload, $overlapKey] = $this->decodePayload((string) $row["payload"]);
             $job = new JobEnvelope(
                 (string) $row["id"],
                 (string) $row["queue"],
                 (string) $row["type"],
-                $this->decodePayload((string) $row["payload"]),
+                $payload,
                 (int) $row["attempts"],
                 0,
-                0
+                0,
+                overlapKey: $overlapKey
             );
             return new FailedJob($job, (string) $row["exception"], (int) $row["failed_at"]);
         }, $rows);
@@ -141,22 +159,28 @@ final readonly class DatabaseQueue implements QueueInterface
     /** @param array<string, mixed> $row */
     private function job(array $row): JobEnvelope
     {
+        [$payload, $overlapKey] = $this->decodePayload((string) $row["payload"]);
         return new JobEnvelope(
             (string) $row["id"],
             (string) $row["queue"],
             (string) $row["type"],
-            $this->decodePayload((string) $row["payload"]),
+            $payload,
             (int) $row["attempts"],
             (int) $row["available_at"],
             (int) $row["created_at"],
             $row["reserved_at"] === null ? null : (int) $row["reserved_at"],
-            $row["reservation_id"] === null ? null : (string) $row["reservation_id"]
+            $row["reservation_id"] === null ? null : (string) $row["reservation_id"],
+            $overlapKey
         );
     }
 
-    /** @return array<string, mixed> */
+    /** @return array{array<string, mixed>, ?string} */
     private function decodePayload(string $payload): array
     {
+        $hasMetadata = str_starts_with($payload, self::METADATA_PREFIX);
+        if ($hasMetadata) {
+            $payload = substr($payload, strlen(self::METADATA_PREFIX));
+        }
         try {
             $decoded = json_decode($payload, true, flags: JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
@@ -166,13 +190,25 @@ final readonly class DatabaseQueue implements QueueInterface
         if (!is_array($decoded)) {
             throw new QueueException("Database job payload must be an object.");
         }
-        return $decoded;
+        if (!$hasMetadata) {
+            return [$decoded, null];
+        }
+        if (!is_array($decoded["payload"] ?? null) || !is_string($decoded["overlapKey"] ?? null)) {
+            throw new QueueException("Database job overlap metadata is invalid.");
+        }
+        return [$decoded["payload"], $decoded["overlapKey"]];
     }
 
     private function payloadJson(JobEnvelope $job): string
     {
         try {
-            return json_encode($job->payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            if ($job->overlapKey === null) {
+                return json_encode($job->payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+            }
+            return self::METADATA_PREFIX . json_encode(
+                ["payload" => $job->payload, "overlapKey" => $job->overlapKey],
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES
+            );
         } catch (JsonException $exception) {
             throw new QueueException("Cannot encode database job '{$job->id}'.", previous: $exception);
         }
@@ -191,7 +227,7 @@ final readonly class DatabaseQueue implements QueueInterface
             "reservation_id" => $job->reservationId,
         ]);
         if ($affected !== 1) {
-            throw new QueueException("Cannot {$operation} job '{$job->job->id}'; its reservation is no longer owned.");
+            throw new ReservationLostException("Cannot {$operation} job '{$job->job->id}'; its reservation is no longer owned.");
         }
     }
 

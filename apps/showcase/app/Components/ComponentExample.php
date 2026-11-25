@@ -21,7 +21,12 @@ final class ComponentExample implements ComponentInterface
         return Html::tag("section", ["class" => "component-example"],
             $this->header() .
             Html::tag("div", ["class" => "component-example-preview"], $this->content?->render() ?? "") .
-            Html::tag("pre", ["class" => "component-example-code"], Html::tag(
+            Html::tag("pre", [
+                "class" => "component-example-code",
+                "tabindex" => "0",
+                "role" => "region",
+                "aria-label" => $this->title . " source code",
+            ], Html::tag(
                 "code",
                 [],
                 $this->highlight($this->normalizeSource($this->content?->source() ?? ""))

@@ -4,23 +4,31 @@ declare(strict_types=1);
 
 namespace Atom\Modules\Components;
 
+use Atom\Page\Page;
 use Atom\View\Component\AttributeBag;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\FromContext;
 use Atom\View\Html;
+use Atom\View\Render\ViewRenderException;
 
 final class Pagination implements ComponentInterface
 {
     public AttributeBag $attributes;
     #[FromContext("source")]
     public mixed $source = null;
+    #[FromContext("page")]
+    public mixed $ownerPage = null;
     public int $page = 1;
     public int $total = 1;
     public int $window = 5;
     public string $href = "?page={page}";
+    public string $queryKey = "";
+    /** @var array<string, mixed> */
+    public array $uriOverrides = [];
     public string $action = "";
     public bool $navigate = false;
     public bool $preserveState = false;
+    public bool $preserveScroll = false;
     public string $label = "Pagination";
     public string $class = "";
 
@@ -101,11 +109,25 @@ final class Pagination implements ComponentInterface
             $attributes["atom:action"] = str_replace("{page}", (string) $page, $this->action);
         } elseif (!$disabled) {
             $tag = "a";
-            $attributes["href"] = str_replace("{page}", (string) $page, $this->href);
+            $attributes["href"] = $this->pageUrl($page);
             $attributes["atom:navigate"] = $this->navigate;
             $attributes["atom:preserve-state"] = $this->preserveState;
+            $attributes["atom:preserve-scroll"] = $this->navigate && $this->preserveScroll;
         }
 
         return Html::tag($tag, $attributes, Html::escape($label));
+    }
+
+    private function pageUrl(int $page): string
+    {
+        if ($this->queryKey === "") {
+            return str_replace("{page}", (string) $page, $this->href);
+        }
+
+        if (!$this->ownerPage instanceof Page) {
+            throw new ViewRenderException("Pagination with a query key requires a Page context.");
+        }
+
+        return $this->ownerPage->url([...$this->uriOverrides, $this->queryKey => $page]);
     }
 }

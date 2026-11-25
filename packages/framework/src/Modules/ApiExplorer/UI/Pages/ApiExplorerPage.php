@@ -64,14 +64,7 @@ final class ApiExplorerPage extends Page
         $method = strtoupper($this->request->post()->string("method", $operation->method));
         $url = $this->request->post()->string("url", $operation->path());
         $this->requestUrl = $url;
-        $payload = $this->payloadFromBody($this->requestBody);
-
-        if ($payload === null) {
-            $this->responsePreview = "Invalid JSON request body.";
-            return;
-        }
-
-        $targetRequest = $this->requestFromForm($method, $url, $payload, $this->requestBody);
+        $targetRequest = $this->requestFromForm($method, $url, $this->requestBody);
         $apiContext = new InjectionContext();
 
         try {
@@ -118,7 +111,7 @@ final class ApiExplorerPage extends Page
         return $operations;
     }
 
-    private function apiPathPrefix(): string
+    private function apiPathPrefix(): ?string
     {
         return $this->options()->apiPathPrefix;
     }
@@ -132,24 +125,7 @@ final class ApiExplorerPage extends Page
             : new ApiExplorerOptions("/atom/api/resources", "/atom/api/explorer");
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function payloadFromBody(string $body): ?array
-    {
-        if (trim($body) === "") {
-            return [];
-        }
-
-        $payload = json_decode($body, true);
-
-        return is_array($payload) ? $payload : null;
-    }
-
-    /**
-     * @param array<string, mixed> $payload
-     */
-    private function requestFromForm(string $method, string $url, array $payload, string $rawBody): Request
+    private function requestFromForm(string $method, string $url, string $rawBody): Request
     {
         $parts = parse_url($url);
         $path = (string) ($parts["path"] ?? "/");
@@ -167,11 +143,11 @@ final class ApiExplorerPage extends Page
             $method,
             $path,
             $query,
-            $payload,
+            [],
             $rawBody,
             [],
             [],
-            ["Content-Type" => "application/json"]
+            ["Content-Type" => "application/json", "Accept" => "application/json"]
         );
     }
 

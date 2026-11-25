@@ -19,7 +19,7 @@ use Atom\Modules\ApiExplorer\UI\Components\TryRequestPanel;
 
 final readonly class ApiExplorer
 {
-    public static function module(string $apiPathPrefix = "/api"): ApiExplorerModule
+    public static function module(?string $apiPathPrefix = null): ApiExplorerModule
     {
         return new ApiExplorerModule($apiPathPrefix);
     }
@@ -34,7 +34,7 @@ final readonly class ApiExplorer
         ]);
     }
 
-    public static function register(Router $router, string $path = "/atom/api", string $apiPathPrefix = "/api"): RouteEntry
+    public static function register(Router $router, string $path = "/atom/api", ?string $apiPathPrefix = null): RouteEntry
     {
         $bindings = \Atom\Di\Bindings::create();
         $module = self::module($apiPathPrefix);

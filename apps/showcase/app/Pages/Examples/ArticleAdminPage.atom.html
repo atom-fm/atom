@@ -7,12 +7,15 @@
 <Stack gap="md">
     <PageHeader title="Articles" description="A composed admin workflow built from Atom components.">
         <PageHeader.Actions>
-            <Form submit="filter">
+            <Form method="get" action="/examples/article-admin" atom:navigate atom:preserve-scroll atom:preserve-state>
+                <HiddenField name="sort" />
+                <HiddenField name="direction" />
                 <Toolbar gap="sm" appearance="plain" class="article-admin-filter">
                     <Toolbar.Start>
-                        <TextField name="query" placeholder="Title, summary, or author" atom:input="filter" />
-                        <SelectField name="status" :options="$this->statuses" atom:change="filter" />
-                        <Button variant="ghost" atom:action="clearFilters">Clear</Button>
+                        <TextField aria-label="Search articles" name="query" placeholder="Title, summary, or author" />
+                        <SelectField aria-label="Article status" name="status" :options="$this->statuses" />
+                        <Button type="submit">Filter</Button>
+                        <Button :href="$this->url(['query' => null, 'status' => null, 'page' => 1])" variant="ghost" atom:navigate atom:preserve-scroll atom:preserve-state>Clear</Button>
                     </Toolbar.Start>
 
                     <Toolbar.End>
@@ -69,7 +72,7 @@
 
         <SplitView.Side>
             <Panel :title="$this->editId === 0 ? 'New article' : 'Edit article'" description="This side pane is just page state and a form.">
-                <Form submit="save">
+                <Form id="article-editor" submit="save" atom:preserve-state>
                     <HiddenField name="editId" />
 
                     <Stack gap="sm">

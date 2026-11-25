@@ -17,7 +17,7 @@ final class HtmlTest extends TestCase
     public function testRendersHtmlAttributes(): void
     {
         $this->assertSame(
-            ' id="title" required value="Atom &amp; PHP"',
+            ' id="title" class="" required value="Atom &amp; PHP"',
             Html::attributes([
                 "id" => "title",
                 "disabled" => false,
@@ -74,5 +74,15 @@ final class HtmlTest extends TestCase
             "type" => "submit",
             "data-id" => "42",
         ]));
+    }
+
+    public function testOmitsEmptyDefaultsAndKeepsExplicitEmptyOverrides(): void
+    {
+        $attributes = Html::mergeAttributes(
+            ["action" => "", "aria-label" => "Default", "atom:submit" => ""],
+            ["aria-label" => ""]
+        );
+
+        $this->assertSame(' aria-label=""', Html::attributes($attributes));
     }
 }

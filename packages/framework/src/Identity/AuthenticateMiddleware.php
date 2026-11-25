@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Identity;
 
+use Atom\Http\AccessFailure;
 use Atom\Http\MiddlewareInterface;
 use Atom\Http\Request;
 use Atom\Http\RequestHandlerInterface;
@@ -21,10 +22,6 @@ final readonly class AuthenticateMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        return (new Response())
-            ->status(401)
-            ->header("Content-Type", "text/plain; charset=utf-8")
-            ->header("Cache-Control", "no-store")
-            ->content("Authentication required.");
+        return AccessFailure::AuthenticationRequired->response($request);
     }
 }

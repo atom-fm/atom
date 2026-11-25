@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Atom\Page;
 
 use Atom\Http\MiddlewareInterface;
+use Atom\Http\Response;
+use Atom\Modules\ErrorPages\HttpException;
 use Atom\Router\Route;
+use Atom\Router\MatchedRoute;
 use Atom\Router\RouteEntry;
 use Atom\Validation\ValidationResult;
 use Atom\Validation\Validator;
@@ -14,7 +17,10 @@ use RuntimeException;
 abstract class Page
 {
     public ?string $layout = null;
+    private ?MatchedRoute $uriRoute = null;
     private ?ValidationResult $validation = null;
+    private ?ValidationResult $formInputErrors = null;
+    private bool $hasFormInputErrors = false;
     private string $flashMessage = "";
     private string $flashTitle = "";
     private string $flashVariant = "success";
@@ -50,7 +56,36 @@ abstract class Page
         return dirname($callerFile) . DIRECTORY_SEPARATOR . "Pages";
     }
 
+    /** @internal Bound by the Page request lifecycle. */
+    public function useUriRoute(MatchedRoute $route): void
+    {
+        $this->uriRoute = $route;
+    }
+
+    /** @param array<string, mixed> $overrides */
+    public function url(array $overrides = []): string
+    {
+        return (new PageUri())->url($this, $this->uriRoute ?? throw new PageActionException("Page URL requires a matched route."), $overrides);
+    }
+
+    /** Stop the request and let the configured error handler render a 404. */
+    protected function notFound(string $message = ""): never
+    {
+        throw new HttpException(404, $message);
+    }
+
+    /** Prepare models/forms after Page inputs are bound, before form input hydration. */
+    public function init(): void
+    {
+    }
+
     public function template(): ?string
+    {
+        return null;
+    }
+
+    /** Called after a directly submitted form save succeeds. */
+    public function formSaved(Form $form): ?Response
     {
         return null;
     }
@@ -72,7 +107,37 @@ abstract class Page
 
     public function errors(): ValidationResult
     {
-        return $this->validation ??= ValidationResult::valid();
+        $result = ValidationResult::valid()->merge($this->validation ?? ValidationResult::valid());
+        if ($this->formInputErrors !== null) {
+            $result->merge($this->formInputErrors);
+        }
+        foreach ((new \ReflectionObject($this))->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+            if ($property->getAttributes(FormModel::class) === [] || !$property->isInitialized($this)) {
+                continue;
+            }
+            $form = $property->getValue($this);
+            if ($form instanceof Form) {
+                $result->merge($form->errors());
+            }
+        }
+        return $result;
+    }
+
+    /** @internal */
+    final public function addFormInputErrors(object $model, ValidationResult $errors): void
+    {
+        $this->hasFormInputErrors = true;
+        if ($model instanceof Form) {
+            $model->addInputErrors($errors);
+        } else {
+            ($this->formInputErrors ??= ValidationResult::valid())->merge($errors);
+        }
+    }
+
+    /** @internal */
+    final public function hasFormInputErrors(): bool
+    {
+        return $this->hasFormInputErrors;
     }
 
     public function flash(string $message, string $variant = "success", string $title = ""): void

@@ -1,0 +1,182 @@
+[
+    {
+        "slug": "",
+        "title": "Documentation",
+        "description": "Build clear, fast documentation with Markdown and Atom.",
+        "order": 1
+    },
+    {
+        "slug": "getting-started",
+        "title": "Getting started",
+        "description": "Add and organize Markdown documentation in the Atom starter.",
+        "order": 10
+    },
+    {
+        "slug": "concepts",
+        "title": "Concepts",
+        "description": "The core ideas behind an Atom application.",
+        "order": 20
+    },
+    {
+        "slug": "concepts/templates",
+        "title": "Templates",
+        "description": "Render declarative Atom templates on the server.",
+        "order": 21
+    },
+    {
+        "slug": "concepts/pages",
+        "title": "Pages",
+        "description": "Browser-facing request handlers in Atom.",
+        "order": 22
+    },
+    {
+        "slug": "concepts/components",
+        "title": "Components",
+        "description": "Reusable UI primitives and composed markup.",
+        "order": 23
+    },
+    {
+        "slug": "concepts/modules",
+        "title": "Modules",
+        "description": "Cohesive application features registered with Atom.",
+        "order": 24
+    },
+    {
+        "slug": "guides",
+        "title": "Guides",
+        "description": "Practical guides for building an Atom site.",
+        "order": 30
+    },
+    {
+        "slug": "guides/create-a-page",
+        "title": "Create a page",
+        "description": "Add a routed page and adjacent template.",
+        "order": 31
+    },
+    {
+        "slug": "guides/add-navigation",
+        "title": "Add navigation",
+        "description": "Create links enhanced by MorphDOM.",
+        "order": 32
+    },
+    {
+        "slug": "guides/work-with-forms",
+        "title": "Work with forms",
+        "description": "Submit forms through server-side page actions.",
+        "order": 33
+    },
+    {
+        "slug": "guides/use-sqlite",
+        "title": "Use SQLite",
+        "description": "Configure and migrate the starter database.",
+        "order": 34
+    },
+    {
+        "slug": "guides/customize-theme",
+        "title": "Customize the theme",
+        "description": "Tune shared site and Accounts colors.",
+        "order": 35
+    },
+    {
+        "slug": "reference",
+        "title": "Reference",
+        "description": "Concise reference material for the starter APIs.",
+        "order": 40
+    },
+    {
+        "slug": "reference/commands",
+        "title": "Commands",
+        "description": "Common commands available in the starter.",
+        "order": 41
+    },
+    {
+        "slug": "reference/front-matter",
+        "title": "Front matter",
+        "description": "Metadata supported by documentation pages.",
+        "order": 42
+    },
+    {
+        "slug": "reference/directory-layout",
+        "title": "Directory layout",
+        "description": "Important application directories and their roles.",
+        "order": 43
+    },
+    {
+        "slug": "reference/markdown",
+        "title": "Markdown",
+        "description": "Supported Markdown authoring features.",
+        "order": 44
+    },
+    {
+        "slug": "reference/routes",
+        "title": "Routes",
+        "description": "Documentation URL and file mapping rules.",
+        "order": 45
+    },
+    {
+        "slug": "reference/environment",
+        "title": "Environment",
+        "description": "Local environment configuration conventions.",
+        "order": 46
+    },
+    {
+        "slug": "deployment",
+        "title": "Deployment",
+        "description": "Prepare and deploy an Atom presentation site.",
+        "order": 50
+    },
+    {
+        "slug": "deployment/build-index",
+        "title": "Build the docs index",
+        "description": "Generate navigation metadata during deployment.",
+        "order": 51
+    },
+    {
+        "slug": "deployment/web-server",
+        "title": "Configure the web server",
+        "description": "Point the document root at the public directory.",
+        "order": 52
+    },
+    {
+        "slug": "deployment/production-settings",
+        "title": "Production settings",
+        "description": "Use safe application settings in production.",
+        "order": 53
+    },
+    {
+        "slug": "deployment/checklist",
+        "title": "Deployment checklist",
+        "description": "Final checks before making the site public.",
+        "order": 54
+    },
+    {
+        "slug": "advanced",
+        "title": "Advanced",
+        "description": "Deeper customization and architectural topics.",
+        "order": 60
+    },
+    {
+        "slug": "advanced/architecture",
+        "title": "Architecture",
+        "description": "Internal boundaries in a larger Atom application.",
+        "order": 61
+    },
+    {
+        "slug": "advanced/architecture/request-lifecycle",
+        "title": "Request lifecycle",
+        "description": "Follow a request through routing and rendering.",
+        "order": 62
+    },
+    {
+        "slug": "advanced/architecture/dependency-injection",
+        "title": "Dependency injection",
+        "description": "Resolve application collaborators explicitly.",
+        "order": 63
+    },
+    {
+        "slug": "advanced/architecture/content-boundaries",
+        "title": "Content boundaries",
+        "description": "Keep generated metadata separate from source content.",
+        "order": 64
+    }
+]

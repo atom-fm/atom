@@ -51,14 +51,73 @@ Delete a cookie using the same path and domain with which it was created:
 return $response->removeCookie("theme", path: "/");
 ```
 
-## Cookies from Services
+## Remember a reader's theme
 
-Code that does not own the final response should inject the request-scoped `CookieJar`:
+Give a reader a way to select dark mode and later return to the system theme. The example stores the preference for a week. Each read uses the cookie sent with that request.
+
+In an Atom Starter app, add these imports to `app/Application.php`.
 
 ```php
+use Atom\Di\Injector;
+use Atom\Http\Cookie;
+use Atom\Http\Request;
+use Atom\Http\Response;
+use Atom\Router\Route;
+```
+
+Register the three routes in `bootstrap()`. If the method already exists, add the routes to its body.
+
+```php
+protected function bootstrap(Injector $injector): void
+{
+    Route::get("/reader/theme", static function (Request $request, Response $response): Response {
+        return $response->json(["theme" => $request->cookies()->string("reader.theme", "system")]);
+    });
+
+    Route::post("/reader/theme/dark", static function (Response $response): Response {
+        $theme = Cookie::create("reader.theme", "dark")->withPath("/reader")->expiresAfter(7 * 86400);
+
+        return $response->cookie($theme)->content("Dark theme saved.");
+    });
+
+    Route::delete("/reader/theme", static function (Response $response): Response {
+        return $response->removeCookie("reader.theme", path: "/reader")->content("Theme reset.");
+    });
+}
+```
+
+Run `php atom serve` from the app root. In a second PowerShell terminal, use one client session so each request carries the cookies from earlier responses.
+
+```powershell
+$url = "http://127.0.0.1:8020/reader/theme"
+(Invoke-RestMethod $url -SessionVariable reader).theme
+Invoke-RestMethod "$url/dark" -Method Post -WebSession $reader
+(Invoke-RestMethod $url -WebSession $reader).theme
+Invoke-RestMethod $url -Method Delete -WebSession $reader
+(Invoke-RestMethod $url -WebSession $reader).theme
+```
+
+The three reads return `system`, `dark`, and `system`. The POST sends a `Set-Cookie` header scoped to `/reader`. The DELETE expires the same cookie at the same path, so the final GET uses the fallback.
+
+## Cookies from Services
+
+### Save a preference before redirecting
+
+After saving a preference, send the reader back to the theme endpoint. The service queues the cookie and the route chooses the redirect. Use the three routes from [Remember a reader's theme](#remember-a-readers-theme).
+
+Create `app/Services/ReaderPreferences.php` in your Starter app.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use Atom\Http\Cookie;
 use Atom\Http\CookieJar;
 
-final class Preferences
+final readonly class ReaderPreferences
 {
     public function __construct(private CookieJar $cookies)
     {
@@ -66,22 +125,38 @@ final class Preferences
 
     public function useDarkTheme(): void
     {
-        $this->cookies->set(Cookie::create("theme", "dark"));
+        $this->cookies->set(
+            Cookie::create("reader.theme", "dark")->withPath("/reader")->expiresAfter(7 * 86400)
+        );
     }
 }
 ```
 
-Atom applies the jar to the actual response returned by the dispatcher. The same behavior applies when a cookie is set on the request-scoped injected `Response` but the action returns a different response:
+Import `App\Services\ReaderPreferences` in `app/Application.php` and replace the `POST /reader/theme/dark` registration inside `bootstrap()` with this route.
 
 ```php
-Route::get("/preferences", function (Response $response): Response {
-    $response->cookie(Cookie::create("theme", "dark"));
-
-    return (new Response())->redirect("/account");
+Route::post("/reader/theme/dark", static function (ReaderPreferences $preferences): Response {
+    $preferences->useDarkTheme();
+    return (new Response())->redirect("/reader/theme", 303);
 });
 ```
 
-The cookie is transferred to the redirect response. A manually constructed response that is not returned and is not connected to the scoped jar cannot transfer its headers; inject `CookieJar` for that situation.
+With the development server running, use a temporary cookie file to inspect each response in PowerShell.
+
+```powershell
+$url = "http://127.0.0.1:8020/reader/theme"
+$cookieFile = [System.IO.Path]::GetTempFileName()
+try {
+    curl.exe -sS -i -X POST -c $cookieFile "$url/dark"
+    curl.exe -sS -b $cookieFile $url
+} finally {
+    Remove-Item -LiteralPath $cookieFile
+}
+```
+
+The POST returns `303 See Other` with both `Location: /reader/theme` and a `Set-Cookie` header for `reader.theme=dark`. Atom applies the request-scoped jar to the response the route returns. The second command sends the saved cookie to the redirect destination and receives `{"theme":"dark"}`.
+
+Cookies set on an injected `Response` also use the request-scoped jar. Inject `CookieJar` directly when the service only needs to set or remove a cookie.
 
 ## Sessions
 

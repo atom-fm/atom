@@ -176,6 +176,7 @@ final readonly class TemplateFragment
 
         return "@foreach(" . $node->source . " as " . $key . $node->value . ")"
             . $this->sourceFromNodes($node->children)
+            . ($node->empty === [] ? "" : "@empty" . $this->sourceFromNodes($node->empty))
             . "@endforeach";
     }
 }

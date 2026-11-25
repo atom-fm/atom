@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Atom\Tests\Database\Sql;
 
 use Atom\Database\Sql\Compiler\MySqlCompiler;
+use Atom\Database\Sql\Compiler\PostgresCompiler;
 use Atom\Database\Sql\Op;
 use Atom\Database\Sql\Query;
+use Atom\Database\Sql\UpsertQuery;
 use PHPUnit\Framework\TestCase;
 
 final class MutationQueryCompilerTest extends TestCase
@@ -23,6 +25,23 @@ final class MutationQueryCompilerTest extends TestCase
 
         $this->assertSame("INSERT INTO `users` (`name`, `age`) VALUES (:p1, :p2)", $command->sql);
         $this->assertSame([":p1" => "Edin", ":p2" => 35], $command->parameters);
+    }
+
+    public function testCompilesBatchUpsertWithDriverSpecificConflictHandling(): void
+    {
+        $query = new UpsertQuery("stock", [
+            ["variant" => 1, "location" => "A", "units" => 7],
+            ["location" => "B", "units" => 9, "variant" => 1],
+        ], ["variant", "location"], ["units"]);
+        $bindings = [":p1" => 1, ":p2" => "A", ":p3" => 7, ":p4" => 1, ":p5" => "B", ":p6" => 9];
+
+        $postgres = (new PostgresCompiler())->compile($query);
+        $this->assertSame('INSERT INTO "stock" ("variant", "location", "units") VALUES (:p1, :p2, :p3), (:p4, :p5, :p6) ON CONFLICT ("variant", "location") DO UPDATE SET "units" = excluded."units"', $postgres->sql);
+        $this->assertSame($bindings, $postgres->parameters);
+
+        $mysql = (new MySqlCompiler())->compile($query);
+        $this->assertSame("INSERT INTO `stock` (`variant`, `location`, `units`) VALUES (:p1, :p2, :p3), (:p4, :p5, :p6) ON DUPLICATE KEY UPDATE `units` = VALUES(`units`)", $mysql->sql);
+        $this->assertSame($bindings, $mysql->parameters);
     }
 
     public function testCompilesUpdateQuery(): void

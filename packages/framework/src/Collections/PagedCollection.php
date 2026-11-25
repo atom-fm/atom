@@ -33,6 +33,30 @@ class PagedCollection extends ReadOnlyCollection
         return $collection;
     }
 
+    public static function clampPage(int $requestedPage, int $totalCount, int $pageSize): int
+    {
+        if ($pageSize <= 0) {
+            throw new \InvalidArgumentException("Page size must be greater than zero.");
+        }
+
+        return max(1, min($requestedPage, self::pageCount($totalCount, $pageSize)));
+    }
+
+    /**
+     * @template TMapped
+     * @param callable(TValue): TMapped $mapper
+     * @return static<TMapped>
+     */
+    public function map(callable $mapper): static
+    {
+        $collection = parent::map($mapper);
+        $collection->currentPage = $this->currentPage;
+        $collection->pageSize = $this->pageSize;
+        $collection->totalCount = $this->totalCount;
+
+        return $collection;
+    }
+
     public function hasPrevious(): bool
     {
         return $this->currentPage > 1;
@@ -104,10 +128,26 @@ class PagedCollection extends ReadOnlyCollection
 
     public function totalPages(): int
     {
-        if ($this->pageSize <= 0) {
+        return self::pageCount($this->totalCount, $this->pageSize);
+    }
+
+    public function jsonSerialize(): PagePayload
+    {
+        return new PagePayload(
+            $this->values(),
+            $this->page(),
+            $this->pageSize(),
+            $this->totalCount(),
+            $this->totalPages()
+        );
+    }
+
+    private static function pageCount(int $totalCount, int $pageSize): int
+    {
+        if ($totalCount <= 0 || $pageSize <= 0) {
             return 1;
         }
 
-        return max(1, (int) ceil($this->totalCount / $this->pageSize));
+        return 1 + intdiv($totalCount - 1, $pageSize);
     }
 }

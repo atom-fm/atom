@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node components.test.mjs && node forms.test.mjs && node navigation.test.mjs",
+    "test:forms": "node forms.test.mjs",
+    "test:uri": "node uri.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.65.1"
+  }
+}

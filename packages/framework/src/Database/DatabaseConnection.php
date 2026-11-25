@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Atom\Database;
 
+use Atom\Database\Exception\UniqueViolationException;
 use Atom\Database\Sql\Command;
+use Atom\Database\Sql\SelectQuery;
 use Atom\Database\Sql\SqlQueryInterface;
 use PDO;
+use PDOException;
+use PDOStatement;
 use Throwable;
 
 final class DatabaseConnection
@@ -37,8 +41,7 @@ final class DatabaseConnection
      */
     public function execute(string|SqlQueryInterface|Command $query, array $parameters = []): int
     {
-        $statement = $this->prepare($query, $parameters);
-        $statement->execute();
+        $statement = $this->runStatement($query, $parameters);
         $count = $statement->rowCount();
         $statement->closeCursor();
 
@@ -51,8 +54,7 @@ final class DatabaseConnection
      */
     public function all(string|SqlQueryInterface|Command $query, array $parameters = []): array
     {
-        $statement = $this->prepare($query, $parameters);
-        $statement->execute();
+        $statement = $this->runStatement($query, $parameters);
         $rows = $statement->fetchAll();
         $statement->closeCursor();
 
@@ -65,8 +67,7 @@ final class DatabaseConnection
      */
     public function first(string|SqlQueryInterface|Command $query, array $parameters = []): ?array
     {
-        $statement = $this->prepare($query, $parameters);
-        $statement->execute();
+        $statement = $this->runStatement($query, $parameters);
         $row = $statement->fetch();
         $statement->closeCursor();
 
@@ -78,12 +79,21 @@ final class DatabaseConnection
      */
     public function scalar(string|SqlQueryInterface|Command $query, array $parameters = []): mixed
     {
-        $statement = $this->prepare($query, $parameters);
-        $statement->execute();
+        $statement = $this->runStatement($query, $parameters);
         $value = $statement->fetchColumn();
         $statement->closeCursor();
 
         return $value;
+    }
+
+    /** @return ($keyed is true ? array<array-key, mixed> : list<mixed>) */
+    public function pluck(SelectQuery $query, bool $keyed): array
+    {
+        $statement = $this->runStatement($query, []);
+        $values = $statement->fetchAll($keyed ? PDO::FETCH_KEY_PAIR : PDO::FETCH_COLUMN);
+        $statement->closeCursor();
+
+        return $values;
     }
 
     public function lastInsertId(?string $name = null): string|false
@@ -109,7 +119,31 @@ final class DatabaseConnection
     /**
      * @param array<string, mixed> $parameters
      */
-    private function prepare(string|SqlQueryInterface|Command $query, array $parameters = []): \PDOStatement
+    private function runStatement(string|SqlQueryInterface|Command $query, array $parameters): PDOStatement
+    {
+        $statement = $this->prepare($query, $parameters);
+
+        try {
+            $statement->execute();
+        } catch (PDOException $exception) {
+            [$sqlState, $driverCode] = array_pad($exception->errorInfo ?? [], 2, null);
+            $isUniqueViolation = match ($this->pdo()->getAttribute(PDO::ATTR_DRIVER_NAME)) {
+                "sqlite" => in_array((int) $driverCode, [1555, 2067], true),
+                "mysql" => (int) $driverCode === 1062,
+                "pgsql" => $sqlState === "23505",
+                default => false,
+            };
+
+            throw $isUniqueViolation ? new UniqueViolationException($exception) : $exception;
+        }
+
+        return $statement;
+    }
+
+    /**
+     * @param array<string, mixed> $parameters
+     */
+    private function prepare(string|SqlQueryInterface|Command $query, array $parameters): PDOStatement
     {
         $command = match (true) {
             is_string($query) => new Command($query, $parameters),

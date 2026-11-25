@@ -10,6 +10,8 @@ use Atom\Di\TypeFactory;
 use Atom\Di\TypeInfo;
 use Atom\Http\Request;
 use Atom\Hydrator\Attributes\Dto;
+use Atom\Hydrator\Exception\HydrationException;
+use Atom\Hydrator\Exception\InvalidDtoBodyException;
 use Atom\Router\MatchedRoute;
 
 final readonly class DtoTypeFactory
@@ -23,8 +25,16 @@ final readonly class DtoTypeFactory
                 $route = $context->get(MatchedRoute::class);
                 $routeParams = $route instanceof MatchedRoute ? $route->getRouteParams() : [];
 
-                return $injector->get(RequestHydrator::class, $context)
-                    ->hydrate($className, HydrationContext::fromRequest($request, $routeParams));
+                $hydrator = $injector->get(RequestHydrator::class, $context);
+                try {
+                    return $hydrator->hydrate($className, HydrationContext::fromRequest($request, $routeParams));
+                } catch (HydrationException $exception) {
+                    if ($exception->source !== "body" || $exception->fieldPath === null) {
+                        throw $exception;
+                    }
+
+                    throw new InvalidDtoBodyException($exception->fieldPath, $exception);
+                }
             }
         );
     }

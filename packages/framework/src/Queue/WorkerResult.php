@@ -9,5 +9,7 @@ enum WorkerResult: string
     case Empty = "empty";
     case Completed = "completed";
     case Released = "released";
+    case Deferred = "deferred";
     case Failed = "failed";
+    case ReservationLost = "reservation_lost";
 }

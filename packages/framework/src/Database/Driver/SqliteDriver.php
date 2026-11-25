@@ -17,8 +17,9 @@ use Atom\Database\Schema\Reset\DatabaseResetterInterface;
 use Atom\Database\Schema\Reset\SqliteDatabaseResetter;
 use Atom\Database\Sql\Compiler\QueryCompilerInterface;
 use Atom\Database\Sql\Compiler\SqliteCompiler;
+use PDO;
 
-final class SqliteDriver extends AbstractPdoDriver
+final class SqliteDriver extends AbstractPdoDriver implements TransactionalDdlDriverInterface
 {
     /**
      * @param array<int, mixed> $options
@@ -31,6 +32,15 @@ final class SqliteDriver extends AbstractPdoDriver
     public static function memory(array $options = []): self
     {
         return new self(":memory:", $options);
+    }
+
+    public function connect(): PDO
+    {
+        $pdo = parent::connect();
+        $pdo->setAttribute(PDO::SQLITE_ATTR_EXTENDED_RESULT_CODES, true);
+        $pdo->exec("PRAGMA foreign_keys = ON");
+
+        return $pdo;
     }
 
     public function compiler(): QueryCompilerInterface

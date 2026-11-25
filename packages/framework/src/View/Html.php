@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Atom\View;
 
+use InvalidArgumentException;
+
 final readonly class Html
 {
     public static function escape(mixed $value): string
@@ -27,8 +29,12 @@ final readonly class Html
 
     public static function attribute(string $name, mixed $value, ?callable $escape = null): string
     {
-        if ($value === false || $value === null || $value === "") {
+        if ($value === false || $value === null) {
             return "";
+        }
+
+        if (preg_match('/\A[^\x00-\x20\x7F"\'<>\/=]+\z/', $name) !== 1) {
+            throw new InvalidArgumentException("Invalid HTML attribute name.");
         }
 
         if ($value === true) {
@@ -79,6 +85,12 @@ final readonly class Html
      */
     public static function mergeAttributes(array $defaults, array $attributes): array
     {
+        foreach ($defaults as $name => $value) {
+            if ($value === "") {
+                $defaults[$name] = null;
+            }
+        }
+
         if (isset($defaults["class"]) || isset($attributes["class"])) {
             $attributes["class"] = self::classes($defaults["class"] ?? "", $attributes["class"] ?? "");
         }

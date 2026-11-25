@@ -1,0 +1,20 @@
+<SupportWorkspace screen="Ticket detail">
+<Stack gap="md">
+    <div>
+        <Button :href="$this->backUrl" variant="ghost" icon="lucide:arrow-left" atom:navigate>Back to inbox</Button>
+    </div>
+
+    <PageHeader :title="$this->ticket['subject']" :description="'Ticket #' . $this->ticket['id'] . ' · ' . $this->ticket['customer']">
+        <PageHeader.Actions>
+            <Badge :variant="$this->statusVariant">{{ $this->ticket["status"] }}</Badge>
+        </PageHeader.Actions>
+    </PageHeader>
+
+    <Panel title="Conversation">
+        <Stack gap="sm">
+            <strong>{{ $this->ticket["customer"] }}</strong>
+            <p>{{ $this->ticket["description"] }}</p>
+        </Stack>
+    </Panel>
+</Stack>
+</SupportWorkspace>

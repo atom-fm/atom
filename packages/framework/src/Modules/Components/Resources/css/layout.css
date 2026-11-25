@@ -146,19 +146,26 @@
 .atom-toolbar__section {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    align-items: inherit;
     gap: inherit;
     min-width: 0;
 }
 
 .atom-toolbar__section--start {
-    flex: 1 1 auto;
+    flex: 1 1 360px;
 }
 
 .atom-toolbar__section--end {
     flex: 0 0 auto;
     justify-content: flex-end;
     margin-left: auto;
+}
+
+@media (max-width: 600px) {
+    .atom-toolbar__section--end {
+        justify-content: flex-start;
+        margin-left: 0;
+    }
 }
 
 .atom-toolbar > .atom-input,
@@ -213,13 +220,70 @@
 }
 
 .atom-app-shell {
+    container-type: inline-size;
     display: grid;
-    grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+    grid-template-columns: 12rem minmax(0, 1fr);
     min-height: 520px;
     overflow: hidden;
     border: 1px solid var(--atom-color-line);
     border-radius: var(--atom-radius);
     background: var(--atom-color-surface);
+}
+
+.atom-app-shell:not(:has(> .atom-app-shell__sidebar)) {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.atom-app-shell:has(> .atom-app-shell__navbar) {
+    grid-template-rows: auto minmax(0, 1fr);
+}
+
+.atom-app-shell__navbar {
+    grid-column: 1 / -1;
+    min-width: 0;
+    border-bottom: 1px solid var(--atom-color-line);
+}
+
+.atom-navbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--atom-space-3);
+    min-width: 0;
+    padding: 14px 20px;
+    background: var(--atom-color-surface);
+}
+
+.atom-navbar__brand,
+.atom-navbar__content,
+.atom-navbar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--atom-space-2);
+    min-width: 0;
+}
+
+.atom-navbar__brand {
+    color: var(--atom-color-text);
+    font-weight: 750;
+}
+
+.atom-navbar__content {
+    flex: 1 1 auto;
+    color: var(--atom-color-muted);
+}
+
+.atom-navbar__actions {
+    margin-left: auto;
+    font-size: 0.875rem;
+}
+
+.atom-navbar a:focus-visible,
+.atom-sidebar a:focus-visible {
+    outline: 2px solid var(--atom-color-primary);
+    outline-offset: 2px;
+    border-radius: var(--atom-radius);
 }
 
 .atom-app-shell__sidebar {
@@ -229,8 +293,8 @@
 }
 
 .atom-app-shell__content {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
+    display: flex;
+    flex-direction: column;
     min-width: 0;
 }
 
@@ -246,14 +310,15 @@
 }
 
 .atom-app-shell__main {
+    flex: 1 1 auto;
     min-width: 0;
-    padding: 22px;
+    padding: clamp(16px, 3vw, 28px);
     overflow: auto;
 }
 
 .atom-sidebar {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    display: flex;
+    flex-direction: column;
     min-height: 100%;
 }
 
@@ -273,11 +338,12 @@
 }
 
 .atom-sidebar__nav {
+    flex: 1 1 auto;
     display: grid;
     align-content: start;
     gap: var(--atom-space-4);
     min-height: 0;
-    padding: 8px 12px 16px;
+    padding: 16px 12px;
     overflow: auto;
 }
 
@@ -323,7 +389,36 @@
 
 .atom-sidebar-item.is-active {
     background: var(--atom-color-primary);
-    color: #ffffff;
+    color: var(--atom-color-primary-content);
+}
+
+.atom-sidebar-item.is-active:hover {
+    color: var(--atom-color-primary-content);
+}
+
+@container (max-width: 720px) {
+    .atom-app-shell__sidebar,
+    .atom-app-shell__content {
+        grid-column: 1 / -1;
+    }
+
+    .atom-app-shell__sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--atom-color-line);
+    }
+
+    .atom-app-shell__sidebar .atom-sidebar-group__items {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+    }
+
+    .atom-app-shell__sidebar .atom-sidebar-item__label {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .atom-navbar__actions {
+        margin-left: 0;
+    }
 }
 
 .atom-sidebar-item__icon {

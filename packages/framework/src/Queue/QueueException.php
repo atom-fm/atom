@@ -6,6 +6,6 @@ namespace Atom\Queue;
 
 use RuntimeException;
 
-final class QueueException extends RuntimeException
+class QueueException extends RuntimeException
 {
 }

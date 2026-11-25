@@ -1,0 +1,11 @@
+<article class="ui-feature">
+    @if($this->marker !== '')
+        <p class="ui-feature__marker">{{ $this->marker }}</p>
+    @endif
+    @if($this->prominent)
+        <h2 class="ui-feature__title ui-feature__title--prominent">{{ $this->title }}</h2>
+    @else
+        <h3 class="ui-feature__title">{{ $this->title }}</h3>
+    @endif
+    <div class="ui-feature__description">{{ $context->fragmentHtml($this->content) }}</div>
+</article>

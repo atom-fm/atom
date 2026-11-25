@@ -15,7 +15,10 @@
         "php": "^8.4",
         "ext-pdo": "*",
         "ext-pdo_sqlite": "*",
-        "atom-fm/framework": "dev-master"
+        "atom-fm/framework": "dev-master",
+        "league/commonmark": "^2.9",
+        "symfony/yaml": "^7.3 || ^8.0",
+        "phiki/phiki": "^2.2"
     },
     "autoload": {
         "psr-4": {

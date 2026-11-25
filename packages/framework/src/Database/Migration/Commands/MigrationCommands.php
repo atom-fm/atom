@@ -64,10 +64,10 @@ final readonly class MigrationCommands
     #[ConsoleCommand("migrate:fresh", "Drop all tables and rerun migrations")]
     public function fresh(bool $seed = false): int
     {
-        $this->resetter->reset($this->connection);
-        $this->output->line("Database reset.");
-
-        $result = $this->migrator->run();
+        $result = $this->migrator->run(function (): void {
+            $this->resetter->reset($this->connection);
+            $this->output->line("Database reset.");
+        });
         $this->writeMigrated($result->migrations);
 
         if ($seed) {

@@ -1,19 +1,21 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Atom starter</title>
-</head>
-<body>
-    <main>
-        <h1>Atom starter</h1>
-        <If condition="$this->name !== ''">
-            <p>Signed in as {{ $this->name }}.</p>
-        </If>
-        <If condition="$this->name === ''">
-            <p><a href="/account/login">Sign in</a></p>
-        </If>
-    </main>
-</body>
-</html>
+<PageHero
+    eyebrow="ATOM FRAMEWORK"
+    title="A small foundation for your next website."
+    summary="Server-rendered pages, expressive templates, and progressively enhanced navigation—without a frontend build step."
+>
+    @if($this->name !== '')
+        <span class="ui-status">Signed in as {{ $this->name }}</span>
+    @else
+        <a class="ui-button" href="/account/login">Sign in</a>
+    @endif
+    <a class="ui-text-link" href="https://github.com/atom-fm/atom">View Atom on GitHub</a>
+</PageHero>
+
+<section class="ui-section" aria-labelledby="principles-title">
+    <SectionIntro id="principles-title" eyebrow="START SIMPLE" title="The useful parts are already connected." />
+    <FeatureGrid>
+        <Feature marker="01" title="Pages">Keep request behavior in PHP and page markup in an adjacent Atom template.</Feature>
+        <Feature marker="02" title="Navigation">Normal links remain reliable while MorphDOM provides a smoother transition between pages.</Feature>
+        <Feature marker="03" title="Your design">Use a few framework primitives and keep brand-specific components inside the site.</Feature>
+    </FeatureGrid>
+</section>

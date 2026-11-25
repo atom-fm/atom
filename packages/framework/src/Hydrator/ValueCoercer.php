@@ -35,7 +35,7 @@ final class ValueCoercer
                 return null;
             }
 
-            throw new HydrationException("Property {$className}::{$property->name} is required.");
+            throw new HydrationException("Property {$className}::{$property->name} is required.", fieldPath: $property->sourceName);
         }
 
         if ($property->typeName === null) {
@@ -130,6 +130,9 @@ final class ValueCoercer
     private function fail(string $className, HydrationTarget $property, string $expected, mixed $value): never
     {
         $type = get_debug_type($value);
-        throw new HydrationException("Property {$className}::{$property->name} expected {$expected}, got {$type}.");
+        throw new HydrationException(
+            "Property {$className}::{$property->name} expected {$expected}, got {$type}.",
+            fieldPath: $property->sourceName
+        );
     }
 }

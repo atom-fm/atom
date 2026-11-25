@@ -9,7 +9,8 @@ final readonly class Op
     private function __construct(
         public string $operator,
         public mixed $value = null,
-        public mixed $maxValue = null
+        public mixed $maxValue = null,
+        public ?string $escape = null,
     ) {
     }
 
@@ -71,6 +72,12 @@ final readonly class Op
     public static function like(string $value): self
     {
         return new self("LIKE", $value);
+    }
+
+    public static function contains(string $value): self
+    {
+        $pattern = strtr($value, ["!" => "!!", "%" => "!%", "_" => "!_"]);
+        return new self("LIKE", "%{$pattern}%", escape: "!");
     }
 
     public static function ilike(string $value): self

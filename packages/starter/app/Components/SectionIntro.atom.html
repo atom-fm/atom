@@ -1,0 +1,10 @@
+<header class="ui-section-intro">
+    @if($this->eyebrow !== '')
+        <p class="ui-eyebrow">{{ $this->eyebrow }}</p>
+    @endif
+    @if($this->id !== '')
+        <h2 id="{{ $this->id }}">{{ $this->title }}</h2>
+    @else
+        <h2>{{ $this->title }}</h2>
+    @endif
+</header>

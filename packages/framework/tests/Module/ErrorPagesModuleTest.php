@@ -81,6 +81,23 @@ final class ErrorPagesModuleTest extends TestCase
         $this->assertArrayNotHasKey("debug", $payload["error"] ?? []);
     }
 
+    public function testPermissionDenialKeepsTheSameCodeInHtmlAndJson(): void
+    {
+        $app = new ErrorTestApplication();
+        $html = $app->handle(new Request("GET", "/denied", headers: ["Accept" => "text/html"]));
+        $json = $app->handle(new Request("GET", "/denied", headers: ["Accept" => "application/json"]));
+        $payload = json_decode($json->getContent(), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame(403, $html->getStatus());
+        $this->assertSame("permission_denied", $html->headers()->get("X-Atom-Error-Code"));
+        $this->assertSame("text/html; charset=utf-8", $html->headers()->get("Content-Type"));
+        $this->assertStringContainsString("Permission denied.", $html->getContent());
+        $this->assertSame(403, $json->getStatus());
+        $this->assertSame("permission_denied", $json->headers()->get("X-Atom-Error-Code"));
+        $this->assertSame("application/json", $json->headers()->get("Content-Type"));
+        $this->assertSame("permission_denied", $payload["error"]["code"]);
+    }
+
     public function testProductionExceptionPageDoesNotExposeExceptionDetails(): void
     {
         $handler = new DefaultErrorPageHandler(new ErrorPagesOptions());
@@ -227,6 +244,9 @@ class ErrorTestApplication extends Application
     {
         Route::get("/explode", static function (): never {
             throw new RuntimeException("route exploded");
+        });
+        Route::get("/denied", static function (): never {
+            throw new HttpException(403, "Permission denied.");
         });
     }
 }

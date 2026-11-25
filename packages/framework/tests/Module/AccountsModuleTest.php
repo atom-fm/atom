@@ -129,6 +129,11 @@ final class AccountsModuleTest extends TestCase
         $this->assertStringContainsString('value="edin@example.com"', $form->getContent());
         $this->assertMatchesRegularExpression('/name="_token"\s+value="[a-f0-9]{64}"/', $form->getContent());
         $this->assertStringContainsString('<title>Welcome back</title>', $form->getContent());
+        $this->assertStringContainsString('<link rel="stylesheet" href="/site-theme.css" />', $form->getContent());
+        $this->assertLessThan(
+            strpos($form->getContent(), "/account/resources/accounts.css"),
+            strpos($form->getContent(), "/site-theme.css")
+        );
         $this->assertStringContainsString('Enter your credentials to continue.', $form->getContent());
         $this->assertStringContainsString('<main class="accounts-shell" atom:update-root>', $form->getContent());
         $this->assertStringContainsString('<section class="accounts-card" aria-labelledby="accounts-title">', $form->getContent());
@@ -231,8 +236,26 @@ final class AccountsModuleTest extends TestCase
 
         $this->assertSame(403, $login->getStatus());
         $this->assertSame("Invalid CSRF token.", $login->getContent());
+        $this->assertSame("invalid_csrf_token", $login->headers()->get("X-Atom-Error-Code"));
         $this->assertSame(401, $logout->getStatus());
         $this->assertSame("Authentication required.", $logout->getContent());
+        $this->assertSame("authentication_required", $logout->headers()->get("X-Atom-Error-Code"));
+    }
+
+    public function testAuthenticatedLogoutWithInvalidCsrfReturnsJsonWithoutSigningOut(): void
+    {
+        $app = new AccountsTestApplication();
+        $this->token($app);
+        $app->session->put("_atom_identity", 42);
+        $response = $app->handle(new Request("POST", "/account/logout", headers: ["Accept" => "application/json"]));
+        $body = json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame(403, $response->getStatus());
+        $this->assertSame("application/json", $response->headers()->get("Content-Type"));
+        $this->assertSame("invalid_csrf_token", $response->headers()->get("X-Atom-Error-Code"));
+        $this->assertSame("invalid_csrf_token", $body["error"]["code"]);
+        $this->assertSame("Invalid CSRF token.", $body["error"]["message"]);
+        $this->assertSame(42, $app->session->get("_atom_identity"));
     }
 
     public function testModuleRendersRegistrationAndPasswordRecoveryPages(): void
@@ -540,7 +563,8 @@ final class AccountsTestApplication extends Application
             forgotPasswordMaxAttempts: 2,
             forgotPasswordWindowSeconds: 60,
             resetPasswordMaxAttempts: 2,
-            resetPasswordWindowSeconds: 60
+            resetPasswordWindowSeconds: 60,
+            themeStylesheet: "/site-theme.css"
         )), "/account");
     }
 }

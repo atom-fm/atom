@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Atom\Tests\View;
 
+use Atom\Modules\Components\Button;
+use Atom\Modules\Components\Card;
 use Atom\View\Ast\ElementNode;
 use Atom\View\Ast\ExpressionNode;
 use Atom\View\Ast\TemplateNode;
@@ -16,6 +18,8 @@ use Atom\View\Component\ComponentRegistry;
 use Atom\View\Component\Fragment;
 use Atom\View\Component\TemplateFragment;
 use Atom\View\Parser\ViewParser;
+use Atom\View\Parser\ViewParseException;
+use Atom\View\Render\HtmlString;
 use Atom\View\Render\ViewRenderException;
 use Atom\View\Render\ViewRenderer;
 use PHPUnit\Framework\TestCase;
@@ -38,6 +42,22 @@ final class ViewRendererTest extends TestCase
         $this->assertSame('<strong>Many</strong>', $this->render($template, ["count" => 11]));
         $this->assertSame('<span>Some</span>', $this->render($template, ["count" => 2]));
         $this->assertSame('<em>None</em>', $this->render($template, ["count" => 0]));
+    }
+
+    public function testRendersConditionalAttributes(): void
+    {
+        $template = '<div><b :if="$count > 10">Many</b> <!-- branch --> <span :else-if="$count > 0">Some</span> <em :else>None</em></div>';
+        foreach ([11 => "<b>Many</b>", 2 => "<span>Some</span>", 0 => "<em>None</em>"] as $count => $expected) {
+            $this->assertSame("<div>" . $expected . "</div>", $this->render($template, ["count" => $count]));
+        }
+    }
+
+    public function testRendersForEachAttributesAndEmptyIterators(): void
+    {
+        $template = '<b :foreach="$items as $key => $item">{{ $key }}:{{ $item }}</b> <i :empty>Empty</i>';
+        $this->assertSame('<b>0:A</b><b>1:B</b>', $this->render($template, ["items" => ["A", "B"]]));
+        $this->assertSame('<i>Empty</i>', $this->render($template, ["items" => new \EmptyIterator()]));
+        $this->assertSame('<i>Empty</i>', $this->render('@foreach($items as $item)<b>{{ $item }}</b>@empty<i>Empty</i>@endforeach', ["items" => []]));
     }
 
     public function testRendersForEachWithScopedVariables(): void
@@ -78,6 +98,107 @@ final class ViewRendererTest extends TestCase
         $this->assertSame('<a href="/articles/42" title="Open Hello &quot;Atom&quot;">Hello &quot;Atom&quot;</a>', $html);
     }
 
+    public function testDecodesOnlyLiteralAttributeEntitiesBeforeEscaping(): void
+    {
+        $this->assertSame(
+            '<button title="A &amp; B &amp;amp; {{ $raw }}" data-bound="&amp;amp;">Save</button>',
+            $this->render(
+                '<button title="A &amp; B {{ $raw }} &#123;&#123; $raw &#125;&#125;" :data-bound="$raw">Save</button>',
+                ["raw" => "&amp;"]
+            )
+        );
+    }
+
+    public function testRendersEmptyOptionValue(): void
+    {
+        $html = '<select name="choice"><option value="">Choose one</option></select>';
+
+        $this->assertSame($html, $this->render($html));
+    }
+
+    public function testRejectsMalformedForwardedAttributeNames(): void
+    {
+        $registry = new ComponentRegistry();
+        $registry->register("ForwardButton", TestForwardButtonComponent::class);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid HTML attribute name.");
+        $this->render('<ForwardButton {{ $attributes }}>Save</ForwardButton>', [
+            "attributes" => ["data-label extra" => "Draft"],
+        ], $registry);
+    }
+
+    public function testRejectsDirectiveOnNamedFragment(): void
+    {
+        $this->expectException(ViewParseException::class);
+        $this->expectExceptionMessage("Named fragment <Card.Actions> must be a direct child of <Card>. Move the directive inside the fragment.");
+        $this->render('<Card><Card.Actions :if="$show">Save</Card.Actions></Card>', ["show" => true]);
+    }
+
+    public function testRejectsNamedFragmentWrappedInDirective(): void
+    {
+        $this->expectException(ViewParseException::class);
+        $this->expectExceptionMessage("Named fragment <Fragment> must be a direct child of <Card>. Move the directive inside the fragment.");
+        $this->render('<Card>@if($show)<Fragment name="actions">Save</Fragment>@endif</Card>', ["show" => false]);
+    }
+
+    public function testRendersConditionInsideNamedFragment(): void
+    {
+        $registry = new ComponentRegistry();
+        $registry->register("Card", Card::class);
+        $source = '<Card><Card.Actions><span :if="$show">Save</span></Card.Actions></Card>';
+
+        $this->assertStringContainsString('<footer class="atom-card__actions"><span>Save</span></footer>', $this->render($source, ["show" => true], $registry));
+        $this->assertStringNotContainsString("Save", $this->render($source, ["show" => false], $registry));
+    }
+
+    public function testEncodesHtmlStringsInAttributesAndRendersThemAsMarkupInContent(): void
+    {
+        $html = $this->render('<div :title="$label">{{ $label }}</div>', [
+            "label" => new HtmlString('<em title="Review">Draft &amp; review</em>'),
+        ]);
+
+        $this->assertSame(
+            '<div title="&lt;em title=&quot;Review&quot;&gt;Draft &amp;amp; review&lt;/em&gt;">'
+                . '<em title="Review">Draft &amp; review</em></div>',
+            $html
+        );
+    }
+
+    public function testBoundNativeAttributeStringsStayLiteralAlongsideTemplateInterpolation(): void
+    {
+        $html = $this->render(
+            '<span :title="$label" aria-label="Status: {{ $status }}" data-label="Label: {{ $label }}"></span>',
+            ["label" => '{{ $status }} & "review"', "status" => "Draft"]
+        );
+
+        $this->assertSame(
+            '<span title="{{ $status }} &amp; &quot;review&quot;" aria-label="Status: Draft" data-label="Label: {{ $status }} &amp; &quot;review&quot;"></span>',
+            $html
+        );
+    }
+
+    public function testBoundAttributeStringsStayLiteralInNestedComponents(): void
+    {
+        $registry = new ComponentRegistry();
+        $registry->register("Card", Card::class);
+        $registry->register("Button", Button::class);
+
+        $html = $this->render(
+            '<Card :title="$label"><Card.Actions><Button :text="$label" :aria-label="$label" '
+                . 'data-status="Status: {{ $status }}" /></Card.Actions></Card>',
+            ["label" => '{{ $status }} & "review"', "status" => "Draft"],
+            $registry
+        );
+
+        $this->assertStringContainsString('<h3 class="atom-card__title">{{ $status }} &amp; &quot;review&quot;</h3>', $html);
+        $this->assertStringContainsString(
+            '<button type="button" class="atom-button" aria-label="{{ $status }} &amp; &quot;review&quot;" data-status="Status: Draft">'
+                . '{{ $status }} &amp; &quot;review&quot;</button>',
+            $html
+        );
+    }
+
     public function testRendersRegisteredComponentWithAssignedProperties(): void
     {
         $registry = new ComponentRegistry();
@@ -115,6 +236,55 @@ final class ViewRendererTest extends TestCase
         );
 
         $this->assertSame('<section><h2>Users</h2><p>Ada</p></section>', $html);
+    }
+
+    public function testRendersNamedFragmentsAndLazilyUsesOutletFallback(): void
+    {
+        $registry = new ComponentRegistry();
+        $registry->register("OutletPanel", TestOutletPanelComponent::class);
+
+        $this->assertSame(
+            "<section><p>Ada: Delivery &amp; pickup</p></section>",
+            $this->render(
+                '<OutletPanel><Fragment name="body"><p>{{ $item }}: {{ $title }}</p></Fragment></OutletPanel>',
+                ["title" => "Delivery & pickup"],
+                $registry
+            )
+        );
+        $this->assertSame("<section></section>", $this->render('<OutletPanel><Fragment name="body" /></OutletPanel>', [], $registry));
+        $this->assertSame("<section><p>No delivery details.</p></section>", $this->render('<OutletPanel />', [], $registry));
+        $this->assertSame(
+            "<section>Legacy Ada</section>",
+            $this->render('<OutletPanel><OutletPanel.Body>Legacy {{ $item }}</OutletPanel.Body></OutletPanel>', [], $registry)
+        );
+    }
+
+    public function testFragmentOutletRendersFragmentValuesWithoutAWrappingElement(): void
+    {
+        $fragment = new Fragment(static fn(array $variables): string => "<b>" . $variables["item"] . "</b>");
+
+        $this->assertSame("", $this->render('<FragmentOutlet />'));
+        $this->assertSame(
+            "<b>First</b><b>Second</b>",
+            $this->render(
+                '<FragmentOutlet :fragment="$fragment" :variables="[\'item\' => \'First\']" />'
+                    . '<FragmentOutlet :fragment="$fragment" :variables="[\'item\' => \'Second\']" />',
+                ["fragment" => $fragment]
+            )
+        );
+    }
+
+    public function testNamedFragmentRequiresALiteralName(): void
+    {
+        $this->expectException(\Atom\View\Parser\ViewParseException::class);
+        $this->expectExceptionMessage("A named Fragment requires one literal name attribute.");
+        $this->render('<OutletPanel><Fragment :name="$name" /></OutletPanel>');
+    }
+
+    public function testNamedFragmentMustBelongToAComponent(): void
+    {
+        $this->expectException(ViewRenderException::class);
+        $this->render('<div><Fragment name="body" /></div>');
     }
 
     public function testAssignsAttributeAsFragmentWhenPropertyRequiresFragment(): void
@@ -273,6 +443,19 @@ final class TestPanelComponent implements ComponentInterface
     public function render(): string
     {
         return "<section><h2>" . $this->title?->render() . "</h2>" . $this->body?->render(["name" => "Ada"]) . "</section>";
+    }
+}
+
+final class TestOutletPanelComponent implements ComponentInterface
+{
+    public ?TemplateFragment $body = null;
+
+    public function render(): TemplateNode
+    {
+        return (new ViewParser())->parse(
+            '<section><FragmentOutlet :fragment="$this->body" :variables="[\'item\' => \'Ada\']">'
+                . '<p>No delivery details.</p></FragmentOutlet></section>'
+        );
     }
 }
 

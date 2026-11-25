@@ -1,8 +1,8 @@
 :root {
     color-scheme: light;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #f5f6f8;
-    color: #20242c;
+    font-family: var(--atom-font-family, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    background: var(--atom-color-soft, #f5f6f8);
+    color: var(--atom-color-text, #20242c);
 }
 
 * {
@@ -14,8 +14,8 @@ body.atom-accounts {
     min-height: 100vh;
     margin: 0;
     background:
-        radial-gradient(circle at top, rgba(71, 89, 255, 0.08), transparent 32rem),
-        #f5f6f8;
+        radial-gradient(circle at top, color-mix(in srgb, var(--atom-color-primary, #3347d7) 8%, transparent), transparent 32rem),
+        var(--atom-color-soft, #f5f6f8);
 }
 
 .accounts-shell {
@@ -28,9 +28,9 @@ body.atom-accounts {
 .accounts-card {
     width: min(100%, 24rem);
     padding: 1.75rem;
-    border: 1px solid #dfe2e8;
+    border: 1px solid var(--atom-color-line, #dfe2e8);
     border-radius: 0.875rem;
-    background: #fff;
+    background: var(--atom-color-surface, #fff);
     box-shadow: 0 1rem 3rem rgba(29, 34, 47, 0.08);
 }
 
@@ -41,8 +41,8 @@ body.atom-accounts {
     margin-bottom: 1.25rem;
     place-items: center;
     border-radius: 0.625rem;
-    background: #3347d7;
-    color: #fff;
+    background: var(--atom-color-primary, #3347d7);
+    color: var(--atom-color-primary-content, #fff);
     font-weight: 700;
 }
 
@@ -52,7 +52,7 @@ body.atom-accounts {
 
 .accounts-eyebrow {
     margin: 0 0 0.35rem;
-    color: #667085;
+    color: var(--atom-color-muted, #667085);
     font-size: 0.75rem;
     font-weight: 650;
     letter-spacing: 0.08em;
@@ -61,14 +61,14 @@ body.atom-accounts {
 
 .accounts-header h1 {
     margin: 0;
-    color: #171a21;
+    color: var(--atom-color-text, #171a21);
     font-size: 1.5rem;
     line-height: 1.2;
 }
 
 .accounts-header > p:last-child {
     margin: 0.5rem 0 0;
-    color: #667085;
+    color: var(--atom-color-muted, #667085);
     font-size: 0.9rem;
     line-height: 1.5;
 }
@@ -102,7 +102,7 @@ body.atom-accounts {
 .accounts-field {
     display: grid;
     gap: 0.4rem;
-    color: #343a46;
+    color: var(--atom-color-text, #343a46);
     font-size: 0.85rem;
     font-weight: 600;
 }
@@ -111,31 +111,31 @@ body.atom-accounts {
     width: 100%;
     height: 2.625rem;
     padding: 0 0.75rem;
-    border: 1px solid #cfd4dc;
+    border: 1px solid var(--atom-color-line, #cfd4dc);
     border-radius: 0.5rem;
     outline: 2px solid transparent;
     outline-offset: 0;
-    background: #fff;
-    color: #171a21;
+    background: var(--atom-color-surface, #fff);
+    color: var(--atom-color-text, #171a21);
     font: inherit;
     font-weight: 400;
     transition: border-color 120ms ease, outline-color 120ms ease, box-shadow 120ms ease;
 }
 
 .accounts-field input:focus {
-    border-color: #5165e8;
-    outline-color: #5165e8;
-    box-shadow: 0 0 0 0.2rem rgba(81, 101, 232, 0.12);
+    border-color: var(--atom-color-focus, #5165e8);
+    outline-color: var(--atom-color-focus, #5165e8);
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--atom-color-focus, #5165e8) 12%, transparent);
 }
 
 .accounts-submit {
     min-height: 2.625rem;
     margin-top: 0.25rem;
     padding: 0.625rem 1rem;
-    border: 1px solid #3347d7;
+    border: 1px solid var(--atom-color-primary, #3347d7);
     border-radius: 0.5rem;
-    background: #3347d7;
-    color: #fff;
+    background: var(--atom-color-primary, #3347d7);
+    color: var(--atom-color-primary-content, #fff);
     cursor: pointer;
     font: inherit;
     font-size: 0.9rem;
@@ -143,12 +143,12 @@ body.atom-accounts {
 }
 
 .accounts-submit:hover {
-    border-color: #2739b8;
-    background: #2739b8;
+    border-color: var(--atom-color-primary-hover, #2739b8);
+    background: var(--atom-color-primary-hover, #2739b8);
 }
 
 .accounts-submit:focus-visible {
-    outline: 2px solid #3347d7;
+    outline: 2px solid var(--atom-color-focus, #3347d7);
     outline-offset: 2px;
 }
 
@@ -166,7 +166,7 @@ body.atom-accounts {
 }
 
 .accounts-links a {
-    color: #3347d7;
+    color: var(--atom-color-primary, #3347d7);
     font-weight: 600;
     text-decoration: none;
 }
@@ -177,7 +177,7 @@ body.atom-accounts {
 
 .accounts-links a:focus-visible {
     border-radius: 0.125rem;
-    outline: 2px solid #3347d7;
+    outline: 2px solid var(--atom-color-focus, #3347d7);
     outline-offset: 2px;
 }
 

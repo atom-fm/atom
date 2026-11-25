@@ -42,7 +42,7 @@ final class ArticlesPage extends Page
 
 `GET`, `HEAD`, and `OPTIONS` requests pass through without reading the session. Other methods must provide a valid token through the `_token` request field or `X-CSRF-Token` header.
 
-Invalid requests receive a `403 Forbidden` plain-text response with `Cache-Control: no-store` and do not reach the route handler.
+Invalid requests stop at the middleware and receive `403 Forbidden` with code `invalid_csrf_token`. See [access failure responses](ErrorPages.md#access-failures).
 
 ## Component Forms
 

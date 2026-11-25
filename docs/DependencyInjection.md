@@ -116,57 +116,107 @@ $second = $injector->get(RequestState::class, $context);
 
 A different context receives a different scoped instance.
 
+A singleton that resolves a scoped service, directly or through another dependency, raises `ScopedDependencyException`. The message names both services and includes the resolution path. This also applies to values supplied by the active context, such as the HTTP request and CLI output. Bind a service that needs those values as scoped or pass the values to its methods for each invocation.
+
 ## Constructor Injection
 
-Constructor parameters are resolved by type:
+### Price an order line with a runtime product code
+
+Each order line needs a price list and the product code selected for that order. Use `instantiate()` to pass the code by parameter name and let Atom resolve the typed price list.
+
+Save `price-line.php` beside `composer.json` in an installed Starter app.
 
 ```php
-final readonly class UserController
+<?php
+
+declare(strict_types=1);
+
+use Atom\Di\Injector;
+
+require __DIR__ . "/vendor/autoload.php";
+
+final class PriceList
 {
-    public function __construct(private UserRepositoryInterface $users)
+    public function cents(string $sku): int
     {
+        return match ($sku) {
+            "notebook" => 450,
+            "pencil" => 75,
+            default => throw new InvalidArgumentException("Unknown product: {$sku}"),
+        };
     }
 }
+
+final readonly class OrderLine
+{
+    public function __construct(private PriceList $prices, private string $sku)
+    {
+    }
+
+    public function subtotal(int $quantity): int
+    {
+        return $this->prices->cents($this->sku) * $quantity;
+    }
+}
+
+$injector = Injector::create();
+$line = $injector->instantiate(OrderLine::class, ["sku" => $argv[1] ?? "notebook"]);
+echo $line->subtotal(2), " cents", PHP_EOL;
 ```
 
-Manual parameters can be supplied when instantiating a class:
-
-```php
-$controller = $injector->instantiate(UserController::class, [
-    "id" => 10,
-]);
-```
+Run `php price-line.php` to price two notebooks at `900 cents`. Run `php price-line.php pencil` to price two pencils at `150 cents`. The `sku` key matches the constructor's `$sku` parameter. Atom constructs `PriceList` from its class type.
 
 ## Invoke Methods and Closures
 
-The injector can call closures and methods while resolving typed parameters:
+Use `invoke()` when your caller has a callable and a set of named inputs. In the same script, replace the final `echo` line with the following code to accept a quantity as the second CLI argument.
 
 ```php
-$result = $injector->invoke(
-    [$controller, "show"],
-    ["id" => 10],
-    $context
-);
+$quantity = filter_var($argv[2] ?? "2", FILTER_VALIDATE_INT, ["options" => ["min_range" => 1]]);
+if ($quantity === false) {
+    fwrite(STDERR, "Enter a positive whole-number quantity." . PHP_EOL);
+    exit(1);
+}
+
+$total = $injector->invoke([$line, "subtotal"], ["quantity" => $quantity]);
+echo $total, " cents", PHP_EOL;
 ```
 
-Explicit parameters win by name. Missing class-typed parameters are resolved from the container.
+Run `php price-line.php pencil 4`. The named argument reaches `subtotal(int $quantity)` and the script prints `300 cents`. With `php price-line.php pencil 0`, the script reports the invalid quantity before invoking the method.
+
+Explicit parameters win by name. The injector resolves any remaining class-typed parameters from the container.
 
 ## Named Tokens
 
-Use `#[Inject]` when a parameter should come from a string token instead of a class name:
+### Supply the shop's price list
+
+To use the same order calculation with a different shop's prices, pass the price table through the injector. Start with `price-line.php` from [Price an order line with a runtime product code](#price-an-order-line-with-a-runtime-product-code). Add `use Atom\Di\Attributes\Inject;` and `use Atom\Di\Bindings;` to the imports. Replace `PriceList` with this version.
 
 ```php
-use Atom\Di\Attributes\Inject;
-
-final readonly class ConfiguredService
+final readonly class PriceList
 {
-    public function __construct(
-        #[Inject("config")]
-        public array $config
-    ) {
+    /** @param array<string, int> $prices Prices in cents, keyed by product code. */
+    public function __construct(#[Inject("shop.prices")] private array $prices)
+    {
+    }
+
+    public function cents(string $sku): int
+    {
+        return $this->prices[$sku] ?? throw new InvalidArgumentException("Unknown product: {$sku}");
     }
 }
 ```
+
+Replace `$injector = Injector::create();` with the following lines. The token in `value()` matches the one on the constructor parameter. Atom resolves `PriceList` by class and supplies the registered array when it constructs it.
+
+```php
+$bindings = Bindings::create()->value("shop.prices", [
+    "notebook" => 450,
+    "pencil" => 60,
+]);
+$injector = Injector::create($bindings);
+```
+
+Run `php price-line.php pencil` to price two pencils at `120 cents`. Change the bound pencil price to `55` and run the command again. The same `OrderLine::subtotal()` now returns `110 cents` for the pair.
 
 ## Type Factories
 
@@ -192,20 +242,84 @@ Explicit providers always win over type factories.
 
 ## Child Injectors
 
-Child injectors inherit parent providers and type factories, but can override tokens locally:
+### Test a booking deadline with a fixed clock
+
+A booking is open until its deadline and closes at the exact cutoff. Atom Starter binds `Atom\Scheduler\ClockInterface` to the system clock. A child injector lets a test supply a fixed time for that same constructor dependency.
+
+In a starter project with Composer dependencies installed, create `app/Bookings/BookingWindow.php`.
 
 ```php
-$parent = Injector::create([
-    Provider::value("name", "parent"),
-]);
+<?php
 
-$child = $parent->createChild([
-    Provider::value("name", "child"),
-]);
+declare(strict_types=1);
 
-$parent->get("name"); // parent
-$child->get("name");  // child
+namespace App\Bookings;
+
+use Atom\Scheduler\ClockInterface;
+use DateTimeImmutable;
+
+final readonly class BookingWindow
+{
+    public function __construct(private ClockInterface $clock)
+    {
+    }
+
+    public function isOpen(DateTimeImmutable $deadline): bool
+    {
+        return $this->clock->now() < $deadline;
+    }
+}
 ```
+
+In the application, resolving `BookingWindow::class` uses the registered system clock. Atom can construct this concrete class from its typed constructor, so it needs no separate registration.
+
+For the test, save `check-booking.php` in the project root. The child binds the clock interface to one object that always reports noon UTC. Resolve the booking service from the child so the injector passes that clock into its constructor.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use App\Application;
+use App\Bookings\BookingWindow;
+use Atom\Di\Provider;
+use Atom\Scheduler\ClockInterface;
+
+require __DIR__ . "/vendor/autoload.php";
+
+$app = new Application();
+$app->initialize();
+
+$clock = new class implements ClockInterface {
+    public function now(): DateTimeImmutable
+    {
+        return new DateTimeImmutable("2030-06-01 12:00:00 UTC");
+    }
+};
+
+$child = $app->getInjector()->createChild([
+    Provider::value(ClockInterface::class, $clock),
+]);
+$bookings = $child->get(BookingWindow::class);
+
+foreach (["12:00:01" => true, "12:00:00" => false] as $time => $expected) {
+    $deadline = new DateTimeImmutable("2030-06-01 {$time} UTC");
+    $open = $bookings->isOpen($deadline);
+    if ($open !== $expected) {
+        throw new RuntimeException("Unexpected booking status for {$time}");
+    }
+    echo $time, " ", $open ? "open" : "closed", PHP_EOL;
+}
+```
+
+Run `php check-booking.php` from the project root. The first deadline is one second away. The second is exactly noon.
+
+```text
+12:00:01 open
+12:00:00 closed
+```
+
+The clock override belongs to the child. The application injector still supplies the system clock to its own callers.
 
 ## Service Providers
 

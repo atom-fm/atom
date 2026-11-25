@@ -8,12 +8,14 @@ final readonly class ForEachNode implements ViewNodeInterface
 {
     /**
      * @param ViewNodeInterface[] $children
+     * @param ViewNodeInterface[] $empty
      */
     public function __construct(
         public string $source,
         public string $value,
         public ?string $key = null,
-        public array $children = []
+        public array $children = [],
+        public array $empty = []
     ) {
     }
 }

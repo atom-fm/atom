@@ -7,16 +7,24 @@ namespace Atom\Di;
 use Atom\Di\Attributes\Inject;
 use Atom\Di\Exception\CircularDependencyException;
 use Atom\Di\Exception\DependencyResolutionException;
+use Atom\Di\Exception\ScopedDependencyException;
+use Atom\Hydrator\Exception\InvalidDtoBodyException;
 use Closure;
+use Fiber;
 use ReflectionClass;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
+use WeakMap;
 
 final class Injector
 {
+    private static ?InjectionContext $factoryContext = null;
+    /** @var WeakMap<Fiber, InjectionContext>|null */
+    private static ?WeakMap $fiberFactoryContexts = null;
+
     /** @var array<string, Provider> */
     private array $providers = [];
     /** @var array<string, mixed> */
@@ -32,8 +40,7 @@ final class Injector
     {
         if ($providers instanceof Bindings) {
             $this->bindings = $providers;
-            $this->typeFactories = $providers->typeFactories();
-            $providers = $providers->providers();
+            return;
         }
 
         foreach ($providers as $provider) {
@@ -59,20 +66,24 @@ final class Injector
 
     public function has(string $token): bool
     {
-        return isset($this->providers[$token]) ||
-            isset($this->bindings?->providers()[$token]) ||
+        return $this->localProvider($token) !== null ||
             $this->parent?->has($token) === true ||
             class_exists($token);
     }
 
     public function get(string $token, ?InjectionContext $context = null): mixed
     {
-        $context ??= new InjectionContext();
+        $context ??= self::implicitContext();
         if ($context->has($token)) {
             return $context->get($token);
         }
 
-        $provider = $this->findProvider($token);
+        $owner = $this->findProviderOwner($token) ?? $this;
+        if (array_key_exists($token, $owner->singletons)) {
+            return $owner->singletons[$token];
+        }
+
+        $provider = $owner->localProvider($token);
 
         if ($provider === null) {
             if (!class_exists($token)) {
@@ -91,20 +102,15 @@ final class Injector
             $provider = Provider::type($token);
         }
 
-        $owner = $this->findProviderOwner($provider->token) ?? $this;
-
-        if ($provider->lifetime === ProviderLifetime::Singleton && array_key_exists($provider->token, $owner->singletons)) {
-            return $owner->singletons[$provider->token];
-        }
-
-        if ($provider->lifetime === ProviderLifetime::Scoped && $context->has($provider->token)) {
-            return $context->get($provider->token);
+        if ($provider->lifetime === ProviderLifetime::Scoped) {
+            $context->assertCanResolveScoped($token);
         }
 
         $instance = $this->resolveToken(
             $provider->token,
             $context,
-            fn(): mixed => $owner->resolveProvider($provider, $context)
+            fn(): mixed => $owner->resolveProvider($provider, $context),
+            $provider->lifetime === ProviderLifetime::Singleton
         );
 
         if ($provider->lifetime === ProviderLifetime::Singleton) {
@@ -123,7 +129,7 @@ final class Injector
      */
     public function instantiate(string $className, array $parameters = [], ?InjectionContext $context = null): object
     {
-        $context ??= new InjectionContext();
+        $context ??= self::implicitContext();
         $reflection = new ReflectionClass($className);
 
         if (!$reflection->isInstantiable()) {
@@ -152,7 +158,7 @@ final class Injector
      */
     public function invoke(callable|array $callback, array $parameters = [], ?InjectionContext $context = null): mixed
     {
-        $context ??= new InjectionContext();
+        $context ??= self::implicitContext();
         $reflection = $this->reflectCallable($callback);
         $arguments = $this->resolveParameters($reflection, $parameters, $context);
 
@@ -169,12 +175,51 @@ final class Injector
         return match ($provider->kind) {
             ProviderKind::Type => $this->instantiate($provider->value, context: $context),
             ProviderKind::Value => $provider->value,
-            ProviderKind::Factory => ($provider->value)($this, $context),
+            ProviderKind::Factory => $this->resolveFactory($provider->value, $context),
             ProviderKind::Existing => $this->get($provider->value, $context),
         };
     }
 
-    private function resolveToken(string $token, InjectionContext $context, callable $resolve): mixed
+    private function resolveFactory(callable $factory, InjectionContext $context): mixed
+    {
+        if ($context->resolvingSingleton() === null) {
+            return $factory($this, $context);
+        }
+
+        // Factories can call the injector without explicitly forwarding their context.
+        $fiber = Fiber::getCurrent();
+        if ($fiber === null) {
+            $previous = self::$factoryContext;
+            self::$factoryContext = $context;
+            try {
+                return $factory($this, $context);
+            } finally {
+                self::$factoryContext = $previous;
+            }
+        }
+
+        $contexts = self::$fiberFactoryContexts ??= new WeakMap();
+        $previous = $contexts[$fiber] ?? null;
+        $contexts[$fiber] = $context;
+        try {
+            return $factory($this, $context);
+        } finally {
+            if ($previous === null) {
+                unset($contexts[$fiber]);
+            } else {
+                $contexts[$fiber] = $previous;
+            }
+        }
+    }
+
+    private static function implicitContext(): InjectionContext
+    {
+        $fiber = Fiber::getCurrent();
+        $context = $fiber === null ? self::$factoryContext : (self::$fiberFactoryContexts[$fiber] ?? null);
+        return $context ?? new InjectionContext();
+    }
+
+    private function resolveToken(string $token, InjectionContext $context, callable $resolve, bool $singleton = false): mixed
     {
         if ($context->isResolving($token)) {
             throw new CircularDependencyException(
@@ -182,7 +227,7 @@ final class Injector
             );
         }
 
-        $context->enter($token);
+        $context->enter($token, $singleton);
 
         try {
             return $resolve();
@@ -198,23 +243,14 @@ final class Injector
         }
     }
 
-    private function findProvider(string $token): ?Provider
+    private function localProvider(string $token): ?Provider
     {
-        if (isset($this->providers[$token])) {
-            return $this->providers[$token];
-        }
-
-        $provider = $this->bindings?->providers()[$token] ?? null;
-        if ($provider !== null) {
-            return $this->providers[$token] = $provider;
-        }
-
-        return $this->parent?->findProvider($token);
+        return $this->bindings?->providers()[$token] ?? $this->providers[$token] ?? null;
     }
 
     private function findProviderOwner(string $token): ?self
     {
-        if (isset($this->providers[$token])) {
+        if ($this->localProvider($token) !== null) {
             return $this;
         }
 
@@ -250,7 +286,7 @@ final class Injector
         foreach ($function->getParameters() as $parameter) {
             try {
                 $arguments[$parameter->getPosition()] = $this->resolveParameter($parameter, $parameters, $context);
-            } catch (CircularDependencyException $exception) {
+            } catch (CircularDependencyException|ScopedDependencyException|InvalidDtoBodyException $exception) {
                 throw $exception;
             } catch (DependencyResolutionException $exception) {
                 throw new DependencyResolutionException(
@@ -281,6 +317,8 @@ final class Injector
         if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
             try {
                 return $this->get($type->getName(), $context);
+            } catch (ScopedDependencyException|InvalidDtoBodyException $exception) {
+                throw $exception;
             } catch (DependencyResolutionException $exception) {
                 if ($type->allowsNull()) {
                     return null;

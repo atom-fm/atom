@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Atom\Modules\Components;
 
+use Atom\Page\Form;
 use Atom\Page\Page;
+use Atom\Validation\Rules\MaxLength;
+use Atom\Validation\ValidationResult;
 use Atom\View\Component\AttributeBag;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\FromContext;
 use Atom\View\Html;
+use ReflectionClass;
 
 abstract class FieldEntry implements ComponentInterface
 {
@@ -41,9 +45,14 @@ abstract class FieldEntry implements ComponentInterface
         ], $label . $content);
     }
 
+    private function errors(): ValidationResult
+    {
+        return $this->model instanceof Form ? $this->model->errors() : $this->page->errors();
+    }
+
     protected function error(): string
     {
-        $message = $this->page->errors()->first($this->boundName());
+        $message = $this->errors()->first($this->boundName());
 
         return $message === null
             ? ""
@@ -65,19 +74,12 @@ abstract class FieldEntry implements ComponentInterface
     protected function fieldValue(): string
     {
         $property = $this->boundName();
-        if ($this->model !== null && $this->hasModelValue($property)) {
-            $value = $this->modelValue($property);
-
-            return is_scalar($value) || $value === null ? (string) $value : "";
+        $field = $this->readField($this->model, $property);
+        if (!$field["found"]) {
+            $field = $this->readField($this->page, $property);
         }
 
-        if (!property_exists($this->page, $property)) {
-            return "";
-        }
-
-        $value = $this->page->{$property};
-
-        return is_scalar($value) || $value === null ? (string) $value : "";
+        return is_scalar($field["value"]) ? (string) $field["value"] : "";
     }
 
     protected function fieldClass(): string
@@ -87,7 +89,7 @@ abstract class FieldEntry implements ComponentInterface
 
     protected function hasError(): bool
     {
-        return $this->page->errors()->has($this->boundName());
+        return $this->errors()->has($this->boundName());
     }
 
     protected function describedBy(): ?string
@@ -107,20 +109,54 @@ abstract class FieldEntry implements ComponentInterface
 
     protected function boundName(): string
     {
-        return $this->bind ?? $this->name;
+        return $this->bind ?? rtrim(str_replace(["[", "]"], [".", ""], $this->name), ".");
     }
 
-    private function hasModelValue(string $property): bool
+    protected function inferredMaxLength(): ?int
     {
-        if (is_array($this->model)) {
-            return array_key_exists($property, $this->model);
+        if (array_key_exists("maxlength", array_change_key_case($this->attributes->all()))) {
+            return null;
         }
 
-        return is_object($this->model) && isset($this->model->{$property});
+        $target = $this->model ?? $this->page;
+        $name = $this->boundName();
+        if (!is_object($target)) {
+            return null;
+        }
+
+        $class = new ReflectionClass($target);
+        if (!$class->hasProperty($name)) {
+            return null;
+        }
+        $property = $class->getProperty($name);
+        if (!$property->isPublic() || $property->isStatic()) {
+            return null;
+        }
+
+        $rule = $property->getAttributes(MaxLength::class)[0] ?? null;
+        $limit = $rule?->newInstance()->value;
+
+        return $limit !== null && $limit >= 0 ? $limit : null;
     }
 
-    private function modelValue(string $property): mixed
+    /** @return array{found: bool, value: mixed} */
+    private function readField(mixed $target, string $path): array
     {
-        return is_array($this->model) ? $this->model[$property] : $this->model->{$property};
+        // An array model may already use a literal dotted key.
+        if (is_array($target) && array_key_exists($path, $target)) {
+            return ["found" => true, "value" => $target[$path]];
+        }
+
+        foreach (explode(".", $path) as $property) {
+            if (is_array($target) && array_key_exists($property, $target)) {
+                $target = $target[$property];
+            } elseif (is_object($target) && isset($target->{$property})) {
+                $target = $target->{$property};
+            } else {
+                return ["found" => false, "value" => null];
+            }
+        }
+
+        return ["found" => true, "value" => $target];
     }
 }

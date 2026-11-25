@@ -10,7 +10,7 @@
                 </Inline>
             </Panel>
 
-            <Pagination :page="$this->page" :total="$this->total" href="/components/pagination?page={page}" navigate preserve-state />
+            <Pagination label="Results pages" :page="$this->page" :total="$this->total" :href="'/components/pagination?page={page}&compactPage=' . $this->compactPage" navigate preserve-state preserve-scroll />
         </Stack>
     </ComponentExample>
 
@@ -23,11 +23,11 @@
                 </Inline>
             </Panel>
 
-            <Pagination :page="$this->localPage" :total="$this->total" action="setLocalPage({page})" />
+            <Pagination label="Local results pages" :page="$this->localPage" :total="$this->total" action="setLocalPage({page})" />
         </Stack>
     </ComponentExample>
 
     <ComponentExample title="Compact window" description="The window property controls how many numeric links are shown.">
-        <Pagination page="6" total="12" window="3" href="/components/pagination?page={page}" />
+        <Pagination label="Compact page links" :page="$this->compactPage" :total="$this->compactTotal" window="3" :href="'/components/pagination?page=' . $this->page . '&compactPage={page}'" navigate preserve-state preserve-scroll />
     </ComponentExample>
 </Stack>

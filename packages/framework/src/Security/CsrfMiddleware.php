@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Security;
 
+use Atom\Http\AccessFailure;
 use Atom\Http\MiddlewareInterface;
 use Atom\Http\Request;
 use Atom\Http\RequestHandlerInterface;
@@ -32,10 +33,6 @@ final readonly class CsrfMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        return (new Response())
-            ->status(403)
-            ->header("Content-Type", "text/plain; charset=utf-8")
-            ->header("Cache-Control", "no-store")
-            ->content("Invalid CSRF token.");
+        return AccessFailure::InvalidCsrfToken->response($request);
     }
 }

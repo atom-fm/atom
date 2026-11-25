@@ -10,6 +10,10 @@ use Atom\BootstrapProviderInterface;
 use Atom\Bootstrappers;
 use Atom\Config\Config;
 use Atom\Config\Options;
+use Atom\Console\BufferedConsoleOutput;
+use Atom\Console\ConsoleApplication;
+use Atom\Console\Attributes\ConsoleCommand;
+use Atom\Console\ConsoleOutput;
 use Atom\Di\Bindings;
 use Atom\Di\Injector;
 use Atom\Di\ServiceProviderInterface;
@@ -22,17 +26,23 @@ use Atom\Http\CorsMiddleware;
 use Atom\Http\CorsOptions;
 use Atom\Http\MiddlewareRegistry;
 use Atom\Http\RequestIdMiddleware;
+use Atom\Module\ModuleContext;
+use Atom\Module\ModuleInterface;
+use Atom\Module\ModuleRegistry;
 use Atom\Page\PageRegistry;
 use Atom\Modules\Components\Icons\IconProviderInterface;
 use Atom\Modules\Components\Icons\IconRegistry;
 use Atom\Modules\Components\Icons\IconResolverInterface;
+use Atom\Modules\ErrorPages\ErrorPagesOptions;
 use Atom\Profiler\Profile;
 use Atom\Profiler\Profiler;
 use Atom\Router\Route;
+use Atom\Router\RouteEntry;
 use Atom\Router\RouteMatcher;
 use Atom\Support\Paths;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\ComponentRegistry;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class ApplicationTest extends TestCase
@@ -60,6 +70,121 @@ final class ApplicationTest extends TestCase
 
         $this->assertTrue($match->isFound());
         $this->assertSame(["name" => "Atom"], $match->matchedRoute->getRouteParams());
+    }
+
+    #[TestWith([false, "module"], "module overrides an unresolved binding")]
+    #[TestWith([true, "ready"], "resolved singleton keeps its identity")]
+    public function testModuleBindingPrecedence(bool $resolveEarly, string $expected): void
+    {
+        $app = new class($resolveEarly) extends Application {
+            public ?TestApplicationMarker $original = null;
+
+            public function __construct(private bool $resolveEarly)
+            {
+                parent::__construct();
+            }
+
+            protected function services(ServiceProviderRegistry $providers): void
+            {
+                $providers->add(new TestApplicationProvider(new TestResponseEmitter()));
+            }
+
+            protected function modules(ModuleRegistry $modules): void
+            {
+                if ($this->resolveEarly) {
+                    $this->original = $this->getInjector()->get(TestApplicationMarker::class);
+                }
+                $modules->add(new class implements ModuleInterface {
+                    public function register(ModuleContext $context): void
+                    {
+                        $context->bind(TestApplicationMarker::class)->toValue(new TestApplicationMarker("module"));
+                        $context->route(RouteEntry::create(
+                            "GET",
+                            "/binding",
+                            static fn(TestApplicationMarker $marker): string => $marker->value
+                        ));
+                    }
+                });
+            }
+        };
+
+        $response = $app->handle(new Request("GET", "/binding"));
+        $this->assertSame($expected, $response->getContent());
+        if ($resolveEarly) {
+            $this->assertSame($app->original, $app->getInjector()->get(TestApplicationMarker::class));
+        }
+    }
+
+    public function testEarlyConsoleCanRunCommandsRegisteredByAModule(): void
+    {
+        $app = new class extends Application {
+            public ConsoleApplication $earlyConsole;
+            public bool $discoveredEarly;
+
+            protected function modules(ModuleRegistry $modules): void
+            {
+                $this->earlyConsole = $this->getConsole();
+                $this->discoveredEarly = $this->earlyConsole->commands()->has("discovered:hello");
+                $modules->add(new class implements ModuleInterface {
+                    public function register(ModuleContext $context): void
+                    {
+                        $context->commands(__DIR__ . "/Console/Fixtures/Commands", "Atom\\Tests\\Console\\Fixtures\\Commands");
+                    }
+                });
+            }
+        };
+
+        $app->initialize();
+
+        $this->assertFalse($app->discoveredEarly);
+        $this->assertSame($app->earlyConsole, $app->getConsole());
+        $output = new BufferedConsoleOutput();
+        $this->assertSame(0, $app->earlyConsole->run(["atom", "discovered:hello", "Atom"], $output), $output->errors());
+        $this->assertSame("Hello, Atom!" . PHP_EOL, $output->output());
+        $this->assertTrue($app->earlyConsole->commands()->has("atom:about"));
+    }
+
+    public function testHttpRejectsSingletonThatCapturesTheCurrentRequest(): void
+    {
+        $app = new class extends Application {
+            protected function configure(Config $config): void
+            {
+                $config->set(new ErrorPagesOptions(debug: true));
+            }
+
+            protected function bootstrap(Injector $injector): void
+            {
+                $this->getBindings()->bind(HttpRequestSingleton::class)->toSelf()->singleton();
+                Route::get("/capture", static fn(HttpRequestSingleton $service): string => "handler ran");
+            }
+        };
+
+        $response = $app->handle(new Request("GET", "/capture"));
+        $this->assertSame(500, $response->getStatus());
+        $this->assertStringContainsString("Singleton '" . HttpRequestSingleton::class, html_entity_decode($response->getContent()));
+        $this->assertStringContainsString("scoped service '" . Request::class, html_entity_decode($response->getContent()));
+    }
+
+    public function testConsoleRejectsSingletonThatIndirectlyCapturesCommandOutput(): void
+    {
+        $app = new class extends Application {
+            protected function bootstrap(Injector $injector): void
+            {
+                $this->getBindings()->bind(CommandOutputSingleton::class)
+                    ->toFactory(static fn(Injector $injector): CommandOutputSingleton =>
+                        new CommandOutputSingleton($injector->get(CommandOutputHelper::class))
+                    )->singleton();
+                $this->getConsole()->attach(CommandOutputProbe::class);
+            }
+        };
+        $app->initialize();
+
+        $output = new BufferedConsoleOutput();
+        $this->assertSame(1, $app->getConsole()->run(["atom", "test:capture-output"], $output));
+        $this->assertStringContainsString("Singleton '" . CommandOutputSingleton::class, $output->errors());
+        $this->assertStringContainsString("scoped service '" . ConsoleOutput::class, $output->errors());
+        $this->assertStringContainsString(CommandOutputHelper::class, $output->errors());
+        $this->assertSame("", $output->output());
     }
 
     public function testRunUsesRequestContextAndReturnsResponse(): void
@@ -136,6 +261,21 @@ final class ApplicationTest extends TestCase
         $this->assertNotNull($response->headers()->get("X-Atom-Time-Request-Dispatch"));
     }
 
+    public function testProfilingSeparatesRequestsOnTheSameApplication(): void
+    {
+        $app = new TestApplication();
+        $first = $app->handle(new Request("GET", "/profile/repeated"));
+        $second = $app->handle(new Request("GET", "/hello/Atom"));
+
+        $this->assertStringContainsString("count=2", (string) $first->headers()->get("X-Atom-Time-Custom-Work"));
+        $this->assertNotNull($first->headers()->get("X-Atom-Time-App-Initialize"));
+        $this->assertMatchesRegularExpression('/^\d+\.\d{2}ms$/', (string) $second->headers()->get("X-Atom-Time-Request-Dispatch"));
+        $this->assertNull($second->headers()->get("X-Atom-Time-Custom-Work"));
+        $this->assertNull($second->headers()->get("X-Atom-Time-App-Initialize"));
+        $this->assertSame(1, $app->getProfiler()->count("app.initialize"));
+        $this->assertSame(0, $app->getProfiler()->count("request.dispatch"));
+    }
+
     public function testPageResponsesIncludeViewProfilerHeaders(): void
     {
         $app = new TestPageApplication(__DIR__ . "/Page/PageFixtures");
@@ -201,6 +341,7 @@ final class ApplicationTest extends TestCase
 
         $this->assertSame($root, $app->getPaths()->resolve("@root"));
         $this->assertSame($root . "/app", $app->getPaths()->resolve("@app"));
+        $this->assertSame($root . "/public", $app->getPaths()->resolve("@public"));
         $this->assertSame($root . "/app/Database", $app->getPaths()->resolve("@database"));
         $this->assertSame($root . "/app/Database/Migrations", $app->getPaths()->resolve("@migrations"));
         $this->assertSame($root . "/app/Database/Seeders", $app->getPaths()->resolve("@seeders"));
@@ -281,8 +422,8 @@ final class TestApplication extends Application
         $this->bootstrapped = true;
 
         Route::get("/hello/{name}", fn(string $name) => "Hello " . $name);
-        Route::get("/profile/repeated", function (): string {
-            Profile::measure("custom.work", static fn(): null => null);
+        Route::get("/profile/repeated", function (Profiler $profiler): string {
+            $profiler->measure("custom.work", static fn(): null => null);
             Profile::measure("custom.work", static fn(): null => null);
 
             return "ok";
@@ -362,6 +503,36 @@ final readonly class TestBootstrapper implements BootstrapperInterface
     public function bootstrap(Injector $injector): void
     {
         $this->app->events[] = "provider";
+    }
+}
+
+final readonly class HttpRequestSingleton
+{
+    public function __construct(public ?Request $request)
+    {
+    }
+}
+
+final readonly class CommandOutputSingleton
+{
+    public function __construct(public CommandOutputHelper $helper)
+    {
+    }
+}
+
+final readonly class CommandOutputHelper
+{
+    public function __construct(public ConsoleOutput $output)
+    {
+    }
+}
+
+final class CommandOutputProbe
+{
+    #[ConsoleCommand("test:capture-output")]
+    public function handle(CommandOutputSingleton $service): string
+    {
+        return "handler ran";
     }
 }
 

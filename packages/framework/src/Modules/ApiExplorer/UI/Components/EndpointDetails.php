@@ -128,7 +128,7 @@ final class EndpointDetails extends TemplateComponent
     {
         $type = $this->endpoint()->responseType;
 
-        return $type === null ? "mixed" : $this->shortName($type);
+        return $type === null ? "mixed" : $this->shortTypeName($type);
     }
 
     /**

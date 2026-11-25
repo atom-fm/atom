@@ -10,9 +10,12 @@ final readonly class QueueJobDispatcher implements JobDispatcherInterface
     {
     }
 
-    public function dispatch(JobInterface $job, int $delay = 0, ?string $queue = null): string
+    public function dispatch(JobInterface $job, int $delay = 0, ?string $queue = null, ?string $overlapKey = null): string
     {
-        $envelope = JobEnvelope::for($job, $queue ?? $this->options->queue, $delay);
+        if ($overlapKey !== null && !$this->queue instanceof DeferrableQueueInterface) {
+            throw new QueueException("The queue cannot defer jobs when an overlap lock is held.");
+        }
+        $envelope = JobEnvelope::for($job, $queue ?? $this->options->queue, $delay, $overlapKey);
         $this->queue->push($envelope);
 
         return $envelope->id;

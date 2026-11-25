@@ -10,6 +10,8 @@ final class Table
     private array $columns = [];
     /** @var IndexDefinition[] */
     private array $indexes = [];
+    /** @var list<ForeignKeyDefinition> */
+    private array $foreignKeys = [];
     /** @var string[] */
     private array $droppedColumns = [];
 
@@ -109,6 +111,21 @@ final class Table
     public function unique(string|array $columns, ?string $name = null): IndexDefinition
     {
         return $this->addIndex(IndexDefinition::unique($this->normalizeColumns($columns), $name));
+    }
+
+    public function foreignKey(string|array $columns, string $referencedTable, string|array $referencedColumns = "id"): void
+    {
+        $this->foreignKeys[] = new ForeignKeyDefinition(
+            $this->normalizeColumns($columns),
+            $referencedTable,
+            $this->normalizeColumns($referencedColumns)
+        );
+    }
+
+    /** @return list<ForeignKeyDefinition> */
+    public function foreignKeys(): array
+    {
+        return $this->foreignKeys;
     }
 
     public function column(

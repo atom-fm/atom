@@ -112,7 +112,7 @@ POST  /account/logout      Session logout
 GET   /account/resources/* Module styles
 ```
 
-The POST routes use CSRF protection. Login, registration, reset-link requests, and password resets have independent rate limits. Logout requires an authenticated identity. Successful login and logout regenerate the session ID through the core authenticator.
+The POST routes use CSRF protection. Login, registration, reset-link requests, and password resets have independent rate limits. Logout checks the identity before validating the CSRF token. After session expiry, submitting the old logout form returns `401 authentication_required`. A signed-in user who submits an invalid token receives `403 invalid_csrf_token` and stays signed in. Successful login and logout regenerate the session ID through the core authenticator.
 
 Registration and password recovery delegate to one `AccountManagerInterface`. The module supplies `NullAccountManager` when the application does not bind one, preserving safe "not configured" behavior without requiring persistence or email services. The forgot-password response is identical whether an account exists or not.
 
@@ -172,7 +172,8 @@ $modules->add(Accounts::module(new AccountsOptions(
     forgotPasswordMaxAttempts: 3,
     forgotPasswordWindowSeconds: 60,
     resetPasswordMaxAttempts: 5,
-    resetPasswordWindowSeconds: 60
+    resetPasswordWindowSeconds: 60,
+    themeStylesheet: "/style.css"
 )), "/account");
 ```
 
@@ -190,7 +191,29 @@ ACCOUNTS_FORGOT_PASSWORD_MAX_ATTEMPTS=3
 ACCOUNTS_FORGOT_PASSWORD_WINDOW_SECONDS=60
 ACCOUNTS_RESET_PASSWORD_MAX_ATTEMPTS=5
 ACCOUNTS_RESET_PASSWORD_WINDOW_SECONDS=60
+ACCOUNTS_THEME_STYLESHEET=/style.css
 ```
+
+### Site colors
+
+Set `themeStylesheet` to load the application's stylesheet on every Accounts page. The stylesheet is loaded before the module stylesheet and can define the shared Atom tokens used by the built-in forms:
+
+```css
+:root {
+    --atom-font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    --atom-color-soft: #f4f2eb;
+    --atom-color-surface: #fff;
+    --atom-color-text: #171918;
+    --atom-color-muted: #626762;
+    --atom-color-line: #d8ddd7;
+    --atom-color-primary: #245c43;
+    --atom-color-primary-hover: #174330;
+    --atom-color-primary-content: #fff;
+    --atom-color-focus: #397c5b;
+}
+```
+
+Accounts retains fallback values for every token, so no theme stylesheet is required. Application rules can also target the `body.atom-accounts` boundary when a site needs more than color and typography changes.
 
 Set an operation's maximum attempts to `0` to disable that throttle. Registration is keyed by client IP, reset-link requests by client IP and normalized login, and password resets by client IP and a hash of the submitted token. Return destinations must be local absolute paths. External, protocol-relative, backslash-containing, and control-character redirects are rejected.
 

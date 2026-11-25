@@ -8,10 +8,12 @@ use Atom\Di\Exception\DependencyResolutionException;
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
 use Atom\Http\Request;
+use Atom\Http\Response;
 use Atom\Router\MatchedRoute;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
+use ReflectionNamedType;
 use ReflectionObject;
 
 final readonly class PageActionHandler
@@ -21,7 +23,8 @@ final readonly class PageActionHandler
         private InjectionContext $context,
         private PageStateSerializerInterface $state = new JsonPageStateSerializer(),
         private PageInputHydratorInterface $input = new PageInputHydrator(),
-        private PageActionParameterBinder $parameters = new PageActionParameterBinder()
+        private PageActionParameterBinder $parameters = new PageActionParameterBinder(),
+        private PageConstructorParameterBinder $constructorParameters = new PageConstructorParameterBinder()
     ) {
     }
 
@@ -33,13 +36,29 @@ final readonly class PageActionHandler
             throw new PageActionException("Page route metadata is missing.");
         }
 
-        $page = $this->injector->instantiate($metadata->pageClass, context: $this->context);
+        $page = $this->injector->instantiate(
+            $metadata->pageClass,
+            $this->constructorParameters->bind($metadata->pageClass, $request, $route),
+            $this->context
+        );
         $this->state->deserialize($page, $request->post()->string("_state"));
-        $this->input->hydrate($page, $request, $route);
-        $this->invokeGet($page, $route);
+        $this->input->hydrateProperties($page, $request, $route);
+        $page->init();
+        $this->input->hydrateForms($page, $request, $route);
+        $initial = $this->invokeGet($page, $route);
+        if ($initial instanceof Response) {
+            return $initial;
+        }
+        if ($page->hasFormInputErrors()) {
+            return $pages->renderPage($page, false);
+        }
+
         $call = $this->parseAction($request->post()->string("_action", "default"));
-        $target = $this->resolveTarget($page, $call);
-        $action = $this->resolveAction($target, $request, $call);
+        $target = $this->resolveTarget($page, $call, $request);
+        if ($target === null) {
+            return $pages->renderPage($page, false);
+        }
+        $action = $this->resolveAction(new ReflectionObject($target), $request, $call);
         $parameters = $this->parameters->bind($page, $request, $route, $call, $action);
 
         try {
@@ -56,20 +75,60 @@ final readonly class PageActionHandler
             );
         }
 
+        $failed = $result === false || $page->errors()->failed();
+
+        if ($target instanceof Form && $result instanceof FormResult) {
+            if ($failed) {
+                return $pages->renderPage($page, false);
+            }
+            if ($result->message !== "") {
+                $page->flash($result->message);
+            }
+            $url = $result->location ?? $request->getRequestUri();
+            if ($request->headers()->get("X-Requested-With") === "Atom" && parse_url($url, PHP_URL_PATH) === $request->getPath()) {
+                return $this->renderUpdated($pages, $page, $url, $route, $request);
+            }
+            (new PageFlashStore($this->injector, $this->context))->storeForDestination($page, $url);
+            return (new Response())->redirect($url, 303)->header("Cache-Control", "no-store");
+        }
+
+        // A form save returns validation/persistence status, not response content.
+        if ($target instanceof Form && $action->getName() === "save" && is_bool($result)) {
+            $result = $result ? $page->formSaved($target) : null;
+        }
+
+        if ((new PageUri())->hasBindings($page) && ($result === null || is_bool($result))) {
+            if ($failed) return $pages->renderPage($page, false);
+            $url = $page->url();
+            if ($request->headers()->get("X-Requested-With") === "Atom") {
+                return $this->renderUpdated($pages, $page, $url, $route, $request);
+            }
+            (new PageFlashStore($this->injector, $this->context))->store($page, $url);
+            return (new Response())->redirect($url, 303)->header("Cache-Control", "no-store");
+        }
+
         return $result ?? $pages->renderPage($page, false);
     }
 
-    private function invokeGet(Page $page, MatchedRoute $route): void
+    private function renderUpdated(PageRenderer $pages, Page $page, string $url, MatchedRoute $route, Request $request): Response
+    {
+        $html = $pages->renderUpdated($page, $url, $route, $request);
+
+        return $html instanceof Response ? $html : (new Response())
+            ->content((string) $html)->header("X-Atom-Uri", $url)->header("Cache-Control", "no-store");
+    }
+
+    private function invokeGet(Page $page, MatchedRoute $route): mixed
     {
         $reflection = new ReflectionClass($page);
         if (!$reflection->hasMethod("get")) {
-            return;
+            return null;
         }
 
-        $this->injector->invoke([$page, "get"], $route->getRouteParams(), $this->context);
+        return $this->injector->invoke([$page, "get"], $route->getRouteParams(), $this->context);
     }
 
-    private function resolveTarget(Page $page, PageActionCall $call): object
+    private function resolveTarget(Page $page, PageActionCall $call, Request $request): ?object
     {
         $target = $page;
 
@@ -91,6 +150,14 @@ final readonly class PageActionHandler
             }
 
             $value = $property->getValue($target);
+            $type = $property->getType();
+            if ($value === null && count($call->targetPath) === 1 && $call->name === "save"
+                && $property->getAttributes(FormModel::class) !== [] && $type instanceof ReflectionNamedType
+                && is_a($type->getName(), Form::class, true)) {
+                // A form selected when the page was rendered can be unavailable by the time it is submitted.
+                $this->resolveAction(new ReflectionClass($type->getName()), $request, $call);
+                return null;
+            }
             if (!is_object($value)) {
                 throw new PageActionException(
                     "Page action target '{$propertyName}' must be an object while resolving '{$call->fullName()}' on " .
@@ -104,10 +171,10 @@ final readonly class PageActionHandler
         return $target;
     }
 
-    private function resolveAction(object $target, Request $request, PageActionCall $call): ReflectionMethod
+    /** @param ReflectionClass<covariant object> $reflection */
+    private function resolveAction(ReflectionClass $reflection, Request $request, PageActionCall $call): ReflectionMethod
     {
         $method = strtolower($request->getMethod());
-        $reflection = new ReflectionObject($target);
 
         foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $candidate) {
             foreach ($candidate->getAttributes(PageAction::class, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {

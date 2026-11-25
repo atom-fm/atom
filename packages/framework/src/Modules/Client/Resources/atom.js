@@ -5,16 +5,75 @@
     var submitAttribute = "atom:submit";
     var navigateAttribute = "atom:navigate";
     var preserveStateAttribute = "atom:preserve-state";
+    var preserveScrollAttribute = "atom:preserve-scroll";
     var updateRootAttribute = "atom:update-root";
     var updateEngine = {
-        update: function (current, next) {
+        update: function (current, next, options) {
             var state = captureUpdateState(current);
 
             current.innerHTML = next.innerHTML;
-            restoreUpdateState(current, state);
+            restoreUpdateState(current, state, !options || options.preserveFocusedValue !== false);
         }
     };
     var inputDebounceMs = 300;
+    var submittingForms = new WeakSet();
+
+    // History traversal changes history.state before popstate runs. Keep the
+    // outgoing entry's key until its final position has been captured.
+    var historySequence = 0;
+    var historySession = Date.now().toString(36);
+    var scrollPositions = new Map();
+    var activeEntry = currentEntry();
+    var renderedUrl = new URL(window.location.href);
+    var navigationSequence = 0;
+
+    function newEntryKey() {
+        return historySession + "-" + (++historySequence);
+    }
+
+    function currentEntry() {
+        var state = window.history.state || {};
+        if (state.atomEntry) return state.atomEntry;
+
+        var key = newEntryKey();
+        window.history.replaceState(Object.assign({}, state, { atomEntry: key }), "");
+        return key;
+    }
+
+    function contentScroll() {
+        var main = document.querySelector("main");
+        var root = updateRoot(document.body);
+        return {
+            x: window.scrollX,
+            y: window.scrollY,
+            mainX: main ? main.scrollLeft : 0,
+            mainY: main ? main.scrollTop : 0,
+            rootX: root ? root.scrollLeft : 0,
+            rootY: root ? root.scrollTop : 0
+        };
+    }
+
+    function applyContentScroll(position) {
+        var main = document.querySelector("main");
+        var root = updateRoot(document.body);
+        if (main) main.scrollTo({ left: position.mainX, top: position.mainY, behavior: "instant" });
+        if (root && root !== main) root.scrollTo({ left: position.rootX, top: position.rootY, behavior: "instant" });
+        window.scrollTo({ left: position.x, top: position.y, behavior: "instant" });
+    }
+
+    function scrollToDestination(url) {
+        applyContentScroll({ x: 0, y: 0, mainX: 0, mainY: 0, rootX: 0, rootY: 0 });
+        if (!url.hash) return;
+
+        var fragment = url.hash.slice(1);
+        try {
+            fragment = decodeURIComponent(fragment);
+        } catch (error) {
+            // An id may contain a literal percent sign.
+        }
+        var target = document.getElementById(fragment) || document.getElementsByName(fragment)[0];
+        if (target) target.scrollIntoView();
+    }
 
     function captureUpdateState(root) {
         return {
@@ -61,13 +120,13 @@
         return state;
     }
 
-    function restoreUpdateState(root, state) {
-        restoreFocus(root, state.focus);
+    function restoreUpdateState(root, state, preserveFocusedValue) {
+        restoreFocus(root, state.focus, preserveFocusedValue);
         restoreElementScroll(root, state.elementScroll);
         window.scrollTo(state.scroll.x, state.scroll.y);
     }
 
-    function restoreFocus(root, state) {
+    function restoreFocus(root, state, preserveFocusedValue) {
         if (state === null || state.selector === null) {
             return;
         }
@@ -77,12 +136,14 @@
             return;
         }
 
-        if (element.type !== "file") {
-            element.value = state.value;
-        }
+        if (preserveFocusedValue) {
+            if (element.type !== "file") {
+                element.value = state.value;
+            }
 
-        if (typeof state.checked === "boolean") {
-            element.checked = state.checked;
+            if (typeof state.checked === "boolean") {
+                element.checked = state.checked;
+            }
         }
 
         element.focus({ preventScroll: true });
@@ -164,7 +225,17 @@
             }
 
             if (xhr.status >= 200 && xhr.status < 500) {
-                done(xhr.responseText, xhr.responseURL || url);
+                var responseUrl = xhr.responseURL || url;
+                var uri = xhr.getResponseHeader("X-Atom-Uri");
+                if (uri && xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        var resolved = new URL(uri, window.location.href);
+                        if (resolved.origin === window.location.origin) responseUrl = resolved.href;
+                    } catch (error) {
+                        // Ignore an invalid URL hint and keep the actual response URL.
+                    }
+                }
+                done(xhr.responseText, responseUrl);
                 return;
             }
 
@@ -181,28 +252,39 @@
         return page;
     }
 
-    function updatePage(html, url) {
+    function updatePage(html, url, options) {
         var next = parsePage(html);
+        var position = contentScroll();
+        var destination = new URL(url || window.location.href, window.location.href);
 
+        if (url && window.location.href !== destination.href) {
+            scrollPositions.set(activeEntry, position);
+            window.history.replaceState(Object.assign({}, window.history.state, { atomScroll: position }), "");
+            activeEntry = newEntryKey();
+            window.history.pushState({ atomEntry: activeEntry }, "", destination.href);
+        }
+        renderedUrl = destination;
         document.title = next.title;
         syncState(next);
-        updateDocument(document.body, next.body);
+        updateDocument(document.body, next.body, options);
 
-        if (url && window.location.href !== url) {
-            window.history.pushState({}, "", url);
+        if (options && options.destinationScroll) {
+            scrollToDestination(destination);
+        } else {
+            applyContentScroll((options && options.scrollPosition) || position);
         }
     }
 
-    function updateDocument(current, next) {
+    function updateDocument(current, next, options) {
         var currentRoot = updateRoot(current);
         var nextRoot = updateRoot(next);
 
         if (currentRoot !== null && nextRoot !== null) {
-            window.Atom.update(currentRoot, nextRoot);
+            window.Atom.update(currentRoot, nextRoot, options);
             return;
         }
 
-        window.Atom.update(current, next);
+        window.Atom.update(current, next, options);
     }
 
     function updateRoot(root) {
@@ -270,37 +352,71 @@
     }
 
     function submitForm(form, submitter) {
-        var button = submitter || form.querySelector("button[type=\"submit\"]");
-        var url = form.action || window.location.href;
-        var method = (form.getAttribute("method") || "GET").toUpperCase();
-        var body = method === "GET" ? null : new FormData(form);
-        var action = formAction(form, submitter);
-
-        if (action !== "" && body !== null && !body.has("_action")) {
-            body.append("_action", action);
+        if (submittingForms.has(form)) {
+            return;
         }
 
-        if (body !== null && !body.has("_state")) {
-            body.append("_state", currentState());
-        }
-
+        var wasDisabled = submitter !== null && submitter.disabled;
+        var settled = false;
+        submittingForms.add(form);
         setBusy(true);
-        button && (button.disabled = true);
 
-        request(
-            method,
-            url,
-            body,
-            function (html, responseUrl) {
-                updatePage(html, responseUrl);
-                setBusy(false);
-            },
-            function () {
-                setBusy(false);
-                button && (button.disabled = false);
-                showError("Request failed before a response was received.");
+        function settle(callback) {
+            if (settled) {
+                return;
             }
-        );
+            settled = true;
+            if (submitter !== null) {
+                submitter.disabled = wasDisabled;
+            }
+            try {
+                callback();
+            } finally {
+                submittingForms.delete(form);
+                setBusy(false);
+            }
+        }
+
+        function fail() {
+            settle(function () {
+                showError("Request failed before a response was received.");
+            });
+        }
+
+        try {
+            var url = form.action || window.location.href;
+            var method = (form.getAttribute("method") || "GET").toUpperCase();
+            var body = method === "GET" ? null : new FormData(form, submitter);
+            var action = formAction(form, submitter);
+
+            if (action !== "" && body !== null) {
+                if (submitter !== null && submitter.hasAttribute(actionAttribute)) {
+                    body.set("_action", action);
+                } else if (!body.has("_action")) {
+                    body.append("_action", action);
+                }
+            }
+
+            if (body !== null && !body.has("_state")) {
+                body.append("_state", currentState());
+            }
+
+            if (submitter !== null) {
+                submitter.disabled = true;
+            }
+
+            request(method, url, body, function (html, responseUrl) {
+                settle(function () {
+                    var active = document.activeElement;
+                    updatePage(html, responseUrl, {
+                        preserveFocusedValue: !active || active.form !== form
+                    });
+                });
+            }, fail);
+        } catch (error) {
+            fail();
+            throw error;
+        }
     }
 
     function invokeAction(action, target) {
@@ -431,13 +547,69 @@
         }
     }
 
-    function followLink(anchor) {
-        var body = null;
-        var method = "GET";
-        var headers = null;
+    function updateNavigation(html, url, options) {
+        // Filter fields reflect the destination URL, including on Back or Forward.
+        var active = document.activeElement;
+        options.preserveFocusedValue = !(active && active.form && active.form.hasAttribute(navigateAttribute));
+        updatePage(html, url, options);
+    }
 
-        if (anchor.hasAttribute(preserveStateAttribute)) {
-            method = "POST";
+    function capturePreservedFields() {
+        var forms = document.querySelectorAll("form[id][atom\\:preserve-state]");
+        var fields = [];
+        forms.forEach(function (form) {
+            if (form.hasAttribute(navigateAttribute)) return;
+
+            Array.from(form.elements).forEach(function (field) {
+                if (!field.id || !isFocusableStateElement(field) || /^(file|hidden|button|submit|reset|image)$/.test(field.type)) return;
+                fields.push({
+                    formId: form.id,
+                    id: field.id,
+                    type: field.type,
+                    value: field.value,
+                    checked: field.checked,
+                    selected: field.multiple && field.options ? Array.from(field.options, function (option) {
+                        return option.selected;
+                    }) : null
+                });
+            });
+        });
+        return fields;
+    }
+
+    function restorePreservedFields(fields) {
+        fields.forEach(function (state) {
+            var field = document.getElementById(state.id);
+            if (!field || field.type !== state.type || !field.form || field.form.id !== state.formId
+                || !field.form.hasAttribute(preserveStateAttribute)) return;
+
+            if (state.selected !== null) {
+                Array.from(field.options).forEach(function (option, index) {
+                    option.selected = state.selected[index] === true;
+                });
+            } else {
+                field.value = state.value;
+            }
+            if (typeof state.checked === "boolean") field.checked = state.checked;
+        });
+    }
+
+    function navigate(href, preserveState, preserveScroll) {
+        var url = new URL(href, window.location.href);
+        var sequence = ++navigationSequence;
+        if (url.hash && url.pathname === renderedUrl.pathname && url.search === renderedUrl.search
+            && url.origin === renderedUrl.origin) {
+            if (url.href === window.location.href) {
+                scrollToDestination(url);
+            } else {
+                window.location.hash = url.hash;
+            }
+            return;
+        }
+
+        var body = null;
+        var headers = null;
+        if (preserveState) {
             body = new FormData();
             body.append("_state", currentState());
             headers = {
@@ -448,16 +620,22 @@
 
         setBusy(true);
         request(
-            method,
-            anchor.href,
+            preserveState ? "POST" : "GET",
+            url.href,
             body,
             function (html, responseUrl) {
-                updatePage(html, responseUrl);
+                if (sequence !== navigationSequence) return;
+                var destination = new URL(responseUrl, url);
+                if (!destination.hash) destination.hash = url.hash;
+                var fields = preserveState && destination.pathname === renderedUrl.pathname ? capturePreservedFields() : [];
+                updateNavigation(html, destination.href, { destinationScroll: !!destination.hash || !preserveScroll });
+                restorePreservedFields(fields);
                 setBusy(false);
             },
             function () {
+                if (sequence !== navigationSequence) return;
                 setBusy(false);
-                window.location.href = anchor.href;
+                window.location.href = url.href;
             },
             headers
         );
@@ -479,25 +657,49 @@
         submitForm(form, event.submitter || null);
     }, true);
 
-    document.addEventListener("click", function (event) {
-        var button = event.target.closest ? event.target.closest("button[type=\"submit\"]") : null;
-
-        if (button === null || button.form === null || !isEnhancedForm(button.form)) {
-            return;
-        }
-
-        if (typeof window.XMLHttpRequest !== "function" || typeof window.FormData !== "function") {
-            return;
-        }
-
-        event.preventDefault();
-        event.__atomHandled = true;
-        submitForm(button.form, button);
-    }, true);
-
     function isEnhancedForm(form) {
         return form.hasAttribute(actionAttribute) || form.hasAttribute(submitAttribute);
     }
+
+    function getFormNavigationUrl(form, submitter) {
+        var method = submitter && submitter.hasAttribute("formmethod") ? submitter.formMethod : form.getAttribute("method");
+        if ((method || "get").toLowerCase() !== "get") return null;
+
+        var baseTarget = document.querySelector("base[target]");
+        var target = submitter && submitter.hasAttribute("formtarget") ? submitter.formTarget : form.getAttribute("target");
+        if (target === null && baseTarget) target = baseTarget.target;
+        if (target && target.toLowerCase() !== "_self") return null;
+
+        var action = submitter && submitter.hasAttribute("formaction") ? submitter.getAttribute("formaction") : form.getAttribute("action");
+        var url;
+        try {
+            url = new URL(action || window.location.href, document.baseURI);
+        } catch (error) {
+            return null;
+        }
+        if (!/^https?:$/.test(url.protocol) || url.origin !== window.location.origin) return null;
+
+        var query = new URLSearchParams();
+        new FormData(form, submitter).forEach(function (value, name) {
+            // URL-encoded forms send filenames and use CRLF for line breaks.
+            var text = typeof value === "string" ? value : value.name;
+            query.append(name.replace(/\r\n|\r|\n/g, "\r\n"), text.replace(/\r\n|\r|\n/g, "\r\n"));
+        });
+        url.search = "?" + query.toString();
+        return url;
+    }
+
+    document.addEventListener("submit", function (event) {
+        var form = event.target;
+        if (event.defaultPrevented || form.tagName !== "FORM" || !form.hasAttribute(navigateAttribute)
+            || typeof window.XMLHttpRequest !== "function" || typeof window.FormData !== "function") return;
+
+        var url = getFormNavigationUrl(form, event.submitter || null);
+        if (url === null) return;
+
+        event.preventDefault();
+        navigate(url.href, form.hasAttribute(preserveStateAttribute), form.hasAttribute(preserveScrollAttribute));
+    });
 
     document.addEventListener("click", function (event) {
         if (event.__atomHandled) {
@@ -521,7 +723,7 @@
         if (
             element.form !== undefined &&
             element.form !== null &&
-            element.matches("button[type=\"submit\"], input[type=\"submit\"]")
+            (element.type === "submit" || element.type === "image")
         ) {
             return;
         }
@@ -580,27 +782,44 @@
     document.addEventListener("click", function (event) {
         var anchor = event.target.closest ? event.target.closest("a") : null;
 
-        if (anchor === null || !enhancedLink(anchor)) {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey
+            || anchor === null || !enhancedLink(anchor)) {
             return;
         }
 
         event.preventDefault();
-        followLink(anchor);
+        navigate(anchor.href, anchor.hasAttribute(preserveStateAttribute), anchor.hasAttribute(preserveScrollAttribute));
     }, true);
 
+    window.history.scrollRestoration = "manual";
     window.addEventListener("popstate", function () {
+        var sequence = ++navigationSequence;
+        var destination = new URL(window.location.href);
+        scrollPositions.set(activeEntry, contentScroll());
+        var entry = currentEntry();
+        var position = scrollPositions.get(entry) || window.history.state.atomScroll;
+        if (destination.pathname === renderedUrl.pathname && destination.search === renderedUrl.search
+            && destination.hash !== renderedUrl.hash) {
+            activeEntry = entry;
+            renderedUrl = destination;
+            if (position) applyContentScroll(position);
+            else scrollToDestination(destination);
+            return;
+        }
         setBusy(true);
         request(
             "GET",
             window.location.href,
             null,
             function (html) {
-                updatePage(html);
+                if (sequence !== navigationSequence) return;
+                activeEntry = entry;
+                updateNavigation(html, null, { scrollPosition: position, destinationScroll: !position });
                 setBusy(false);
             },
             function () {
                 setBusy(false);
-                window.location.reload();
+                if (sequence === navigationSequence) window.location.reload();
             }
         );
     });
@@ -614,27 +833,14 @@
                 updateEngine = engine;
             }
         },
-        update: function (current, next) {
-            updateEngine.update(current, next);
+        update: function (current, next, options) {
+            updateEngine.update(current, next, options);
         },
         action: function (name) {
             invokeAction(name, null);
         },
         navigate: function (url) {
-            setBusy(true);
-            request(
-                "GET",
-                url,
-                null,
-                function (html, responseUrl) {
-                    updatePage(html, responseUrl);
-                    setBusy(false);
-                },
-                function () {
-                    setBusy(false);
-                    window.location.href = url;
-                }
-            );
+            navigate(url, false, false);
         }
     };
 

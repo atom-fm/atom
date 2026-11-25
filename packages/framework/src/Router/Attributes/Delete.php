@@ -7,10 +7,7 @@ namespace Atom\Router\Attributes;
 use Attribute;
 
 #[Attribute(Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
-final readonly class Delete extends HttpRoute
+final readonly class Delete extends HttpVerbRoute
 {
-    public function __construct(string $path)
-    {
-        parent::__construct("DELETE", $path);
-    }
+    protected const string METHOD = "DELETE";
 }

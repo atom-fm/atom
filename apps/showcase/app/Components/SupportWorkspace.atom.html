@@ -1,0 +1,26 @@
+<AppShell>
+    <AppShell.Navbar>
+        <Navbar label="Support Desk">
+            <Navbar.Brand>
+                <Icon icon="lucide:headphones" />
+                <strong>Support Desk</strong>
+            </Navbar.Brand>
+            {{ $this->screen }}
+            <Navbar.Actions>
+                <Badge>Demo workspace</Badge>
+                <a href="/" atom:navigate>Showcase overview</a>
+            </Navbar.Actions>
+        </Navbar>
+    </AppShell.Navbar>
+    <AppShell.Sidebar>
+        <Sidebar label="Support queues">
+            <SidebarGroup label="Queues">
+                <SidebarItem href="/examples/support-desk" icon="lucide:inbox" :active="$this->inbox && $this->status === ''" atom:navigate :atom:preserve-scroll="$this->inbox">All tickets</SidebarItem>
+                <SidebarItem href="/examples/support-desk?status=Open" icon="lucide:circle-dot" :active="$this->inbox && $this->status === 'Open'" atom:navigate :atom:preserve-scroll="$this->inbox">Open</SidebarItem>
+                <SidebarItem href="/examples/support-desk?status=Waiting" icon="lucide:clock" :active="$this->inbox && $this->status === 'Waiting'" atom:navigate :atom:preserve-scroll="$this->inbox">Waiting</SidebarItem>
+                <SidebarItem href="/examples/support-desk?status=Resolved" icon="lucide:circle-check" :active="$this->inbox && $this->status === 'Resolved'" atom:navigate :atom:preserve-scroll="$this->inbox">Resolved</SidebarItem>
+            </SidebarGroup>
+        </Sidebar>
+    </AppShell.Sidebar>
+    {{ $context->fragmentHtml($this->content) }}
+</AppShell>

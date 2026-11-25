@@ -15,6 +15,8 @@ final readonly class ScheduleServices implements ServiceProviderInterface, Conso
     {
         $bindings->bind(Schedule::class)->toSelf()->singleton();
         $bindings->bind(ClockInterface::class)->to(SystemClock::class)->singleton();
+        $bindings->bind(ScheduleMinuteClaims::class)->toSelf()->singleton();
+        $bindings->bind(ScheduleTaskLocks::class)->toSelf()->singleton();
         $bindings->bind(ScheduleRunner::class)->toSelf()->singleton();
     }
 

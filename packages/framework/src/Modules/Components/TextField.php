@@ -10,6 +10,7 @@ final class TextField extends FieldEntry
 {
     public string $type = "text";
     public ?string $value = null;
+    public bool $inferMaxLength = false;
 
     protected function renderControl(): string
     {
@@ -21,6 +22,9 @@ final class TextField extends FieldEntry
             "class" => Html::classes("atom-input", $this->fieldClass()),
             "aria-invalid" => $this->hasError() ? "true" : null,
             "aria-describedby" => $this->describedBy(),
+            "maxlength" => $this->inferMaxLength && in_array(strtolower($this->type), ["text", "search", "tel", "url", "email", "password"], true)
+                ? $this->inferredMaxLength()
+                : null,
         ], $this->attributes->all()));
     }
 

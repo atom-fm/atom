@@ -10,6 +10,7 @@ use Atom\Database\Schema\Operation\AddTableOperation;
 use Atom\Database\Schema\Operation\AlterTableOperation;
 use Atom\Database\Schema\Operation\DropTableOperation;
 use Atom\Database\Schema\Operation\SchemaOperationInterface;
+use Atom\Database\Schema\Operation\StatementOperation;
 
 final class Schema
 {
@@ -57,6 +58,11 @@ final class Schema
     public function drop(string $name): self
     {
         return $this->addOperation(new DropTableOperation($name));
+    }
+
+    public function statement(string $sql): self
+    {
+        return $this->addOperation(new StatementOperation($sql));
     }
 
     public function batch(callable $definition): self

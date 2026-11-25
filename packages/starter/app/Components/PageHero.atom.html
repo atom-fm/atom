@@ -1,0 +1,14 @@
+<section class="{{ $this->className() }}">
+    @if($this->eyebrow !== '')
+        <p class="ui-eyebrow">{{ $this->eyebrow }}</p>
+    @endif
+    <h1 class="ui-hero__title">{{ $this->title }}</h1>
+    @if($this->summary !== '')
+        <p class="ui-hero__summary">{{ $this->summary }}</p>
+    @endif
+    @if($this->content !== null)
+        <div class="ui-hero__actions">
+            {{ $context->fragmentHtml($this->content) }}
+        </div>
+    @endif
+</section>

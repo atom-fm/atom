@@ -10,7 +10,6 @@ use Atom\Database\Orm\ColumnValueProviderInterface;
 use Atom\Database\Sql\Command;
 use Atom\Database\Sql\Query;
 use Atom\Database\Sql\SqlQueryInterface;
-use DateTimeInterface;
 use RuntimeException;
 
 final readonly class Db
@@ -31,20 +30,31 @@ final readonly class Db
         return $this->connection->compile($query);
     }
 
-    public function select(string $tableOrClass): DbSelect
+    /**
+     * @template T of object
+     * @param class-string<T>|string $tableOrClass
+     * @return ($tableOrClass is class-string<T> ? DbSelect<T> : DbSelect<array<string, mixed>>)
+     */
+    public function select(string $tableOrClass, ?string $alias = null): DbSelect
     {
         if (class_exists($tableOrClass)) {
             $metadata = $this->hydrator->metadataFactory()->for($tableOrClass);
-            $select = Query::select($metadata->tableName);
+            $table = $metadata->tableName;
+            $qualifier = $alias ?? $table;
+            $select = Query::select($alias === null ? $table : "$table $alias")
+                ->setModelColumns(...array_map(
+                    static fn (ColumnMetadata $column): string => "{$qualifier}.{$column->columnName}",
+                    $metadata->selectableColumns(),
+                ));
 
-            foreach ($metadata->selectableColumns() as $column) {
-                $select->columns($column->columnName);
-            }
-
-            return new DbSelect($this, $select, $tableOrClass);
+            /** @var DbSelect<T> $builder */
+            $builder = new DbSelect($this, $select, $tableOrClass);
+            return $builder;
         }
 
-        return new DbSelect($this, Query::select($tableOrClass));
+        /** @var DbSelect<array<string, mixed>> $builder */
+        $builder = new DbSelect($this, Query::select($alias === null ? $tableOrClass : "$tableOrClass $alias"));
+        return $builder;
     }
 
     /**
@@ -62,7 +72,7 @@ final readonly class Db
         $autoIncrementKey = null;
 
         foreach ($metadata->insertableColumns() as $column) {
-            $values[$column->columnName] = $this->toDatabaseValue($this->valueForInsert($entity, $column));
+            $values[$column->columnName] = $this->toDatabaseValue($entity, $this->valueForInsert($entity, $column));
         }
 
         foreach ($metadata->primaryKeys() as $key) {
@@ -81,6 +91,9 @@ final readonly class Db
             }
         }
 
+        if ($affected > 0 && $entity instanceof Model) {
+            $entity->syncOriginalValues(array_keys($values));
+        }
         return $affected;
     }
 
@@ -88,21 +101,35 @@ final readonly class Db
     {
         $metadata = $this->hydrator->metadataFactory()->for($entity::class);
         $primaryKey = $metadata->primaryKey() ?? throw new RuntimeException("Entity {$metadata->className} must define a single primary key.");
-        $values = [];
+        $values = $entity instanceof Model ? $entity->changedValues() : [];
+        $originals = $entity instanceof Model ? $entity->originalValues() : [];
 
         foreach ($metadata->updatableColumns() as $column) {
-            $values[$column->columnName] = $this->toDatabaseValue($this->valueForUpdate($entity, $column));
+            $name = $column->columnName;
+            if ($column->onUpdate !== null) {
+                if ($entity instanceof Model && !$column->select
+                    && !array_key_exists($name, $originals) && !array_key_exists($name, $values)) {
+                    continue;
+                }
+                $values[$name] = $this->toDatabaseValue($entity, $this->provideValue($entity, $column, $column->onUpdate));
+            } elseif (!$entity instanceof Model) {
+                $values[$name] = $this->toDatabaseValue($entity, $column->getValue($entity));
+            }
         }
 
         if ($values === []) {
             return 0;
         }
 
-        return $this->execute(
+        $affected = $this->execute(
             Query::update($metadata->tableName)
                 ->set($values)
                 ->where($primaryKey->columnName, $primaryKey->getValue($entity))
         );
+        if ($affected > 0 && $entity instanceof Model) {
+            $entity->syncOriginalValues(array_keys($values));
+        }
+        return $affected;
     }
 
     public function save(object $entity): int
@@ -178,22 +205,41 @@ final readonly class Db
      */
     public function loadMany(array $entities, string ...$relations): array
     {
-        if ($entities === []) {
-            return $entities;
+        if ($entities !== []) {
+            $this->loadRelationPaths($entities[0]::class, $entities, $relations);
+        }
+        return $entities;
+    }
+
+    /**
+     * @param class-string $className
+     * @param object[] $entities
+     * @param string[] $paths
+     */
+    private function loadRelationPaths(string $className, array $entities, array $paths): void
+    {
+        $branches = [];
+        foreach ($paths as $path) {
+            $parts = explode(".", $path, 2);
+            $branches[$parts[0]] ??= [];
+            if (isset($parts[1])) {
+                $branches[$parts[0]][] = $parts[1];
+            }
         }
 
-        $metadata = $this->hydrator->metadataFactory()->for($entities[0]::class);
-
-        foreach ($relations as $relationName) {
-            $relation = $metadata->relation($relationName);
+        $factory = $this->hydrator->metadataFactory();
+        $metadata = $factory->for($className);
+        foreach ($branches as $relationName => $nested) {
+            $relation = $metadata->relation((string) $relationName);
             if ($relation === null) {
-                throw new \RuntimeException("Relation '{$relationName}' is not defined on {$metadata->className}.");
+                throw new RuntimeException("Relation '{$relationName}' is not defined on {$className}.");
             }
 
-            $relation->createRelation($this->hydrator->metadataFactory())->load($this, $entities);
+            $relation->createRelation($factory)->load($this, $entities);
+            if ($nested !== []) {
+                $this->loadRelationPaths($relation->relatedClass, $relation->relatedModels($entities), $nested);
+            }
         }
-
-        return $entities;
     }
 
     /**
@@ -207,6 +253,32 @@ final readonly class Db
     public function transaction(callable $callback): mixed
     {
         return $this->connection->transaction(fn() => $callback($this));
+    }
+
+    /**
+     * @param array<string, DbSelect<*>> $queries
+     * @return array<string, int>
+     */
+    public function counts(array $queries): array
+    {
+        if ($queries === []) {
+            return [];
+        }
+
+        $columns = [];
+        $parameters = [];
+        foreach ($queries as $name => $query) {
+            if (!is_string($name) || $name === "" || !$query instanceof DbSelect) {
+                throw new \InvalidArgumentException("Counts require a query for each non-empty string key.");
+            }
+            $index = count($columns);
+            $command = $query->countCommand($this->connection)->withParameterPrefix("c{$index}_");
+            $columns[] = "({$command->sql}) AS c{$index}";
+            $parameters += $command->parameters;
+        }
+
+        $row = $this->first("SELECT " . implode(", ", $columns), $parameters);
+        return array_combine(array_keys($queries), array_map("intval", array_values($row)));
     }
 
     private function isEmptyPrimaryKey(mixed $value): bool
@@ -230,13 +302,6 @@ final readonly class Db
             : $this->provideValue($entity, $column, $column->onInsert);
     }
 
-    private function valueForUpdate(object $entity, ColumnMetadata $column): mixed
-    {
-        return $column->onUpdate === null
-            ? $column->getValue($entity)
-            : $this->provideValue($entity, $column, $column->onUpdate);
-    }
-
     /**
      * @param class-string<ColumnValueProviderInterface> $providerClass
      */
@@ -249,16 +314,11 @@ final readonly class Db
 
         $value = $provider->value($entity, $column);
         $column->setValue($entity, $value);
-
         return $value;
     }
 
-    private function toDatabaseValue(mixed $value): mixed
+    private function toDatabaseValue(object $entity, mixed $value): mixed
     {
-        if ($value instanceof DateTimeInterface) {
-            return $value->format("Y-m-d H:i:s");
-        }
-
-        return $value;
+        return $entity instanceof Model ? $entity::toDatabaseValue($value) : Model::toDatabaseValue($value);
     }
 }

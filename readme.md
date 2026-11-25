@@ -53,7 +53,7 @@ composer install
 copy .env.example .env
 php atom migrate:fresh
 php atom db:seed
-php -S 127.0.0.1:8021 -t public public/server.php
+php atom serve --port=8021
 ```
 
 Once the server is running, open:

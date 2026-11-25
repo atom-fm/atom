@@ -26,7 +26,7 @@ final readonly class DevReloadModule implements ModuleInterface
         $context->route(RouteEntry::get(
             $context->mountedPath("/reload-version"),
             [DevReloadVersionHandler::class, "handle"]
-        ));
+        )->api());
 
         $context->bind(DevReloadOptions::class)->toValue(new DevReloadOptions($this->watchPaths));
     }

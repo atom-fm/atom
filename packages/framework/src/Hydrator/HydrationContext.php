@@ -42,7 +42,7 @@ final readonly class HydrationContext
     /** @return array{found: bool, value: mixed} */
     public function resolve(string $source, string $name): array
     {
-        return match ($source) {
+        return match ($this->sourceFor($source, $name)) {
             "body" => $this->arrayValue($this->body, $name),
             "query" => $this->arrayValue($this->query, $name),
             "route" => $this->arrayValue($this->route, $name),
@@ -52,7 +52,16 @@ final readonly class HydrationContext
             "file" => $this->request !== null && $this->request->files()->has($name)
                 ? ["found" => true, "value" => $this->request->files()->get($name)]
                 : ["found" => false, "value" => null],
-            default => $this->automaticValue($name),
+        };
+    }
+
+    /** @return "body"|"query"|"route"|"header"|"file" */
+    public function sourceFor(string $source, string $name): string
+    {
+        return match ($source) {
+            "body", "query", "route", "header", "file" => $source,
+            "uri" => array_key_exists($name, $this->route) ? "route" : "query",
+            default => $this->automaticSource($name),
         };
     }
 
@@ -64,14 +73,15 @@ final readonly class HydrationContext
             : ["found" => false, "value" => null];
     }
 
-    /** @return array{found: bool, value: mixed} */
-    private function automaticValue(string $name): array
+    /** @return "body"|"query"|"route" */
+    private function automaticSource(string $name): string
     {
-        foreach ([$this->body, $this->query, $this->route] as $values) {
+        foreach (["body" => $this->body, "query" => $this->query, "route" => $this->route] as $source => $values) {
             if (array_key_exists($name, $values)) {
-                return ["found" => true, "value" => $values[$name]];
+                return $source;
             }
         }
-        return ["found" => false, "value" => null];
+
+        return "body";
     }
 }

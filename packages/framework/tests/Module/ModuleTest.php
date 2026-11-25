@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Tests\Module;
 
+use Atom\Api\ApiModelBuilder;
 use Atom\Application;
 use Atom\Console\BufferedConsoleOutput;
 use Atom\Di\Injector;
@@ -188,6 +189,11 @@ final class ModuleTest extends TestCase
         $app->getPaths()->alias("watched", $directory);
 
         $app->registerModule(new DevReloadModule(["@watched"]), "/atom/dev");
+
+        $endpoints = (new ApiModelBuilder())->describe($app->getRouter(), "/atom/dev")->endpoints;
+        $this->assertCount(1, $endpoints);
+        $this->assertSame(["GET"], $endpoints[0]->methods);
+        $this->assertSame("/atom/dev/reload-version", $endpoints[0]->path);
 
         $version = $app->handle(new Request("GET", "/atom/dev/reload-version"));
         $script = $app->handle(new Request("GET", "/atom/dev/resources/reload.js"));

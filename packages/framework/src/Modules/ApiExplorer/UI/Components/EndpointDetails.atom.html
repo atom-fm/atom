@@ -82,9 +82,14 @@
     <div class="section-heading response-heading"><span>Response shape</span></div>
 
     @if(count($this->responseFields()) === 0)
-        <p class="empty">Returns {{ $this->responseTitle() }}.</p>
+        <p class="empty">Returns @if($this->endpoint()->successStatus !== null)<span class="status-code">{{ $this->endpoint()->successStatus }}</span> @endif{{ $this->responseTitle() }}.</p>
     @else
-        <div class="payload-title">{{ $this->responseTitle() }}</div>
+        <div class="payload-title">
+            @if($this->endpoint()->successStatus !== null)
+                <span class="status-code">{{ $this->endpoint()->successStatus }}</span>
+            @endif
+            {{ $this->responseTitle() }}
+        </div>
         <table class="shape-table response-shape-table">
             <thead>
                 <tr>

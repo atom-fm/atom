@@ -8,6 +8,7 @@ use Atom\Di\Attributes\Inject;
 use Atom\Di\Bindings;
 use Atom\Di\Exception\CircularDependencyException;
 use Atom\Di\Exception\DependencyResolutionException;
+use Atom\Di\Exception\ScopedDependencyException;
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
 use Atom\Di\Provider;
@@ -84,6 +85,19 @@ final class InjectorTest extends TestCase
         $this->assertSame("module", $injector->get("name"));
     }
 
+    public function testChildResolvesTheParentReplacementAndSharesItsSingleton(): void
+    {
+        $bindings = Bindings::create()->value("service", "original");
+        $parent = Injector::create($bindings);
+        $child = $parent->createChild();
+        $bindings->factory("service", static fn(): object => new \stdClass())->singleton();
+
+        $resolved = $child->get("service");
+        $this->assertInstanceOf(\stdClass::class, $resolved);
+        $this->assertSame($resolved, $parent->get("service"));
+        $this->assertSame("child", $parent->createChild([Provider::value("service", "child")])->get("service"));
+    }
+
     public function testBindingsCanRegisterTypeFactories(): void
     {
         $bindings = Bindings::create()
@@ -124,6 +138,30 @@ final class InjectorTest extends TestCase
 
         $this->assertSame("parent", $parent->get("name"));
         $this->assertSame("child", $child->get("name"));
+    }
+
+    public function testRejectedSingletonDoesNotConstructTheScopedServiceOrPoisonTheContext(): void
+    {
+        $calls = 0;
+        $bindings = Bindings::create();
+        $bindings->factory("scoped", static function () use (&$calls): object {
+            $calls++;
+            return new \stdClass();
+        })->scoped();
+        $bindings->setProvider(Provider::existing("singleton", "scoped")->singleton());
+        $injector = Injector::create($bindings);
+        $context = new InjectionContext();
+
+        try {
+            $injector->get("singleton", $context);
+            $this->fail("Expected singleton resolution to fail.");
+        } catch (ScopedDependencyException $exception) {
+            $this->assertStringContainsString("singleton -> scoped", $exception->getMessage());
+        }
+        $this->assertSame(0, $calls);
+        $this->assertSame([], $context->resolvingPath());
+        $this->assertInstanceOf(\stdClass::class, $injector->get("scoped", $context));
+        $this->assertSame(1, $calls);
     }
 
     public function testScopedProviderIsReusedInsideSameContext(): void

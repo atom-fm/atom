@@ -26,10 +26,16 @@ Order is significant. Route and router-group middleware continue to run after a 
 
 ## Example
 
-* Example of middleware that adds a response header
+### Mark French catalogue responses with their language
+
+Suppose a shop serves a French catalogue under `/fr/catalogue`. Use middleware to set `Content-Language: fr` on every response from that route group. A client can then discover the catalogue language by reading the response headers.
+
+In an Atom Starter app, create `app/Middlewares/FrenchContentLanguage.php`.
 
 ```php
 <?php
+
+declare(strict_types=1);
 
 namespace App\Middlewares;
 
@@ -38,61 +44,58 @@ use Atom\Http\Request;
 use Atom\Http\RequestHandlerInterface;
 use Atom\Http\Response;
 
-final class LogPathMiddleware implements MiddlewareInterface
+final class FrenchContentLanguage implements MiddlewareInterface
 {
-    public function process(
-        Request $request,
-        RequestHandlerInterface $handler
-    ): Response
+    public function process(Request $request, RequestHandlerInterface $handler): Response
     {
-        $path = $request->getPath();
         $response = $handler->handle($request);
-        return $response->addHeader("X-Path", $path);
+        return $response->header("Content-Language", "fr");
     }
 }
 ```
 
-* Middleware can be attached to the group or the specific route
+`handle()` runs the rest of the pipeline, including the matched route. Setting the header on the returned response preserves the route's status and body.
+
+Add these imports to `app/Application.php`.
 
 ```php
-<?php
-
-namespace App;
-
+use App\Middlewares\FrenchContentLanguage;
+use Atom\Di\Injector;
 use Atom\Router\Route;
 use Atom\Router\Router;
-
-class Application extends \Atom\Application
-{
-    protected function bootstrap(\Atom\Di\Injector $injector): void
-    {
-        Route::group("/", function (Router $group) {
-            $group->middleware(LogPathMiddleware::class);
-
-            Route::get("hello", fn() => "Hello");
-
-            Route::get("world", fn() => "World")
-                ->middleware(SomeMiddleware::class);
-        });
-    }
-}
 ```
 
-* Register middleware routes within application 
+Register the routes in `bootstrap()`. If the method already exists, add the registrations to its body.
 
 ```php
-<?php
-
-namespace App;
-
-use Atom\Router\Route;
-
-class Application extends \Atom\Application
+protected function bootstrap(Injector $injector): void
 {
-    protected function bootstrap(\Atom\Di\Injector $injector): void
-    {
-        Route::get("hello", fn() => "Hello")
-            ->middleware(LogPathMiddleware::class);
-    }
+    Route::group("/fr/catalogue", static function (Router $group): void {
+        $group->middleware(FrenchContentLanguage::class);
+
+        Route::get("/carnet", static fn(): array => ["nom" => "Carnet"]);
+        Route::get("/crayon", static fn(): array => ["nom" => "Crayon"]);
+    });
+
+    Route::get("/status", static fn(): array => ["ready" => true]);
 }
 ```
+
+Run `php atom serve` from the project root. In a second PowerShell terminal, include the headers when fetching the two products and the status endpoint.
+
+```powershell
+curl.exe -i http://127.0.0.1:8020/fr/catalogue/carnet
+curl.exe -i http://127.0.0.1:8020/fr/catalogue/crayon
+curl.exe -i http://127.0.0.1:8020/status
+```
+
+Both catalogue responses return HTTP `200` and `Content-Language: fr`, with `{"nom":"Carnet"}` and `{"nom":"Crayon"}` as their respective bodies. The status endpoint sits outside the group and returns `{"ready":true}` without the catalogue header.
+
+If only the notebook response needs the header, remove `$group->middleware(...)` and attach the middleware directly to that route inside the group.
+
+```php
+Route::get("/carnet", static fn(): array => ["nom" => "Carnet"])
+    ->middleware(FrenchContentLanguage::class);
+```
+
+Repeat the two catalogue requests. The header now appears only on `/fr/catalogue/carnet`.

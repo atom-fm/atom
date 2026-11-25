@@ -1,0 +1,55 @@
+:root {
+    color-scheme: light;
+    --atom-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --atom-font-family-editorial: "Iowan Old Style", Baskerville, "Times New Roman", serif;
+    --atom-font-size-xs: 0.7rem;
+    --atom-font-size-sm: 0.85rem;
+    --atom-font-size-md: 0.95rem;
+    --atom-font-size-lg: 1.05rem;
+    --atom-font-size-lead: clamp(1.05rem, 1.6vw, 1.2rem);
+    --atom-font-size-xl: 1.2rem;
+    --atom-font-size-2xl: clamp(1.75rem, 3vw, 2.75rem);
+    --atom-font-size-3xl: clamp(2rem, 4vw, 3.5rem);
+    --atom-font-size-4xl: clamp(2.5rem, 5.5vw, 4.75rem);
+    --atom-font-size-display: clamp(2.75rem, 6.5vw, 5.75rem);
+    --atom-font-size-body: var(--atom-font-size-md);
+    --atom-line-height-tight: 1;
+    --atom-line-height-body: 1.65;
+
+    --atom-color-base-100: #fff;
+    --atom-color-base-200: #f4f2eb;
+    --atom-color-base-300: #d8ddd7;
+    --atom-color-base-content: #171918;
+    --atom-color-primary: #245c43;
+    --atom-color-primary-content: #fff;
+    --atom-color-text: var(--atom-color-base-content);
+    --atom-color-muted: #626762;
+    --atom-color-surface: var(--atom-color-base-100);
+    --atom-color-soft: var(--atom-color-base-200);
+    --atom-color-line: var(--atom-color-base-300);
+    --atom-color-primary-hover: #174330;
+    --atom-color-focus: #397c5b;
+
+    --atom-space-1: 0.25rem;
+    --atom-space-2: 0.5rem;
+    --atom-space-3: 0.75rem;
+    --atom-space-4: 1rem;
+    --atom-space-6: 1.5rem;
+    --atom-space-8: 2rem;
+    --atom-space-12: 3rem;
+    --atom-space-16: 4rem;
+
+    --atom-radius-sm: 5px;
+    --atom-radius-md: 10px;
+    --atom-radius-pill: 999px;
+    --atom-control-height: 48px;
+    --atom-content-width: 1180px;
+
+    --ink: var(--atom-color-text);
+    --muted: var(--atom-color-muted);
+    --line: var(--atom-color-line);
+    --paper: var(--atom-color-soft);
+    --accent: var(--atom-color-primary);
+    --accent-strong: var(--atom-color-primary-hover);
+    font-family: var(--atom-font-family);
+}

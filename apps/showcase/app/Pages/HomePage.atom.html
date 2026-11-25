@@ -1,24 +1,21 @@
 <section class="showcase-hero">
     <div>
-        <h1>Atom components, rendered by Atom.</h1>
+        <p class="showcase-hero-label">Component catalogue</p>
+        <h1>Explore Atom’s UI components.</h1>
         <p>
-            A small app dedicated to exploring framework components, templates,
-            fragments, props, and page-driven interactions.
+            Try live examples, inspect their templates, and see how components
+            work together in an Atom application.
         </p>
         <Inline gap="sm">
-            <Button href="/components/buttons" atom:navigate>Explore buttons</Button>
-            <Button href="/components/alerts" variant="ghost" atom:navigate>Explore alerts</Button>
+            <Button href="/components/buttons" atom:navigate>Browse buttons</Button>
+            <Button href="/examples/article-admin" variant="ghost" atom:navigate>View a complete example</Button>
         </Inline>
     </div>
 
-    <Panel title="Current slice">
-        <Stack gap="sm">
-            <Alert>Showcase is a separate Atom app beside the sample blog.</Alert>
-            <Inline gap="sm">
-                <Badge>Buttons</Badge>
-                <Badge variant="info">Alerts</Badge>
-                <Badge variant="success">Badges</Badge>
-            </Inline>
-        </Stack>
-    </Panel>
+    <nav class="showcase-hero-index" aria-label="Start exploring">
+        <h2>Start exploring</h2>
+        <a href="/components/forms" atom:navigate><strong>Forms</strong><span>Model binding and validation</span></a>
+        <a href="/components/dialogs" atom:navigate><strong>Dialogs</strong><span>Confirmations and page actions</span></a>
+        <a href="/components/data" atom:navigate><strong>Data</strong><span>Tables and empty states</span></a>
+    </nav>
 </section>

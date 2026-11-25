@@ -25,7 +25,7 @@ final readonly class ScheduleCommands
     {
         $result = $this->runner->run();
         if ($result->count() === 0) {
-            $this->output->line("No scheduled tasks are due.");
+            $this->output->line("No scheduled tasks to run.");
             return 0;
         }
 

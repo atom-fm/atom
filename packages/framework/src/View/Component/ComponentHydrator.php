@@ -51,7 +51,7 @@ final readonly class ComponentHydrator
     /**
      * @return array<string, mixed>
      */
-    public function evaluateAttributes(ElementNode $node, ViewContext $context): array
+    public function evaluateAttributes(ElementNode|FragmentNode $node, ViewContext $context): array
     {
         $attributes = [];
 
@@ -65,15 +65,12 @@ final readonly class ComponentHydrator
                 throw new ViewRenderException("Unsupported attribute node " . $attribute::class . ".");
             }
 
-            $value = $attribute->value instanceof ExpressionNode
-                ? $this->evaluator->evaluate($attribute->value->expression, $context)
-                : $attribute->value;
-
-            if (is_string($value)) {
-                $value = $this->interpolate($value, $context);
-            }
-
-            $attributes[$attribute->name] = $value;
+            $value = $attribute->value;
+            $attributes[$attribute->name] = match (true) {
+                $value instanceof ExpressionNode => $this->evaluator->evaluate($value->expression, $context),
+                is_string($value) => $this->interpolate($value, $context),
+                default => $value,
+            };
         }
 
         return $attributes;
@@ -81,18 +78,23 @@ final readonly class ComponentHydrator
 
     private function interpolate(string $value, ViewContext $context): string
     {
-        if (!str_contains($value, "{{")) {
-            return $value;
-        }
+        $parts = preg_split('/\{\{(.*?)\}\}/s', $value, flags: PREG_SPLIT_DELIM_CAPTURE);
+        $result = "";
+        foreach ($parts as $index => $part) {
+            if ($index % 2 === 0) {
+                $result .= html_entity_decode($part, ENT_QUOTES | ENT_HTML5, "UTF-8");
+                continue;
+            }
 
-        return preg_replace_callback('/\{\{\s*(.*?)\s*\}\}/s', function (array $match) use ($context): string {
-            $expression = trim($match[1]);
+            $expression = trim($part);
             if ($expression === "") {
                 throw new ViewRenderException("Attribute expression cannot be empty.");
             }
 
-            return (string) $this->evaluator->evaluate($expression, $context);
-        }, $value) ?? $value;
+            $result .= (string) $this->evaluator->evaluate($expression, $context);
+        }
+
+        return $result;
     }
 
     /**

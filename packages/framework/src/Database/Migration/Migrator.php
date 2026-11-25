@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Atom\Database\Migration;
 
 use Atom\Database\DatabaseConnection;
+use Atom\Database\Driver\TransactionalDdlDriverInterface;
 use Atom\Database\Lock\DatabaseLockManagerInterface;
 use Atom\Database\Schema\Schema;
 use Atom\Database\Schema\SchemaPlan;
 use RuntimeException;
+use Throwable;
 
 final readonly class Migrator
 {
@@ -58,7 +60,8 @@ final readonly class Migrator
         );
     }
 
-    public function run(): MigrationRunResult
+    /** @param (callable(): void)|null $beforeMigrations Runs under the migration lock before reading migration history. */
+    public function run(?callable $beforeMigrations = null): MigrationRunResult
     {
         $lock = $this->locks->acquire("migrations");
         if ($lock === null) {
@@ -66,13 +69,15 @@ final readonly class Migrator
         }
 
         try {
+            if ($beforeMigrations !== null) {
+                $beforeMigrations();
+            }
+
             $batch = $this->repository->latestBatch() + 1;
             $migrated = [];
 
             foreach ($this->pending() as $migration) {
-                $plan = $this->plan($migration, "up");
-                $this->execute($plan);
-                $this->repository->record($migration->name, $batch);
+                $this->executeMigration($migration, "up", fn() => $this->repository->record($migration->name, $batch));
                 $migrated[] = $migration->name;
             }
 
@@ -108,9 +113,7 @@ final readonly class Migrator
                         throw new RuntimeException("Migration '{$migration}' was recorded but its file was not found.");
                     }
 
-                    $plan = $this->plan($definitions[$migration], "down");
-                    $this->execute($plan);
-                    $this->repository->delete($migration);
+                    $this->executeMigration($definitions[$migration], "down", fn() => $this->repository->delete($migration));
                     $rolledBack[] = $migration;
                 }
             }
@@ -144,12 +147,35 @@ final readonly class Migrator
         return $this->connection->driver()->schemaCompiler()->compile($schema);
     }
 
-    private function execute(SchemaPlan $plan): void
+    /** @param callable(): void $updateHistory */
+    private function executeMigration(MigrationDefinition $definition, string $method, callable $updateHistory): void
     {
-        foreach ($plan->batches() as $batch) {
-            foreach ($batch->commands() as $command) {
+        $execute = function () use ($definition, $method, $updateHistory): void {
+            foreach ($this->plan($definition, $method)->commands() as $command) {
                 $this->connection->execute($command);
             }
+            $updateHistory();
+        };
+
+        if (!$this->connection->driver() instanceof TransactionalDdlDriverInterface) {
+            $execute();
+            return;
+        }
+
+        if (!$this->connection->pdo()->inTransaction()) {
+            $this->connection->transaction($execute);
+            return;
+        }
+
+        // The caller owns the outer transaction. Undo only this migration if it fails.
+        $this->connection->execute("SAVEPOINT atom_migration");
+        try {
+            $execute();
+        } catch (Throwable $error) {
+            $this->connection->execute("ROLLBACK TO SAVEPOINT atom_migration");
+            throw $error;
+        } finally {
+            $this->connection->execute("RELEASE SAVEPOINT atom_migration");
         }
     }
 }

@@ -19,11 +19,12 @@ final readonly class JobEnvelope
         public int $availableAt,
         public int $createdAt,
         public ?int $reservedAt = null,
-        public ?string $reservationId = null
+        public ?string $reservationId = null,
+        public ?string $overlapKey = null
     ) {
     }
 
-    public static function for(JobInterface $job, string $queue = "default", int $delay = 0): self
+    public static function for(JobInterface $job, string $queue = "default", int $delay = 0, ?string $overlapKey = null): self
     {
         $now = time();
 
@@ -34,7 +35,8 @@ final readonly class JobEnvelope
             $job->payload(),
             0,
             $now + max(0, $delay),
-            $now
+            $now,
+            overlapKey: $overlapKey
         );
     }
 
@@ -49,20 +51,22 @@ final readonly class JobEnvelope
             $this->availableAt,
             $this->createdAt,
             $at,
-            $reservationId
+            $reservationId,
+            $this->overlapKey
         );
     }
 
-    public function released(int $availableAt): self
+    public function released(int $availableAt, bool $refundAttempt = false): self
     {
         return new self(
             $this->id,
             $this->queue,
             $this->type,
             $this->payload,
-            $this->attempts,
+            $refundAttempt ? $this->attempts - 1 : $this->attempts,
             $availableAt,
-            $this->createdAt
+            $this->createdAt,
+            overlapKey: $this->overlapKey
         );
     }
 
@@ -88,6 +92,7 @@ final readonly class JobEnvelope
             "createdAt" => $this->createdAt,
             "reservedAt" => $this->reservedAt,
             "reservationId" => $this->reservationId,
+            "overlapKey" => $this->overlapKey,
         ];
     }
 
@@ -112,7 +117,8 @@ final readonly class JobEnvelope
             (int) ($data["availableAt"] ?? 0),
             (int) ($data["createdAt"] ?? 0),
             isset($data["reservedAt"]) ? (int) $data["reservedAt"] : null,
-            isset($data["reservationId"]) ? (string) $data["reservationId"] : null
+            isset($data["reservationId"]) ? (string) $data["reservationId"] : null,
+            isset($data["overlapKey"]) ? (string) $data["overlapKey"] : null
         );
     }
 

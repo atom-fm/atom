@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
     <title>{{ $this->page->title }}</title>
+    @if($this->page->themeStylesheet !== '')
+        <link rel="stylesheet" href="{{ $this->page->themeStylesheet }}">
+    @endif
     <link rel="stylesheet" href="{{ $this->page->stylesheet }}">
 </head>
 <body class="atom-accounts">

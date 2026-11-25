@@ -6,7 +6,7 @@ namespace Atom\Queue;
 
 use Throwable;
 
-final readonly class FileQueue implements QueueInterface
+final readonly class FileQueue implements DeferrableQueueInterface
 {
     public function __construct(private string $directory)
     {
@@ -56,8 +56,18 @@ final readonly class FileQueue implements QueueInterface
 
     public function release(ReservedJob $job, int $delay = 0): void
     {
+        $this->returnToPending($job, $delay, refundAttempt: false);
+    }
+
+    public function defer(ReservedJob $job, int $delay): void
+    {
+        $this->returnToPending($job, $delay, refundAttempt: true);
+    }
+
+    private function returnToPending(ReservedJob $job, int $delay, bool $refundAttempt): void
+    {
         $source = $this->reservedPath($job);
-        $released = $job->job->released(time() + max(0, $delay));
+        $released = $job->job->released(time() + max(0, $delay), $refundAttempt);
         $this->write($source, $released->toJson());
         $destination = $this->path("pending", $released);
         $this->createDirectory(dirname($destination));
@@ -131,9 +141,15 @@ final readonly class FileQueue implements QueueInterface
     private function reservedPath(ReservedJob $job): string
     {
         $path = $this->path("reserved", $job->job);
-        $stored = $this->readJob($path);
-        if ($stored->reservationId !== $job->reservationId) {
-            throw new QueueException("Job '{$job->job->id}' is not reserved by this worker.");
+        $json = @file_get_contents($path);
+        if ($json === false) {
+            clearstatcache(true, $path);
+            if (file_exists($path)) {
+                throw new QueueException("Cannot read queued job '{$path}'.");
+            }
+        }
+        if ($json === false || JobEnvelope::fromJson($json)->reservationId !== $job->reservationId) {
+            throw new ReservationLostException("Job '{$job->job->id}' is not reserved by this worker.");
         }
         return $path;
     }

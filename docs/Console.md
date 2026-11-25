@@ -6,37 +6,69 @@ Atom console commands are small classes resolved through the DI container.
 
 ## Command Class
 
-The easiest way to write a command is to extend `Command` and implement `execute()`:
+### Check a JSON file before publishing it
+
+Add a `json:check` command that a release script can run before publishing a JSON file. It reports unreadable files and syntax errors on standard error. A successful check can run quietly in CI.
+
+Save this class as `app/Commands/CheckJsonCommand.php` in an installed Atom Starter project. The Starter's `DocumentationServiceProvider` already registers `app/Commands` for discovery.
 
 ```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Commands;
+
 use Atom\Console\Command;
-use Atom\Console\ConsoleOutput;
 
-final class GreetCommand extends Command
+final class CheckJsonCommand extends Command
 {
-    protected static string $name = "greet";
-    protected static string $description = "Greets a user";
+    protected static string $name = "json:check";
+    protected static string $description = "Check the syntax of a JSON file";
 
-    public function __construct(
-        private GreetingService $greeting,
-        private ConsoleOutput $output
-    ) {
-    }
-
-    protected function execute(string $name = "World", bool $loud = false): int
+    protected function execute(string $path, bool $quiet = false): int
     {
-        $message = $this->greeting->greet($name);
-
-        if ($loud) {
-            $message = strtoupper($message);
+        $json = @file_get_contents($path);
+        if ($json === false) {
+            $this->errorLine("Cannot read {$path}.");
+            return 1;
         }
 
-        $this->output->line($message);
+        if (!json_validate($json)) {
+            $this->errorLine("Invalid JSON in {$path}: " . json_last_error_msg());
+            return 1;
+        }
+
+        if (!$quiet) {
+            $this->line("Valid JSON in {$path}.");
+        }
 
         return 0;
     }
 }
 ```
+
+Run these commands from the project root in PowerShell.
+
+```powershell
+php atom json:check composer.json
+php atom json:check composer.json --quiet
+$LASTEXITCODE
+```
+
+The first call prints `Valid JSON in composer.json.` The second accepts the same positional path, binds `--quiet` to the boolean parameter, and exits with code `0`.
+
+To check the failure path, create a disposable file containing an unfinished JSON object.
+
+```powershell
+$sample = [System.IO.Path]::GetTempFileName()
+Set-Content -LiteralPath $sample -Value '{"title":' -Encoding ascii
+php atom json:check $sample --quiet
+$LASTEXITCODE
+Remove-Item -LiteralPath $sample
+```
+
+Even with `--quiet`, the invalid file produces an error naming the file and exits with code `1`. A script can use the exit code to stop publication.
 
 The base class provides:
 
@@ -313,52 +345,86 @@ $output->line("done");
 $output->errorLine("Something failed");
 ```
 
-Tests can use `BufferedConsoleOutput`.
+### Test a command's output and exit code
+
+Use the `CheckJsonCommand` from [Check a JSON file before publishing it](#check-a-json-file-before-publishing-it) to test what a release script sees. Starter already has two inputs you can use. Its `composer.json` is valid JSON, and its `atom` launcher contains PHP.
+
+Save this as `tests/json-check.php`. It boots the same console as `php atom` and passes each invocation a fresh `BufferedConsoleOutput` so you can check standard output and standard error separately.
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use App\Application;
+use Atom\Console\BufferedConsoleOutput;
+
+require dirname(__DIR__) . "/vendor/autoload.php";
+
+$app = new Application();
+$app->initialize();
+$console = $app->getConsole();
+
+$valid = new BufferedConsoleOutput();
+$code = $console->run(["atom", "json:check", "composer.json"], $valid);
+if ($code !== 0 || $valid->output() !== "Valid JSON in composer.json." . PHP_EOL || $valid->errors() !== "") {
+    throw new RuntimeException("Expected a success message on standard output.");
+}
+
+$invalid = new BufferedConsoleOutput();
+$code = $console->run(["atom", "json:check", "atom", "--quiet"], $invalid);
+if ($code !== 1 || $invalid->output() !== "" || !str_starts_with($invalid->errors(), "Invalid JSON in atom:")) {
+    throw new RuntimeException("Expected a JSON error on standard error, even with --quiet.");
+}
+
+echo "JSON command checks passed.", PHP_EOL;
+```
+
+From the Starter project root, run `php tests/json-check.php`. It prints `JSON command checks passed.` and exits with code `0` when both cases pass. A change to the exit code, message, or output stream makes the check fail.
 
 ## File Templates
 
-Make-style commands can render framework templates through `FileTemplateRenderer`.
+### Generate pages with the starter layout
+
+In Atom Starter, `App\Pages\AppPage` gives a page the site's header, navigation, and footer. You can make `php atom make:page` use that base class for every new page by overriding the page class template once.
+
+From the starter project root, create the directory `templates/atom/page/`. Save the following as `templates/atom/page/page.php.tpl`. Keep the spaces inside the placeholders. The generator fills them in when it writes the PHP class.
 
 ```php
-use Atom\Console\FileTemplateRenderer;
+<?php
 
-$contents = $templates->render("database/migration.php.tpl");
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use App\Pages\AppPage;
+use Atom\Page\PageRoute;
+
+#[PageRoute("{{ route }}")]
+final class {{ class }} extends AppPage
+{
+    public string $title = "{{ title }}";
+
+    public function get(): void
+    {
+    }
+}
 ```
 
-Templates live under:
+Generate a release notes page from the project root.
 
-```text
-packages/framework/src/Templates/
+```shell
+php atom make:page "Release Notes" /releases
 ```
 
-Applications can override them by placing files with the same relative path under:
+The command creates two files.
 
-```text
-templates/atom/
-```
+- `app/Pages/ReleaseNotesPage.php` extends `AppPage`, has the title `Release Notes`, and maps to `/releases`.
+- `app/Pages/ReleaseNotesPage.atom.html` contains the heading `Release Notes`. Atom uses the framework's view template because the project supplied only a class template.
 
-For example, this app template replaces the framework page class template:
+Open `/releases` in the running starter site. You should see the new heading beneath the existing site navigation. Edit the generated view to add the release notes. Later edits to the generator template apply to newly generated pages.
 
-```text
-templates/atom/page/page.php.tpl
-```
-
-The renderer supports simple placeholders:
-
-```text
-Hello {{ name }}
-```
-
-```php
-$templates->render("hello.tpl", ["name" => "Atom"]);
-```
-
-Current built-in templates are used by:
-
-- `make:migration`
-- `make:seeder`
-- `make:page`
-- `make:component`
+Atom looks for each template in `templates/atom/` first, then in the framework's `src/Templates/` directory. To customize the generated markup as well, add `templates/atom/page/page.atom.html.tpl`. The view template receives `{{ title }}`. The same lookup order applies to `make:component`, `make:migration`, and `make:seeder`.
 
 ## Make Commands
 
@@ -377,7 +443,7 @@ app/Pages/ArticlesPage.php
 app/Pages/ArticlesPage.atom.html
 ```
 
-The generated page uses `#[PageRoute]` and extends `Atom\Page\Page`.
+By default, the generated page uses `#[PageRoute]` and extends `Atom\Page\Page`.
 
 `make:component` creates:
 
@@ -386,6 +452,17 @@ app/Components/AlertBox.php
 ```
 
 Generated files are intentionally small. Customize them by copying the matching framework template into `templates/atom` and editing the copy.
+
+## Development Server
+
+Start PHP's built-in server from an Atom application:
+
+```text
+php atom serve
+php atom serve --host=0.0.0.0 --port=8080
+```
+
+The command serves the configured `@public` directory through its `server.php` router and defaults to `127.0.0.1:8020`. It is intended only for local development.
 
 ## Help
 

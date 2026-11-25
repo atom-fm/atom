@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace Showcase\Pages\Components;
 
 use Atom\Collections\PagedCollection;
-use Atom\Hydrator\Attributes\FromBody;
 use Atom\Page\PageAction;
 use Atom\Page\PageRoute;
-use Atom\Page\State;
+use Atom\Page\Uri;
 use Showcase\Pages\AppPage;
 
 #[PageRoute("/components/data", name: "showcase.components.data")]
@@ -16,21 +15,19 @@ final class DataPage extends AppPage
 {
     public string $title = "Data - Atom Showcase";
 
-    #[State]
+    #[Uri]
     public int $page = 1;
 
-    #[State]
+    #[Uri]
     public string $sort = "name";
 
-    #[State]
+    #[Uri]
     public string $direction = "asc";
 
-    #[State]
-    #[FromBody]
+    #[Uri]
     public string $query = "";
 
-    #[State]
-    #[FromBody]
+    #[Uri]
     public string $status = "";
 
     /** @var list<array{value: string, text: string}> */
@@ -49,6 +46,16 @@ final class DataPage extends AppPage
 
     public function get(): void
     {
+        $this->query = trim($this->query);
+        if (!in_array($this->status, array_column($this->statuses, "value"), true)) {
+            $this->status = "";
+        }
+        if (!in_array($this->sort, ["name", "role", "status"], true)) {
+            $this->sort = "name";
+        }
+        if (!in_array($this->direction, ["asc", "desc"], true)) {
+            $this->direction = "asc";
+        }
         $this->loadUsers();
     }
 
@@ -80,22 +87,6 @@ final class DataPage extends AppPage
 
         $this->sort = $sort;
         $this->direction = strtolower($direction) === "desc" ? "desc" : "asc";
-        $this->page = 1;
-        $this->loadUsers();
-    }
-
-    #[PageAction("filter")]
-    public function filter(): void
-    {
-        $this->page = 1;
-        $this->loadUsers();
-    }
-
-    #[PageAction("clearFilters")]
-    public function clearFilters(): void
-    {
-        $this->query = "";
-        $this->status = "";
         $this->page = 1;
         $this->loadUsers();
     }

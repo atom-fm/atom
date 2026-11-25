@@ -11,6 +11,7 @@ use Atom\Modules\Components\SidePanelModel;
 use Atom\Page\PageAction;
 use Atom\Page\PageRoute;
 use Atom\Page\State;
+use Atom\Page\Uri;
 use Showcase\Pages\AppPage;
 
 #[PageRoute("/examples/article-admin", name: "showcase.examples.article-admin")]
@@ -19,21 +20,19 @@ final class ArticleAdminPage extends AppPage
     public string $title = "Article Admin - Atom Showcase";
     public string $contentWidth = "full";
 
-    #[State]
+    #[Uri]
     public int $page = 1;
 
-    #[State]
+    #[Uri]
     public string $sort = "updated";
 
-    #[State]
+    #[Uri]
     public string $direction = "desc";
 
-    #[State]
-    #[FromBody]
+    #[Uri]
     public string $query = "";
 
-    #[State]
-    #[FromBody]
+    #[Uri]
     public string $status = "";
 
     #[State]
@@ -77,6 +76,16 @@ final class ArticleAdminPage extends AppPage
 
     public function get(): void
     {
+        $this->query = trim($this->query);
+        if (!in_array($this->status, array_column($this->statuses, "value"), true)) {
+            $this->status = "";
+        }
+        if (!in_array($this->sort, ["title", "status", "author", "updated"], true)) {
+            $this->sort = "updated";
+        }
+        if (!in_array($this->direction, ["asc", "desc"], true)) {
+            $this->direction = "desc";
+        }
         $this->loadArticles();
     }
 
@@ -137,22 +146,6 @@ final class ArticleAdminPage extends AppPage
         $id = (int) $this->deleteDialog->value;
         $this->deleteDialog->close();
         $this->flash("Article #{$id} would be deleted.", "warning", "Deleted");
-    }
-
-    #[PageAction("filter")]
-    public function filter(): void
-    {
-        $this->page = 1;
-        $this->loadArticles();
-    }
-
-    #[PageAction("clearFilters")]
-    public function clearFilters(): void
-    {
-        $this->query = "";
-        $this->status = "";
-        $this->page = 1;
-        $this->loadArticles();
     }
 
     #[PageAction("setPage")]

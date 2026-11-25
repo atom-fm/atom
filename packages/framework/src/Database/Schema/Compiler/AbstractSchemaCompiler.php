@@ -6,11 +6,13 @@ namespace Atom\Database\Schema\Compiler;
 
 use Atom\Database\Schema\ColumnDefinition;
 use Atom\Database\Schema\ColumnType;
+use Atom\Database\Schema\ForeignKeyDefinition;
 use Atom\Database\Schema\IndexDefinition;
 use Atom\Database\Schema\Operation\AddTableOperation;
 use Atom\Database\Schema\Operation\AlterTableOperation;
 use Atom\Database\Schema\Operation\DropTableOperation;
 use Atom\Database\Schema\Operation\SchemaOperationInterface;
+use Atom\Database\Schema\Operation\StatementOperation;
 use Atom\Database\Schema\Schema;
 use Atom\Database\Schema\SchemaCommandBatch;
 use Atom\Database\Schema\SchemaPlan;
@@ -53,6 +55,7 @@ abstract class AbstractSchemaCompiler implements SchemaCompilerInterface
             $operation instanceof AddTableOperation => [$this->compileCreateTable($operation->table)],
             $operation instanceof AlterTableOperation => $this->compileAlterTable($operation->table),
             $operation instanceof DropTableOperation => [$this->command("DROP TABLE " . $this->name($operation->table))],
+            $operation instanceof StatementOperation => [$this->command($operation->sql)],
             default => [],
         };
     }
@@ -63,6 +66,10 @@ abstract class AbstractSchemaCompiler implements SchemaCompilerInterface
             fn(ColumnDefinition $column): string => $this->compileColumn($column, true),
             $table->columns()
         );
+
+        foreach ($table->foreignKeys() as $foreignKey) {
+            $columns[] = $this->compileForeignKey($foreignKey);
+        }
 
         return $this->command("CREATE TABLE " . $this->name($table->name) . " (" . implode(", ", $columns) . ")");
     }
@@ -80,6 +87,12 @@ abstract class AbstractSchemaCompiler implements SchemaCompilerInterface
             );
         }
 
+        foreach ($table->foreignKeys() as $foreignKey) {
+            $commands[] = $this->command(
+                "ALTER TABLE " . $this->name($table->name) . " ADD " . $this->compileForeignKey($foreignKey)
+            );
+        }
+
         foreach ($table->droppedColumns() as $column) {
             $commands[] = $this->command(
                 "ALTER TABLE " . $this->name($table->name) . " DROP COLUMN " . $this->name($column)
@@ -87,6 +100,14 @@ abstract class AbstractSchemaCompiler implements SchemaCompilerInterface
         }
 
         return $commands;
+    }
+
+    private function compileForeignKey(ForeignKeyDefinition $foreignKey): string
+    {
+        $columns = implode(", ", array_map($this->name(...), $foreignKey->columns));
+        $referencedColumns = implode(", ", array_map($this->name(...), $foreignKey->referencedColumns));
+
+        return "FOREIGN KEY ({$columns}) REFERENCES " . $this->name($foreignKey->referencedTable) . " ({$referencedColumns})";
     }
 
     protected function compileColumn(ColumnDefinition $column, bool $creatingTable): string

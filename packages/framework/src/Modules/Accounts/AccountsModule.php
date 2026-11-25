@@ -42,7 +42,8 @@ final readonly class AccountsModule implements ModuleInterface
             $context->mountedPath("/register"),
             $context->mountedPath("/forgot-password"),
             $context->mountedPath("/reset-password"),
-            $context->resourcePath("/resources", "accounts.css")
+            $context->resourcePath("/resources", "accounts.css"),
+            $options->themeStylesheet
         );
         $context->bindings->value(AccountsRoutes::class, $routes);
 
@@ -61,8 +62,8 @@ final readonly class AccountsModule implements ModuleInterface
 
         $context->route(
             RouteEntry::post($routes->logout, [LogoutHandler::class, "logout"])
-                ->middleware(CsrfMiddleware::class)
                 ->middleware(AuthenticateMiddleware::class)
+                ->middleware(CsrfMiddleware::class)
                 ->name("atom.accounts.logout")
                 ->title("Sign out")
                 ->description("End the authenticated session.")

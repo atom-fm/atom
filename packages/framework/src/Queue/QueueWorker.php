@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Queue;
 
+use Atom\Scheduler\ScheduleTaskLocks;
 use Throwable;
 
 final readonly class QueueWorker
@@ -11,7 +12,8 @@ final readonly class QueueWorker
     public function __construct(
         private QueueInterface $queue,
         private JobExecutor $executor,
-        private QueueOptions $options
+        private QueueOptions $options,
+        private ?ScheduleTaskLocks $taskLocks = null
     ) {
     }
 
@@ -22,18 +24,46 @@ final readonly class QueueWorker
             return WorkerResult::Empty;
         }
 
+        $maxAttempts = max(1, $this->options->maxAttempts);
+        $lock = null;
         try {
-            $this->executor->execute($reserved->job);
-            $this->queue->complete($reserved);
-            return WorkerResult::Completed;
-        } catch (Throwable $exception) {
-            if ($reserved->job->attempts >= max(1, $this->options->maxAttempts)) {
-                $this->queue->fail($reserved, $exception);
+            if ($reserved->job->attempts > $maxAttempts) {
+                $this->queue->fail($reserved, new QueueException("Job exceeded its maximum of {$maxAttempts} attempts after a reservation expired."));
                 return WorkerResult::Failed;
             }
 
-            $this->queue->release($reserved, max(0, $this->options->retryDelay));
-            return WorkerResult::Released;
+            $key = $reserved->job->overlapKey;
+            if ($key !== null) {
+                if ($this->taskLocks === null || !$this->queue instanceof DeferrableQueueInterface) {
+                    throw new QueueException("No compatible queue and overlap lock store are configured for '{$key}'.");
+                }
+                $lock = $this->taskLocks->acquire($key);
+                if ($lock === null) {
+                    $this->queue->defer($reserved, max(1, $this->options->retryDelay));
+                    return WorkerResult::Deferred;
+                }
+            }
+
+            try {
+                $this->executor->execute($reserved->job);
+            } catch (Throwable $exception) {
+                if ($reserved->job->attempts >= $maxAttempts) {
+                    $this->queue->fail($reserved, $exception);
+                    return WorkerResult::Failed;
+                }
+
+                $this->queue->release($reserved, max(0, $this->options->retryDelay));
+                return WorkerResult::Released;
+            }
+
+            $this->queue->complete($reserved);
+            return WorkerResult::Completed;
+        } catch (ReservationLostException) {
+            return WorkerResult::ReservationLost;
+        } finally {
+            if ($lock !== null) {
+                fclose($lock);
+            }
         }
     }
 }

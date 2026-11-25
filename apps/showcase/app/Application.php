@@ -14,6 +14,7 @@ use Atom\Page\PageRegistry;
 use Atom\View\Component\ComponentRegistry;
 use Showcase\Components\ComponentExample;
 use Showcase\Components\ShowcasePageHeader;
+use Showcase\Components\SupportWorkspace;
 
 final class Application extends \Atom\Application
 {
@@ -47,5 +48,6 @@ final class Application extends \Atom\Application
     {
         $components->register("ComponentExample", ComponentExample::class);
         $components->register("ShowcasePageHeader", ShowcasePageHeader::class);
+        $components->register("SupportWorkspace", SupportWorkspace::class);
     }
 }

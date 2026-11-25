@@ -1,0 +1,4 @@
+.back-link {
+    display: inline-block;
+    margin-bottom: clamp(72px, 10vw, 120px);
+}

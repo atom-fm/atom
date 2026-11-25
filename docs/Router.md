@@ -1,204 +1,175 @@
-# Router
+# Routing
 
-[Atom Framework](Index.md)
+An Atom route pairs an HTTP method and a URL with a PHP handler. Start with a health check, then add a controller that looks up articles by slug and previews a submitted title.
 
-The router is a small route tree. It stores route entries and child routers.
+## Generate URLs from route names
 
-## Class Synopsis
+Name a route with `->name()` or with the `name` argument on a controller route attribute or `#[PageRoute]`. Once the route is registered, `Route::url()` returns its site-relative URL as a string. It includes any group or module prefixes.
 
 ```php
-class Router
+$url = Route::url(
+    "articles.show",
+    ["slug" => "building-atom"],
+    query: ["view" => "full"],
+);
+// /api/articles/building-atom?view=full
+```
+
+Pass path placeholders in the second argument and query values separately. Atom URL-encodes path values and preserves the slash between segments of a wildcard value such as `images/photo.jpg`. Unknown route names, missing or extra path parameters, and names shared by different paths throw `InvalidArgumentException`.
+
+## Return JSON from a route
+
+In `app/Application.php`, import `Atom\Di\Injector` and `Atom\Router\Route`. Add this method to your application class, or add the registration line to its existing `bootstrap()` method.
+
+```php
+protected function bootstrap(Injector $injector): void
 {
-    public function __construct(string $path = "");
-    public function getAllRoutes(): array;
-    public function getItems(): array;
-    public function getRoutes(): array;
-    public function add(RouteEntry|Router $item): RouteEntry|Router;
-
-    public function getPath(): string;
-    public function getFullPath(): string;
-
-    public function middleware(string|MiddlewareInterface $middleware): self;
-    public function getOwnMiddlewares(): array;
-    public function getMiddlewares(): array;
-}
-
-final class RouteEntry
-{
-    public static function create(string|array $method, string $path, mixed $handler): self;
-    public static function get(string $path, mixed $handler): self;
-    public static function post(string $path, mixed $handler): self;
-    public static function put(string $path, mixed $handler): self;
-    public static function patch(string $path, mixed $handler): self;
-    public static function delete(string $path, mixed $handler): self;
-    public static function head(string $path, mixed $handler): self;
-    public static function options(string $path, mixed $handler): self;
-
-    public function getRouter(): ?Router;
-
-    public function name(string $name): self;
-    public function title(string $title): self;
-    public function description(string $description): self;
-    public function middleware(string|MiddlewareInterface $middleware): self;
-    public function metadata(object $instance): self;
-
-    public function getName(): ?string;
-    public function getTitle(): ?string;
-    public function getDescription(): ?string;
-    public function getPath(): string;
-    public function getFullPath(): string;
-    public function getOwnMiddlewares(): array;
-    public function getMiddlewares(): array;
-    public function getMetadata(): array;
-    public function getMetadataOfType(string $typeName): ?object;
-    public function getMetadataArrayOfType(string $typeName): array;
-
-    public function action(RouteAction $action): self;
-    public function getMethod(): string|array;
-    public function getMethodList(): string;
-    public function getRouteAction(): RouteAction;
-    public function getController(): ?string;
-    public function getMethodName(): ?string;
-    public function getClosure(): ?callable;
-    public function isClosure(): bool;
-}
-
-final readonly class MatchedRoute
-{
-    public function __construct(RouteEntry $route, array $routeParams = [], array $queryParams = []);
-    public function getRouteEntry(): RouteEntry;
-    public function getQueryParams(): array;
-    public function getRouteParams(): array;
-    public function getParams(): array;
-    public function getMiddlewares(): array;
-    public function getRouteAction(): RouteAction;
-}
-
-final class RouteMatcher
-{
-    public function __construct(Router $router);
-    public function match(string $method, string $path, array $queryParams = []): RouteMatchResult;
-}
-
-final readonly class RouteMatchResult
-{
-    public ?MatchedRoute $matchedRoute;
-    public array $allowedMethods;
-
-    public function isFound(): bool;
-    public function isMethodNotAllowed(): bool;
-}
-
-final class Route
-{
-    public static function setRouter(Router $router): void;
-    public static function clearRouter(): void;
-    public static function getRouter(): Router;
-
-    public static function addRoute($method, string $path, $handler = null): RouteEntry;
-    public static function getOrPost(string $path, $handler = null): RouteEntry;
-    public static function get(string $path, $handler = null): RouteEntry;
-    public static function post(string $path, $handler = null): RouteEntry;
-    public static function put(string $path, $handler = null): RouteEntry;
-    public static function patch(string $path, $handler = null): RouteEntry;
-    public static function delete(string $path, $handler = null): RouteEntry;
-    public static function head(string $path, $handler = null): RouteEntry;
-    public static function options(string $path, $handler = null): RouteEntry;
-
-    public static function group(string $path = "", ?Closure $routeBuilder = null): Router;
-    public static function controller(string $controller, ?Closure $routeBuilder = null): Router;
-    public static function attach(string $controller): Router;
-    public static function attachTo(string $path, string $controller): Router;
+    Route::get("/api/health", static fn(): array => ["status" => "ok"])->api();
 }
 ```
 
-## Examples
+Start your app with `php atom serve`. With its default address, you can call the endpoint from a second terminal.
 
-Register routes through the shared facade:
-
-```php
-Route::group("/admin", function (Router $router) {
-    $router->middleware(AuthMiddleware::class);
-
-    Route::controller(AdminController::class, function () {
-        Route::get("users", "users")->name("admin.users");
-        Route::post("users", "create");
-    });
-});
+```powershell
+curl.exe -i http://127.0.0.1:8020/api/health
 ```
 
-Use a controller-only group when the routes do not need a path prefix:
+Atom serializes the returned array as JSON. The response has status `200`, content type `application/json`, and this body.
 
-```php
-Route::controller(AdminController::class, function () {
-    Route::get("/dashboard", "dashboard");
-});
+```json
+{"status":"ok"}
 ```
 
-Mount routes from controller method attributes:
+## Route requests to a controller
+
+Create `app/Controllers/ArticleController.php`. The controller supplies the shared `/api/articles` prefix. Each method attribute supplies the remaining path and the HTTP verb.
 
 ```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controllers;
+
+use Atom\Http\Request;
+use Atom\Http\Response;
+use Atom\Hydrator\Attributes\FromRoute;
+use Atom\Router\Attributes\ApiController;
 use Atom\Router\Attributes\Get;
+use Atom\Router\Attributes\Head;
 use Atom\Router\Attributes\Post;
-use Atom\Router\Attributes\Controller;
 
-#[Controller("/api")]
-final class ApiController
+#[ApiController("/api/articles")]
+final class ArticleController
 {
-    #[Get("/users")]
-    public function users(): array
+    private const ARTICLES = [
+        "building-atom" => ["title" => "Building Atom", "published" => true],
+    ];
+
+    #[Get("{slug}", name: "articles.show", title: "Read an article")]
+    #[Head("{slug}")]
+    public function show(#[FromRoute] string $slug, Response $response): Response
     {
-        return [];
+        $article = self::ARTICLES[$slug] ?? null;
+        if ($article === null) {
+            return $response->status(404)->json(["error" => "Article not found"]);
+        }
+
+        return $response->json($article);
     }
 
-    #[Post("/users")]
-    public function create(): array
+    #[Post("preview")]
+    public function preview(Request $request, Response $response): Response
     {
-        return [];
+        $title = trim($request->post()->string("title"));
+        if ($title === "") {
+            return $response->status(422)->json(["error" => "Enter a title"]);
+        }
+
+        return $response->json(["title" => $title, "published" => false]);
     }
 }
-
-Route::attach(ApiController::class);
-Route::attachTo("/v1", ApiController::class);
 ```
 
-Add an entry directly to a router:
+Import `App\Controllers\ArticleController` in `app/Application.php`. Add this line inside the same `bootstrap()` method as the health check.
 
 ```php
-$router->add(RouteEntry::create(
-    "GET",
-    "/health",
-    fn () => "ok"
-));
+Route::attach(ArticleController::class);
 ```
 
-Shorthand helpers are available for common HTTP methods:
+Use `#[Controller]` for a general HTTP controller and `#[ApiController]` to include its attributed routes in API discovery. Both accept a path and optional `middleware`. Each HTTP verb attribute and `#[HttpRoute]` also accepts `name`, `middleware`, `title`, and `description`. Middleware runs from the enclosing group through the controller to the individual route. For a route registered directly, chain `->api()` as in the health check.
+
+## Read an article
+
+The `{slug}` segment captures one part of the path. `#[FromRoute]` passes that value to `show()`.
+
+```powershell
+curl.exe -i http://127.0.0.1:8020/api/articles/building-atom
+```
+
+The example returns `200` with the article from its in-memory collection.
+
+```json
+{"title":"Building Atom","published":true}
+```
+
+Change `building-atom` to `missing`. The same route still matches, and the controller returns `404` with `{"error":"Article not found"}`.
+
+## Check an article link with HEAD
+
+A link checker needs the status of an article URL without downloading its JSON body. In the controller above, `#[Head("{slug}")]` registers `HEAD` alongside `GET` on `show()`. Both methods use the same slug lookup, so a removed article returns the same status for either request.
+
+Run these commands against the Starter development server.
+
+```powershell
+curl.exe --head http://127.0.0.1:8020/api/articles/building-atom
+curl.exe --head http://127.0.0.1:8020/api/articles/missing
+```
+
+The first response is HTTP `200` and the second is HTTP `404`. Both return the `application/json` content type and no response body. Use the `GET` request above when you also need the title or the error message.
+
+## Submit a preview
+
+Send `title` as a form field. The `#[Post("preview")]` route calls `preview()`, which returns the draft without saving it.
+
+```powershell
+curl.exe -i --data-urlencode "title=My first article" http://127.0.0.1:8020/api/articles/preview
+```
+
+The response is `200` with this JSON body.
+
+```json
+{"title":"My first article","published":false}
+```
+
+Try `--data-urlencode "title="` to see the `422` validation response. A `POST` to `/api/health`, which only accepts `GET`, returns `405 Method Not Allowed`.
+
+## Diagnose a 405 when submitting a preview
+
+If a preview form posts to the article's read URL, Atom returns `405 Method Not Allowed` before either controller method runs. Reproduce the form submission against the [article controller](#route-requests-to-a-controller). Use `-i` to see the response headers.
+
+```powershell
+curl.exe -i -H "Accept: application/json" --data-urlencode "title=Revised edition" http://127.0.0.1:8020/api/articles/building-atom
+```
+
+Look for `405` on the status line and `GET` and `HEAD` in the `Allow` header. Those methods belong to `show()` on the matching `{slug}` path. The header describes this URL. The controller accepts a preview submission at `POST /api/articles/preview`.
+
+Keep the form data and change the destination.
+
+```powershell
+curl.exe -i -H "Accept: application/json" --data-urlencode "title=Revised edition" http://127.0.0.1:8020/api/articles/preview
+```
+
+The corrected request returns `200` with `{"title":"Revised edition","published":false}`. Use that URL as the form's `action` and `post` as its `method`.
+
+## Mount the same API under a version prefix
+
+To serve the article endpoints under `/v1`, use `attachTo()` in place of `attach()`.
 
 ```php
-$router->add(RouteEntry::get("/dashboard", DashboardController::class));
-$router->add(RouteEntry::post("/users", [UserController::class, "create"]));
+Route::attachTo("/v1", ArticleController::class);
 ```
 
-## Route Metadata
+The lookup is now `GET /v1/api/articles/building-atom`. The separately registered health check stays at `GET /api/health`.
 
-Route entries can carry small metadata objects:
-
-```php
-$entry = RouteEntry::create(
-    "GET",
-    "/dashboard",
-    [DashboardController::class, "index"]
-)->metadata(new RequiresRole("admin"));
-```
-
-Metadata is available from the matched route:
-
-```php
-$metadata = $matchedRoute
-    ->getRouteEntry()
-    ->getMetadataOfType(RequiresRole::class);
-```
-
-Pages use this internally. `Page::registerPages()` registers a normal route action pointing at `PageRouteHandler::render`, then stores the target page class as route metadata. This keeps page routes inspectable and easier to cache or serialize later.
-
-Metadata should stay simple: readonly DTOs with scalar values, arrays, enums, or class names. Avoid closures or service instances if route caching is a future goal.
+See [Middleware](Middlewares.md) to run code around a request and [API Explorer](ApiExplorer.md) to inspect registered endpoints.

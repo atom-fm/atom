@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Atom\Dispatcher;
 
+use Atom\Api\ApiErrorResponse;
+use Atom\Api\Responses\UnprocessableContent;
+use Atom\Hydrator\Exception\InvalidDtoBodyException;
 use Atom\Router\Router;
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
 use Atom\Router\MatchedRoute;
+use Atom\Router\InvalidRouteParameterException;
+use Atom\Router\InvalidQueryParameterException;
 use Atom\Router\RouteMatcher;
 use Atom\Http\Request;
 use Atom\Http\Response;
@@ -72,6 +77,10 @@ final class Dispatcher implements RequestHandlerInterface
             return $this->errors->forStatus(404, $request);
         }
 
+        if ($request->hasInvalidJsonBody()) {
+            return $this->errors->forStatus(400, $request);
+        }
+
         $matchedRoute = $match->matchedRoute;
         $context = $this->context;
         $context->set(Request::class, $request);
@@ -83,10 +92,18 @@ final class Dispatcher implements RequestHandlerInterface
         }
 
         $middlewares = $this->resolveMiddlewares($matchedRoute, $context);
-        return (new MiddlewarePipeline(
-            $middlewares,
-            new MatchedRouteHandler($matchedRoute, $this->routeInvoker, $this->resultConverter, $context)
-        ))->handle($request);
+        try {
+            return (new MiddlewarePipeline(
+                $middlewares,
+                new MatchedRouteHandler($matchedRoute, $this->routeInvoker, $this->resultConverter, $context)
+            ))->handle($request);
+        } catch (ApiErrorResponse $error) {
+            return $this->resultConverter->toResponse($error, $context);
+        } catch (InvalidDtoBodyException $error) {
+            return $this->resultConverter->toResponse(new UnprocessableContent($error->getMessage()), $context);
+        } catch (InvalidRouteParameterException|InvalidQueryParameterException) {
+            return $this->errors->forStatus(400, $request);
+        }
     }
 
     private function effectiveRequest(Request $request): Request

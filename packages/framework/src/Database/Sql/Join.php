@@ -14,19 +14,27 @@ final class Join
 
     private WhereGroup $on;
 
-    private function __construct(public readonly string $type, public readonly Table $table)
-    {
+    private function __construct(
+        public readonly string $type,
+        public readonly Table $table,
+        public readonly ?string $relationPath,
+    ) {
         $this->on = new WhereGroup();
     }
 
-    public static function inner(string $table): self
+    public static function inner(string $table, ?string $relationPath = null): self
     {
-        return self::from(self::INNER, $table);
+        return self::from(self::INNER, $table, $relationPath);
     }
 
-    public static function left(string $table): self
+    public function __clone()
     {
-        return self::from(self::LEFT, $table);
+        $this->on = clone $this->on;
+    }
+
+    public static function left(string $table, ?string $relationPath = null): self
+    {
+        return self::from(self::LEFT, $table, $relationPath);
     }
 
     public static function right(string $table): self
@@ -34,11 +42,11 @@ final class Join
         return self::from(self::RIGHT, $table);
     }
 
-    private static function from(string $type, string $definition): self
+    private static function from(string $type, string $definition, ?string $relationPath = null): self
     {
         [$table, $on] = self::parseDefinition($definition);
 
-        $join = new self($type, Table::from($table));
+        $join = new self($type, Table::from($table), $relationPath);
         if ($on !== null) {
             [$left, $operator, $right] = self::parseOn($on);
             $join->on($left, Op::column($right, $operator));

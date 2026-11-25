@@ -11,6 +11,7 @@ final class RouteEntry
     private ?string $name = null;
     private ?string $title = null;
     private ?string $description = null;
+    private bool $api = false;
     private string $path;
     private ?Router $router = null;
     /** @var array<class-string<MiddlewareInterface>|MiddlewareInterface> */
@@ -134,6 +135,17 @@ final class RouteEntry
     {
         $this->middlewares[] = $middleware;
         return $this;
+    }
+
+    public function api(): self
+    {
+        $this->api = true;
+        return $this;
+    }
+
+    public function isApi(): bool
+    {
+        return $this->api;
     }
 
     public function metadata(object $instance): self

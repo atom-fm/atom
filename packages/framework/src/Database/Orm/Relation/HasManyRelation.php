@@ -36,12 +36,18 @@ final class HasManyRelation extends Relation
             throw new \RuntimeException("Foreign key '{$this->relation->foreignKey}' is not mapped on {$relatedMetadata->className}.");
         }
 
-        $related = $db
+        $query = $db
             ->select($this->relation->relatedClass)
-            ->where($foreignKey->columnName, $localValues)
-            ->all();
+            ->where($foreignKey->columnName, $localValues);
+        foreach ($this->relation->orderBy as $name) {
+            $column = $relatedMetadata->column($name);
+            if ($column === null || !$column->select) {
+                throw new \InvalidArgumentException("Order column '{$name}' must be a mapped selectable column on {$relatedMetadata->className}.");
+            }
+            $query->orderBy($column->columnName);
+        }
 
-        $grouped = $this->groupBy($related, $foreignKey);
+        $grouped = $this->groupBy($query->all(), $foreignKey);
         $this->fill($models, $grouped, $localKey);
     }
 

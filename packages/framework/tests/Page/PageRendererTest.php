@@ -61,6 +61,28 @@ final class PageRendererTest extends TestCase
         $this->assertSame("<h1>Hello Page</h1><p>Hello Page</p>\n", $html);
     }
 
+    public function testGetHydratesQueryAndRoutePropertiesBeforeInvokingGet(): void
+    {
+        $context = new InjectionContext();
+        $context->set(Request::class, new Request("GET", "/query/7", ['q' => '  Atom search  ']));
+        $context->set(\Atom\Router\MatchedRoute::class, new \Atom\Router\MatchedRoute(
+            RouteEntry::get('/query/{id}', static fn() => null), ['id' => '7']
+        ));
+        $html = (new PageRenderer(new Injector(), $context))->render(QueryBoundTestPage::class);
+        self::assertSame("<p>Atom search|7|draft</p>", trim($html));
+    }
+
+    public function testGetQueryBindingsRetainDeclaredDefaultsWhenAbsent(): void
+    {
+        $context = new InjectionContext();
+        $context->set(Request::class, new Request("GET", "/query/8"));
+        $context->set(\Atom\Router\MatchedRoute::class, new \Atom\Router\MatchedRoute(
+            RouteEntry::get('/query/{id}', static fn() => null), ['id' => '8']
+        ));
+        $html = (new PageRenderer(new Injector(), $context))->render(QueryBoundTestPage::class);
+        self::assertSame("<p>default|8|draft</p>", trim($html));
+    }
+
     public function testInvokesGetBeforeRenderingTemplate(): void
     {
         $renderer = new PageRenderer(new Injector(), new InjectionContext());
@@ -1204,4 +1226,20 @@ final class TestLayoutComponent implements ComponentInterface
     {
         return '<layout title="' . $this->page->title . '">' . $this->content?->render() . '</layout>';
     }
+}
+
+final class QueryBoundTestPage extends Page
+{
+    #[FromQuery('q')]
+    public string $search = 'default';
+    #[FromQuery]
+    public string $status = 'draft';
+    #[FromRoute]
+    public int $id;
+    #[FromBody]
+    public string $postOnly;
+    public string $loaded = '';
+
+    public function get(): void { $this->loaded = $this->search.'|'.$this->id.'|'.$this->status; }
+    public function template(): ?string { return 'QueryBoundTestPage.atom.html'; }
 }

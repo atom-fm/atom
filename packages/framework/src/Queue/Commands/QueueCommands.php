@@ -97,7 +97,9 @@ final readonly class QueueCommands
             WorkerResult::Empty => "No jobs available.",
             WorkerResult::Completed => "Job completed.",
             WorkerResult::Released => "Job released for retry.",
+            WorkerResult::Deferred => "Job deferred while its overlap lock is held.",
             WorkerResult::Failed => "Job failed permanently.",
+            WorkerResult::ReservationLost => "Job reservation lost.",
         };
     }
 }

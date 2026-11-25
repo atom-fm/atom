@@ -63,6 +63,22 @@
     margin-left: auto;
 }
 
+@media (max-width: 600px) {
+    .atom-alert {
+        flex-wrap: wrap;
+    }
+
+    .atom-alert__content {
+        flex-basis: calc(100% - 3rem);
+    }
+
+    .atom-alert__actions {
+        flex-basis: 100%;
+        justify-content: flex-start;
+        margin-left: 0;
+    }
+}
+
 .atom-alert[data-size="sm"] {
     min-height: 36px;
     padding: 9px 11px;

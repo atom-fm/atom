@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="{{ $this->description() }}">
+    <title>{{ $this->title() }}</title>
+    <link rel="stylesheet" href="/style.css?v=6">
+</head>
+<body>
+    <header class="site-header">
+        <a class="site-brand" href="/" atom:navigate>Atom Starter</a>
+        <nav class="site-nav" aria-label="Primary navigation">
+            <a href="/" atom:navigate>Home</a>
+            <a href="/about" atom:navigate>About</a>
+            <a href="/docs" atom:navigate>Docs</a>
+            <a href="/design" atom:navigate>Design</a>
+            @if($this->signedIn())
+                <span class="site-user">{{ $this->userName() }}</span>
+                {{ $context->raw($this->signOutForm()) }}
+            @else
+                <a href="/account/login">Sign in</a>
+            @endif
+        </nav>
+    </header>
+
+    <main class="site-main" atom:update-root>
+        {{ $context->fragmentHtml($this->content) }}
+    </main>
+
+    <footer class="site-footer">
+        <p>Built with Atom Framework.</p>
+    </footer>
+
+    <ClientScripts morphdom />
+</body>
+</html>

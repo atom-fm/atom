@@ -12,7 +12,8 @@ final readonly class AccountsRoutes
         public string $register,
         public string $forgotPassword,
         public string $resetPassword,
-        public string $stylesheet
+        public string $stylesheet,
+        public string $themeStylesheet = ""
     ) {
     }
 }

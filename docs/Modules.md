@@ -5,7 +5,27 @@
 Modules are pluggable framework or application features. A module can register bindings, routes,
 components, resources, pages, commands, background jobs, and scheduled tasks.
 
+## Mount an editorial checklist
+
+Package a publishing checklist with a small module. An editor can request the module's URL to discover where to fetch the current checklist. The application chooses the URL prefix when it installs the module.
+
+In an Atom Starter project, create `app/BlogTools/UI/Resources/checklist.txt` with these two lines.
+
+```text
+Confirm the headline.
+Check the links.
+```
+
+Create `app/BlogTools/BlogToolsModule.php` beside the `UI` directory.
+
 ```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\BlogTools;
+
+use Atom\Http\Response;
 use Atom\Module\ModuleContext;
 use Atom\Module\ModuleInterface;
 use Atom\Router\RouteEntry;
@@ -14,24 +34,35 @@ final class BlogToolsModule implements ModuleInterface
 {
     public function register(ModuleContext $context): void
     {
+        $context->resources("/resources", __DIR__ . "/UI/Resources");
+        $checklist = $context->resourcePath("/resources", "checklist.txt");
+
         $context->route(RouteEntry::get(
             $context->mountedPath(),
-            fn(): string => "Blog tools"
+            static fn(Response $response): Response => $response->json(["checklist" => $checklist])
         ));
     }
 }
 ```
 
-Register modules from the application `modules()` hook:
+In `app/Application.php`, import `App\BlogTools\BlogToolsModule` and add this line inside the Starter's existing `modules(ModuleRegistry $modules)` method.
 
 ```php
-use Atom\Module\ModuleRegistry;
-
-protected function modules(ModuleRegistry $modules): void
-{
-    $modules->add(new BlogToolsModule(), "/tools/blog");
-}
+$modules->add(new BlogToolsModule(), "/tools/blog");
 ```
+
+Run `php atom serve` from the project root. In a second PowerShell terminal, request the module index and follow the resource URL it returns.
+
+```powershell
+$site = "http://127.0.0.1:8020"
+$index = Invoke-RestMethod "$site/tools/blog"
+$index.checklist
+curl.exe -fsS "$site$($index.checklist)"
+```
+
+The first output line is `/tools/blog/resources/checklist.txt`, followed by the two checklist lines. To move the feature, change the mount path in `app/Application.php` to `/editorial` and request `$site/editorial`. The index now points to `/editorial/resources/checklist.txt` because `mountedPath()` and `resourcePath()` both use the registered prefix.
+
+## Register module features
 
 Modules are registered after the injector and router are ready and before `bootstrap()` runs. `registerModule()` is still available when a module must be registered manually.
 
@@ -64,7 +95,7 @@ $context->pages(__DIR__ . "/UI/Pages", [
 $context->resources("/resources", __DIR__ . "/UI/Resources");
 ```
 
-Command directories registered through `ModuleContext::commands()` are added to the normal console discovery sources. Commands can extend `Command` or expose methods marked with `#[ConsoleCommand]`. Only installed modules contribute their commands.
+Command directories registered through `ModuleContext::commands()` are added to the normal console discovery sources. A console resolved earlier during bootstrap discovers these directories as modules register them. Commands can extend `Command` or expose methods marked with `#[ConsoleCommand]`. Only installed modules contribute their commands.
 
 ```php
 final readonly class FeatureCommands
@@ -244,7 +275,7 @@ final class BlogToolsModule implements ModuleInterface
 
 Module bindings are added to the same application container used by routes, pages, command handlers, and components.
 
-If multiple providers register the same token, the last binding wins as long as the token has not already been resolved as a singleton. In practice, modules should avoid surprising collisions, but intentional overrides are allowed:
+When providers and modules register the same token, the last binding registered before resolution wins. Once the owning injector has created a singleton for that token, it continues returning that instance for its lifetime, even if the binding is replaced later. Register singleton overrides before the first lookup.
 
 ```php
 $context->bind(Mailer::class)->to(FakeMailer::class);

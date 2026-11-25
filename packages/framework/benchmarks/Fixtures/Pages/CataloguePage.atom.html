@@ -1,0 +1,15 @@
+<main>
+    <h1>{{ $this->title }}</h1>
+    <ul>
+        @foreach($this->products as $product)
+            <li>
+                <a href="/products/{{ $product['id'] }}">{{ $product['name'] }}</a>
+                @if($product['inStock'])
+                    <span>In stock</span>
+                @else
+                    <span>Sold out</span>
+                @endif
+            </li>
+        @endforeach
+    </ul>
+</main>

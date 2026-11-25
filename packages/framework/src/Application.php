@@ -72,7 +72,8 @@ abstract class Application
     private ?PageRegistry $pages = null;
     private ?Bootstrappers $bootstrappers = null;
     private ?MiddlewareRegistry $middlewares = null;
-    private ?Profiler $profiler = null;
+    private ?Profiler $bootstrapProfiler = null;
+    private ?Profiler $requestProfiler = null;
     private ?Bindings $bindings = null;
     private ?Injector $injector = null;
     private ?InjectionContext $currentContext = null;
@@ -129,7 +130,8 @@ abstract class Application
 
     final public function getProfiler(): Profiler
     {
-        return $this->profiler ?? throw new RuntimeException("Application has not been initialized.");
+        return $this->requestProfiler ?? $this->bootstrapProfiler
+            ?? throw new RuntimeException("Application has not been initialized.");
     }
 
     final public function getRouter(): Router
@@ -209,6 +211,7 @@ abstract class Application
             $scope
         ));
 
+        $this->getInjector()->get(\Atom\View\Style\ComponentStyleScanner::class)->addRegistry($moduleComponents);
         $moduleComponents->seal();
     }
 
@@ -304,7 +307,7 @@ abstract class Application
         }
 
         $profiler = new Profiler();
-        $this->profiler = $profiler;
+        $this->bootstrapProfiler = $profiler;
         $span = $profiler->begin("app.initialize");
 
         try {
@@ -312,6 +315,7 @@ abstract class Application
             $paths = new Paths($root);
             $paths
                 ->alias("app", $root . "/app")
+                ->alias("public", $root . "/public")
                 ->alias("database", $root . "/app/Database")
                 ->alias("migrations", $root . "/app/Database/Migrations")
                 ->alias("seeders", $root . "/app/Database/Seeders");
@@ -375,6 +379,7 @@ abstract class Application
             }
 
             $this->components($this->injector->get(ComponentRegistry::class));
+            $this->injector->get(\Atom\View\Style\ComponentStyleScanner::class)->addRegistry($this->injector->get(ComponentRegistry::class));
             $this->middlewares($this->middlewares);
 
             $this->pages($this->pages);
@@ -408,16 +413,40 @@ abstract class Application
 
     final public function handle(?Request $request = null): Response
     {
+        $initializing = !$this->initialized;
         try {
             $this->initialize();
+        } catch (Throwable $exception) {
+            return $this->renderException($exception, $request ?? Request::fromGlobals());
+        }
 
-            $this->currentContext = new InjectionContext();
-            if ($request !== null) {
-                $this->currentContext->set(Request::class, $request);
+        $profiler = new Profiler();
+        $previousProfiler = $this->requestProfiler;
+        $this->requestProfiler = $profiler;
+        $this->currentContext = new InjectionContext();
+        $this->currentContext->set(Profiler::class, $profiler);
+        if ($request !== null) {
+            $this->currentContext->set(Request::class, $request);
+        }
+
+        try {
+            $response = $this->dispatchRequest($request, $profiler);
+            $response = $this->applyCookies($response);
+            $this->addProfilerHeaders($response, $profiler);
+            if ($initializing && $this->bootstrapProfiler !== null) {
+                $response->header("X-Atom-Time-App-Initialize", number_format($this->bootstrapProfiler->total("app.initialize"), 2, ".", "") . "ms");
             }
+            return $response;
+        } finally {
+            $this->requestProfiler = $previousProfiler;
+        }
+    }
 
+    private function dispatchRequest(?Request $request, Profiler $profiler): Response
+    {
+        try {
             $activeRequest = $this->getRequest();
-            $response = $this->getProfiler()->measure(
+            $response = $profiler->measure(
                 "request.dispatch",
                 fn(): Response => (new MiddlewarePipeline(
                     $this->resolveGlobalMiddlewares(),
@@ -428,7 +457,6 @@ abstract class Application
                     )
                 ))->handle($activeRequest)
             );
-            $this->addProfilerHeaders($response);
         } catch (Throwable $exception) {
             $response = $this->renderException($exception, $request ?? Request::fromGlobals());
         }
@@ -438,8 +466,7 @@ abstract class Application
         } catch (Throwable $exception) {
             $response = $this->renderException($exception, $request ?? Request::fromGlobals());
         }
-
-        return $this->applyCookies($response);
+        return $response;
     }
 
     /** @return MiddlewareInterface[] */
@@ -472,9 +499,8 @@ abstract class Application
         return $response;
     }
 
-    private function addProfilerHeaders(Response $response): void
+    private function addProfilerHeaders(Response $response, Profiler $profiler): void
     {
-        $profiler = $this->getProfiler();
         $response->header("X-Atom-Time", number_format($profiler->totalMs(), 2, ".", "") . "ms");
 
         foreach ($profiler->summary() as $summary) {

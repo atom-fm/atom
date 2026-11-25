@@ -52,19 +52,29 @@ final class QueryCompilerTest extends TestCase
         $this->assertSame([":p1" => "active", ":p2" => 1, ":p3" => 2, ":p4" => 3], $command->parameters);
     }
 
+    public function testCompilesOffsetWithoutLimitForSqliteAndMySql(): void
+    {
+        $query = Query::select("users")->orderBy("id")->offset(2);
+
+        $this->assertSame('SELECT * FROM "users" ORDER BY "id" ASC LIMIT -1 OFFSET 2',
+            (new SqliteCompiler())->compile($query)->sql);
+        $this->assertSame("SELECT * FROM `users` ORDER BY `id` ASC LIMIT 18446744073709551615 OFFSET 2",
+            (new MySqlCompiler())->compile($query)->sql);
+    }
+
     public function testCompilesOrderingAndLimit(): void
     {
         $query = Query::select("users")
             ->columns("id", "name")
-            ->orderBy("name")
-            ->orderByDesc("id")
+            ->orderBy("department", "name")
+            ->orderByDesc("priority", "id")
             ->offset(20)
             ->limit(10);
 
         $command = (new MySqlCompiler())->compile($query);
 
         $this->assertSame(
-            "SELECT `id`, `name` FROM `users` ORDER BY `name` ASC, `id` DESC LIMIT 20, 10",
+            "SELECT `id`, `name` FROM `users` ORDER BY `department` ASC, `name` ASC, `priority` DESC, `id` DESC LIMIT 20, 10",
             $command->sql
         );
         $this->assertSame([], $command->parameters);
@@ -183,6 +193,48 @@ final class QueryCompilerTest extends TestCase
             $command->sql
         );
         $this->assertSame([":id" => 2], $command->parameters);
+    }
+
+    public function testGeneratedBindingBeforeCallerBindingPreservesBothValues(): void
+    {
+        $query = Query::select("users")
+            ->where("id", 7)
+            ->whereExp("role = :p1", ["p1" => "editor"]);
+        $compiler = new SqliteCompiler();
+        $command = $compiler->compile($query);
+
+        $this->assertSame('SELECT * FROM "users" WHERE "id" = :p2 AND "role" = :p1', $command->sql);
+        $this->assertSame([":p2" => 7, ":p1" => "editor"], $command->parameters);
+        $this->assertSame([":p1" => 9], $compiler->compile(Query::select("users")->where("id", 9))->parameters);
+    }
+
+    public function testCallerBindingsBeforeGeneratedBindingReserveEvenNullValues(): void
+    {
+        $query = Query::select("users")
+            ->whereExp("role = :p1 and deleted_at IS :p2", [":p1" => "editor", "p2" => null])
+            ->where("id", 7);
+        $command = (new SqliteCompiler())->compile($query);
+
+        $this->assertSame('SELECT * FROM "users" WHERE "role" = :p1 AND "deleted_at" IS :p2 AND "id" = :p3', $command->sql);
+        $this->assertSame([":p1" => "editor", ":p2" => null, ":p3" => 7], $command->parameters);
+    }
+
+    public function testCompilesCorrelatedExistsExpression(): void
+    {
+        $query = Query::select("orders")
+            ->where("user_id", 42)
+            ->whereExp(
+                "EXISTS (SELECT 1 FROM order_return_requests r WHERE r.order_id = orders.id AND r.status = :returnStatus)",
+                ["returnStatus" => 1]
+            );
+
+        $command = (new SqliteCompiler())->compile($query);
+
+        $this->assertSame(
+            'SELECT * FROM "orders" WHERE "user_id" = :p1 AND EXISTS (SELECT 1 FROM "order_return_requests" "r" WHERE "r"."order_id" = "orders"."id" AND "r"."status" = :returnStatus)',
+            $command->sql
+        );
+        $this->assertSame([":p1" => 42, ":returnStatus" => 1], $command->parameters);
     }
 
     public function testCompilesHavingExpression(): void

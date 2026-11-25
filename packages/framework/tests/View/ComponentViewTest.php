@@ -77,7 +77,11 @@ use Atom\Modules\Components\ToastModel;
 use Atom\Modules\Components\Toolbar;
 use Atom\Modules\Components\ValidationSummary;
 use Atom\Page\Page;
+use Atom\Page\Uri;
+use Atom\Router\MatchedRoute;
+use Atom\Router\RouteEntry;
 use Atom\Support\Paths;
+use Atom\Validation\Rules\MaxLength;
 use Atom\Validation\Rules\Required;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\ComponentRegistry;
@@ -101,16 +105,16 @@ final class ComponentViewTest extends TestCase
         );
 
         $this->assertStringContainsString(
-            '<link rel="stylesheet" href="/atom/components/resources/atom.css?v=7">',
+            '<link rel="stylesheet" href="/atom/components/resources/atom.css?v=11">',
             $html
         );
-        $this->assertStringContainsString('<script src="/atom/client/resources/atom.js?v=10"></script>', $html);
+        $this->assertStringContainsString('<script src="/atom/client/resources/atom.js?v=16"></script>', $html);
         $this->assertStringContainsString(
             '<script src="/atom/client/resources/morphdom.js?v=2.7.8"></script>',
             $html
         );
         $this->assertStringContainsString(
-            '<script src="/atom/client/resources/atom-morphdom.js?v=4"></script>',
+            '<script src="/atom/client/resources/atom-morphdom.js?v=6"></script>',
             $html
         );
     }
@@ -332,7 +336,7 @@ final class ComponentViewTest extends TestCase
             $html
         );
         $this->assertStringContainsString(
-            '<div class="atom-alert__content"><div class="atom-alert__body">Careful &amp;lt;Atom&amp;gt;</div></div></div>',
+            '<div class="atom-alert__content"><div class="atom-alert__body">Careful &lt;Atom&gt;</div></div></div>',
             $html
         );
     }
@@ -548,6 +552,43 @@ final class ComponentViewTest extends TestCase
         $this->assertStringNotContainsString('<nav class="atom-pagination"', $html);
     }
 
+    public function testPaginationBuildsPageUrlsUsingTableSourceAndUriState(): void
+    {
+        $registry = new ComponentRegistry();
+        $registry->register("Pagination", Pagination::class);
+        $registry->register("Table", Table::class);
+        $registry->register("Column", Column::class);
+
+        $page = new class extends Page {
+            #[Uri("q")]
+            public string $search = "";
+            #[Uri("imagepage")]
+            public int $imagePage = 1;
+            #[Uri]
+            public int $selection = 0;
+        };
+        $page->search = "cake & tea";
+        $page->selection = 42;
+        $page->useUriRoute(new MatchedRoute(
+            RouteEntry::get("/catalog/{category}", static fn() => null),
+            ["category" => "tea & cake"],
+        ));
+        $html = (new ViewRenderer(components: $registry))->render(
+            (new ViewParser())->parse(
+                '<Table :items="$items"><Column label="Name" field="name" />' .
+                '<Table.Pagination><Pagination query-key="imagePage" :uri-overrides="[\'selection\' => null]" navigate /></Table.Pagination>' .
+                '</Table>'
+            ),
+            ["page" => $page, "items" => PagedCollection::fromPage([(object) ["name" => "Tea"]], 3, 2, 1)]
+        );
+
+        $base = '/catalog/tea%20%26%20cake?q=cake%20%26%20tea';
+        self::assertStringContainsString('href="' . $base . '" atom:navigate>Previous</a>', $html);
+        self::assertStringContainsString('aria-current="page" href="' . $base . '&amp;imagepage=2" atom:navigate>2</a>', $html);
+        self::assertStringContainsString('href="' . $base . '&amp;imagepage=3" atom:navigate>Next</a>', $html);
+        self::assertStringNotContainsString('selection=', $html);
+    }
+
     public function testComponentsLayoutComponentsRenderContentAndOptions(): void
     {
         $registry = new ComponentRegistry();
@@ -671,6 +712,32 @@ final class ComponentViewTest extends TestCase
 
         $this->assertStringContainsString('<div class="atom-split-view" data-gap="md" style="--atom-split-side-width: 380px;">', $closed);
         $this->assertStringNotContainsString('atom-split-view__side', $closed);
+    }
+
+    public function testComponentsAppShellRendersNavbarAndLabeledSidebar(): void
+    {
+        $registry = new ComponentRegistry();
+        $registry->register("AppShell", AppShell::class);
+        $registry->register("Navbar", \Atom\Modules\Components\Navbar::class);
+        $registry->register("Sidebar", Sidebar::class);
+
+        $html = (new ViewRenderer(components: $registry))->render(
+            (new ViewParser())->parse(
+                '<AppShell><AppShell.Navbar><Navbar label="Workspace" data-test="navbar">' .
+                '<Navbar.Brand><a href="/">Support Desk</a></Navbar.Brand>Inbox' .
+                '<Navbar.Actions><button>Account</button></Navbar.Actions></Navbar></AppShell.Navbar>' .
+                '<AppShell.Sidebar><Sidebar label="Queues"><a href="/open">Open</a></Sidebar></AppShell.Sidebar>' .
+                '<p>Tickets</p></AppShell>'
+            )
+        );
+
+        $this->assertStringContainsString('aria-label="Workspace" data-test="navbar"', $html);
+        $this->assertStringContainsString('<div class="atom-navbar__brand"><a href="/">Support Desk</a></div>', $html);
+        $this->assertStringContainsString('<div class="atom-navbar__content">Inbox</div>', $html);
+        $this->assertStringContainsString('<div class="atom-navbar__actions"><button>Account</button></div>', $html);
+        $this->assertStringContainsString('aria-label="Queues"', $html);
+        $this->assertLessThan(strpos($html, 'atom-app-shell__sidebar'), strpos($html, 'atom-app-shell__navbar'));
+        $this->assertStringContainsString('<main class="atom-app-shell__main"><p>Tickets</p></main>', $html);
     }
 
     public function testComponentsAppShellAndSidebarRenderNavigationSlots(): void
@@ -1357,7 +1424,7 @@ final class ComponentViewTest extends TestCase
             (new ViewParser())->parse(
                 '<Breadcrumbs><Breadcrumb href="/">Home</Breadcrumb><Breadcrumb>Articles</Breadcrumb></Breadcrumbs>' .
                 '<Tabs active="drafts"><Tab name="articles" label="Articles" href="/articles">Article content</Tab><Tab name="drafts" label="Drafts" href="/drafts">Draft content</Tab></Tabs>' .
-                '<Pagination page="3" total="8" href="/articles?page={page}" navigate preserve-state />' .
+                '<Pagination page="3" total="8" href="/articles?page={page}" navigate preserve-state preserve-scroll />' .
                 '<Pagination page="2" total="4" action="setPage({page})" />'
             )
         );
@@ -1371,8 +1438,8 @@ final class ComponentViewTest extends TestCase
         $this->assertStringContainsString('<div class="atom-tabs__panel">Draft content</div>', $html);
         $this->assertStringNotContainsString('<div class="atom-tabs__panel">Article content</div>', $html);
         $this->assertStringContainsString('<nav class="atom-pagination" aria-label="Pagination">', $html);
-        $this->assertStringContainsString('<a class="atom-pagination__item is-active" aria-current="page" href="/articles?page=3" atom:navigate atom:preserve-state>3</a>', $html);
-        $this->assertStringContainsString('<a class="atom-pagination__item" href="/articles?page=4" atom:navigate atom:preserve-state>Next</a>', $html);
+        $this->assertStringContainsString('<a class="atom-pagination__item is-active" aria-current="page" href="/articles?page=3" atom:navigate atom:preserve-state atom:preserve-scroll>3</a>', $html);
+        $this->assertStringContainsString('<a class="atom-pagination__item" href="/articles?page=4" atom:navigate atom:preserve-state atom:preserve-scroll>Next</a>', $html);
         $this->assertStringContainsString('<button class="atom-pagination__item is-active" aria-current="page" type="button" atom:action="setPage(2)">2</button>', $html);
         $this->assertStringContainsString('<button class="atom-pagination__item" type="button" atom:action="setPage(3)">Next</button>', $html);
     }
@@ -1496,6 +1563,56 @@ final class ComponentViewTest extends TestCase
             '<label class="atom-field" for="body"><span class="atom-field-label">Body</span><textarea id="body" name="body" class="atom-textarea" aria-describedby="body-help" rows="4">Hello &lt;Atom&gt;</textarea><p id="body-help" class="atom-field-help">Markdown is supported.</p></label>',
             $html
         );
+    }
+
+    public function testTextFieldsCanInferMaxLengthFromTheBoundProperty(): void
+    {
+        $page = new class extends Page {
+            #[MaxLength(80)]
+            public string $title = "Page title";
+        };
+        $form = new class extends \Atom\Page\Form {
+            #[Required, MaxLength(12)]
+            public string $title = "Form title";
+
+            #[MaxLength(24)]
+            public ?string $body = null;
+
+            public string $plain = "";
+        };
+        $registry = new ComponentRegistry();
+        $registry->register("Form", Form::class);
+        $registry->register("TextField", TextField::class);
+        $registry->register("TextAreaField", TextAreaField::class);
+        $html = (new ViewRenderer(components: $registry))->render(
+            (new ViewParser())->parse(<<<'HTML'
+                <TextField name="title" id="page-title" infer-max-length />
+                <Form :model="$form">
+                    <TextField name="heading" bind="title" infer-max-length />
+                    <TextAreaField name="body" infer-max-length />
+                    <TextField name="title" id="opt-out" />
+                    <TextField name="title" id="override" infer-max-length maxlength="7" />
+                    <TextAreaField name="body" id="zero-limit" infer-max-length maxlength="0" />
+                    <TextField name="title" id="uppercase" infer-max-length MAXLENGTH="8" />
+                    <TextAreaField name="body" id="no-limit" infer-max-length :maxlength="null" />
+                    <TextField name="plain" infer-max-length />
+                    <TextField name="title" id="numeric" type="number" infer-max-length />
+                </Form>
+                HTML),
+            ["page" => $page, "form" => $form]
+        );
+
+        $this->assertStringContainsString('id="page-title" name="title" value="Page title" class="atom-input" maxlength="80">', $html);
+        $this->assertStringContainsString('id="heading" name="heading" value="Form title" class="atom-input" maxlength="12">', $html);
+        $this->assertStringContainsString('<textarea id="body" name="body" class="atom-textarea" maxlength="24">', $html);
+        $this->assertStringContainsString('id="opt-out" name="title" value="Form title" class="atom-input">', $html);
+        $this->assertStringContainsString('id="override" name="title" value="Form title" class="atom-input" maxlength="7">', $html);
+        $this->assertStringContainsString('<textarea id="zero-limit" name="body" class="atom-textarea" maxlength="0">', $html);
+        $this->assertStringContainsString('id="uppercase" name="title" value="Form title" class="atom-input" MAXLENGTH="8">', $html);
+        $this->assertStringContainsString('<textarea id="no-limit" name="body" class="atom-textarea">', $html);
+        $this->assertStringContainsString('id="plain" name="plain" class="atom-input">', $html);
+        $this->assertStringContainsString('type="number" id="numeric" name="title" value="Form title" class="atom-input">', $html);
+        $this->assertStringNotContainsString("infer-max-length", $html);
     }
 
     public function testComponentsSelectFieldRendersOptionsFromObjects(): void
@@ -1933,7 +2050,8 @@ final class ComponentViewTest extends TestCase
         $script = file_get_contents(dirname(__DIR__, 2) . "/src/Modules/Client/Resources/atom.js");
 
         $this->assertIsString($script);
-        $this->assertStringContainsString('button[type=\"submit\"], input[type=\"submit\"]', $script);
+        $this->assertStringContainsString('submitForm(form, event.submitter || null);', $script);
+        $this->assertStringContainsString('(element.type === "submit" || element.type === "image")', $script);
         $this->assertStringNotContainsString('element.form !== undefined && element.form !== null) {', $script);
     }
 

@@ -1,0 +1,25 @@
+<div class="docs-layout">
+    <aside class="docs-sidebar">
+        <p class="docs-sidebar-title">Documentation</p>
+        <input class="docs-nav-toggle" type="checkbox" id="docs-nav-toggle" aria-controls="docs-sidebar-panel">
+        <label class="docs-nav-toggle-label" for="docs-nav-toggle">Browse documentation</label>
+        <nav class="docs-sidebar-panel" id="docs-sidebar-panel" aria-label="Documentation navigation">
+            {{ $this->navigation() }}
+        </nav>
+    </aside>
+
+    <article class="docs-article">
+        {{ $this->content() }}
+
+        <nav class="docs-pagination" aria-label="Previous and next pages">
+            @if($this->previous !== null)
+                <a href="{{ $this->previous->url() }}" atom:navigate><span>Previous</span>{{ $this->previous->title }}</a>
+            @else
+                <span></span>
+            @endif
+            @if($this->next !== null)
+                <a href="{{ $this->next->url() }}" class="docs-next" atom:navigate><span>Next</span>{{ $this->next->title }}</a>
+            @endif
+        </nav>
+    </article>
+</div>

@@ -130,7 +130,7 @@ Route::get("/account", $handler)
     ->middleware(AuthenticateMiddleware::class);
 ```
 
-Unauthenticated requests receive a plain `401` response with `Cache-Control: no-store`.
+Unauthenticated requests receive a `401` response with code `authentication_required`. See [access failure responses](ErrorPages.md#access-failures).
 
 Use `GuestMiddleware` for routes that must only be available before authentication:
 
@@ -141,4 +141,4 @@ Route::post("/login", $handler)
     ->middleware(GuestMiddleware::class);
 ```
 
-Authenticated requests receive a plain `403` response. The future account UI module can provide redirect-oriented behavior without coupling the core authentication layer to HTML pages.
+Authenticated requests to a guest-only route receive a `403` response with code `permission_denied`.

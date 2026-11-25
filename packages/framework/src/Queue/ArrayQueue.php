@@ -6,7 +6,7 @@ namespace Atom\Queue;
 
 use Throwable;
 
-final class ArrayQueue implements QueueInterface
+final class ArrayQueue implements DeferrableQueueInterface
 {
     /** @var array<string, JobEnvelope> */
     private array $pending = [];
@@ -59,6 +59,12 @@ final class ArrayQueue implements QueueInterface
         $this->pending[$job->job->id] = $job->job->released(time() + max(0, $delay));
     }
 
+    public function defer(ReservedJob $job, int $delay): void
+    {
+        $this->removeReservation($job);
+        $this->pending[$job->job->id] = $job->job->released(time() + max(0, $delay), refundAttempt: true);
+    }
+
     public function fail(ReservedJob $job, Throwable $exception): void
     {
         $this->removeReservation($job);
@@ -83,7 +89,7 @@ final class ArrayQueue implements QueueInterface
     {
         $current = $this->reserved[$job->job->id] ?? null;
         if ($current === null || $current->reservationId !== $job->reservationId) {
-            throw new QueueException("Job '{$job->job->id}' is not reserved by this worker.");
+            throw new ReservationLostException("Job '{$job->job->id}' is not reserved by this worker.");
         }
 
         unset($this->reserved[$job->job->id]);

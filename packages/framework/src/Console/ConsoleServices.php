@@ -48,7 +48,11 @@ final class ConsoleServices implements ServiceProviderInterface, ConsoleCommandP
         $bindings->bind(ConsoleApplication::class)
             ->toFactory(function (Injector $injector): ConsoleApplication {
                 $console = new ConsoleApplication($injector);
-                $console->discoverFrom($injector->get(ConsoleCommandSources::class));
+                $sources = $injector->get(ConsoleCommandSources::class);
+                $console->discoverFrom($sources);
+                $sources->onAdded(static function (ConsoleCommandSource $source) use ($console): void {
+                    $console->discover($source->directory, $source->namespace);
+                });
 
                 return $console;
             })

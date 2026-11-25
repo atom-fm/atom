@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\View\Parser;
 
+use Atom\View\Ast\AttributeNode;
 use Atom\View\Ast\ElementNode;
 use Atom\View\Ast\ExpressionNode;
 use Atom\View\Ast\FragmentNode;
@@ -64,11 +65,11 @@ final class ViewParser
                 }
 
                 $this->position++;
-                return $nodes;
+                return $this->groupConditionalAttributes($nodes);
             }
 
             if ($token->type === ViewTokenType::Directive && in_array(strtolower($token->value), $untilDirectives, true)) {
-                return $nodes;
+                return $this->groupConditionalAttributes($nodes);
             }
 
             if ($token->type === ViewTokenType::Comment) {
@@ -83,7 +84,94 @@ final class ViewParser
             throw new ViewParseException("Missing closing tag for '{$untilTag}'.");
         }
 
-        return $nodes;
+        return $this->groupConditionalAttributes($nodes);
+    }
+
+    /**
+     * @param ViewNodeInterface[] $nodes
+     * @return ViewNodeInterface[]
+     */
+    private function groupConditionalAttributes(array $nodes): array
+    {
+        $result = [];
+        $active = null;
+        $hasElse = false;
+        foreach ($nodes as $node) {
+            $directive = null;
+            $attributes = [];
+            if ($node instanceof ElementNode) {
+                foreach ($node->attributes as $attribute) {
+                    if ($attribute instanceof AttributeNode && in_array($attribute->name, [":if", ":else-if", ":else", ":foreach", ":empty"], true)) {
+                        if ($directive !== null) {
+                            throw new ViewParseException("An element may have only one conditional attribute.");
+                        }
+                        $directive = $attribute;
+                    } else {
+                        $attributes[] = $attribute;
+                    }
+                }
+            }
+            if ($directive === null) {
+                $result[] = $node;
+                if (!$node instanceof TextNode || trim($node->text) !== "") {
+                    $active = null;
+                }
+                continue;
+            }
+            if (!$node instanceof ElementNode) {
+                continue;
+            }
+            $element = new ElementNode($node->name, $attributes, $node->children, $node->selfClosing);
+            if (!in_array($directive->name, [":else", ":empty"], true) && (!$directive->value instanceof ExpressionNode || trim($directive->value->expression) === "")) {
+                throw new ViewParseException("Conditional attribute requires an expression.");
+            }
+            if ($directive->name === ":foreach") {
+                [$source, $key, $value] = $this->parseForEachArgument($directive->value->expression);
+                $result[] = new ForEachNode($source, $value, $key, [$element]);
+                $active = array_key_last($result);
+                $hasElse = false;
+                continue;
+            }
+            if ($directive->name === ":empty") {
+                if ($active === null || $hasElse || !$result[$active] instanceof ForEachNode || $directive->value !== true) {
+                    throw new ViewParseException("Bare ':empty' requires a preceding :foreach sibling.");
+                }
+                while (array_key_last($result) !== $active) {
+                    array_pop($result);
+                }
+                $loop = $result[$active];
+                if (!$loop instanceof ForEachNode) {
+                    throw new ViewParseException("Expected a loop before :empty.");
+                }
+                $result[$active] = new ForEachNode($loop->source, $loop->value, $loop->key, $loop->children, [$element]);
+                $hasElse = true;
+                continue;
+            }
+            if ($directive->name === ":if") {
+                $result[] = new IfNode([new IfBranchNode($directive->value->expression, [$element])]);
+                $active = array_key_last($result);
+                $hasElse = false;
+                continue;
+            }
+            if ($active === null || $hasElse || !$result[$active] instanceof IfNode) {
+                throw new ViewParseException("Conditional branch requires a preceding :if or :else-if sibling.");
+            }
+            while (array_key_last($result) !== $active) {
+                array_pop($result);
+            }
+            $previous = $result[$active];
+            assert($previous instanceof IfNode);
+            if ($directive->name === ":else") {
+                if ($directive->value !== true) {
+                    throw new ViewParseException("Attribute ':else' does not accept a value.");
+                }
+                $result[$active] = new IfNode($previous->branches, [$element]);
+                $hasElse = true;
+            } else {
+                $result[$active] = new IfNode([...$previous->branches, new IfBranchNode($directive->value->expression, [$element])]);
+            }
+        }
+        return $result;
     }
 
     private function parseNode(): ViewNodeInterface
@@ -141,22 +229,60 @@ final class ViewParser
      */
     private function parseFragments(string $owner, array $children): array
     {
-        return array_map(
-            fn(ViewNodeInterface $child): ViewNodeInterface => $child instanceof ElementNode && $this->isFragmentElement($owner, $child)
-                ? $this->toFragment($owner, $child)
-                : $child,
-            $children
-        );
+        foreach ($children as $index => $child) {
+            if ($child instanceof ElementNode && $this->isFragmentElement($owner, $child)) {
+                $children[$index] = $this->toFragment($owner, $child);
+            } else {
+                $this->rejectConditionalFragment($owner, $child);
+            }
+        }
+
+        return $children;
+    }
+
+    private function rejectConditionalFragment(string $owner, ViewNodeInterface $node, bool $insideDirective = false): void
+    {
+        if ($insideDirective && $node instanceof ElementNode && $this->isFragmentElement($owner, $node)) {
+            throw new ViewParseException("Named fragment <{$node->name}> must be a direct child of <{$owner}>. Move the directive inside the fragment.");
+        }
+
+        if ($node instanceof IfNode) {
+            foreach ($node->branches as $branch) {
+                foreach ($branch->children as $child) {
+                    $this->rejectConditionalFragment($owner, $child, true);
+                }
+            }
+            foreach ($node->else as $child) {
+                $this->rejectConditionalFragment($owner, $child, true);
+            }
+        } elseif ($node instanceof ForEachNode) {
+            foreach ([...$node->children, ...$node->empty] as $child) {
+                $this->rejectConditionalFragment($owner, $child, true);
+            }
+        }
     }
 
     private function isFragmentElement(string $owner, ElementNode $node): bool
     {
-        return str_starts_with($node->name, $owner . ".")
-            && strlen($node->name) > strlen($owner) + 1;
+        return $node->name === "Fragment"
+            || (str_starts_with($node->name, $owner . ".")
+                && strlen($node->name) > strlen($owner) + 1);
     }
 
     private function toFragment(string $owner, ElementNode $node): FragmentNode
     {
+        if ($node->name === "Fragment") {
+            $attribute = $node->attributes[0] ?? null;
+            if (count($node->attributes) !== 1 || !$attribute instanceof AttributeNode
+                || $attribute->name !== "name" || !is_string($attribute->value)
+                || preg_match('/^[a-zA-Z][a-zA-Z0-9_-]*$/D', $attribute->value) !== 1
+            ) {
+                throw new ViewParseException("A named Fragment requires one literal name attribute.");
+            }
+
+            return new FragmentNode($owner, $attribute->value, [], $node->children, $node->selfClosing);
+        }
+
         return new FragmentNode(
             $owner,
             substr($node->name, strlen($owner) + 1),
@@ -171,7 +297,7 @@ final class ViewParser
         return match (strtolower($token->value)) {
             "if" => $this->parseIf($token),
             "foreach" => $this->parseForEach($token),
-            "elseif", "else", "endif", "endforeach" => throw new ViewParseException("Unexpected directive '@{$token->value}'."),
+            "elseif", "else", "endif", "empty", "endforeach" => throw new ViewParseException("Unexpected directive '@{$token->value}'."),
             default => throw new ViewParseException("Unknown directive '@{$token->value}'."),
         };
     }
@@ -226,7 +352,12 @@ final class ViewParser
         [$source, $key, $value] = $this->parseForEachArgument($token->argument);
 
         $this->position++;
-        $children = $this->parseChildren(untilDirectives: ["endforeach"]);
+        $children = $this->parseChildren(untilDirectives: ["empty", "endforeach"]);
+        $empty = [];
+        if (!$this->eof() && $this->isCurrentDirective("empty")) {
+            $this->position++;
+            $empty = $this->parseChildren(untilDirectives: ["endforeach"]);
+        }
 
         if ($this->eof() || !$this->isCurrentDirective("endforeach")) {
             throw new ViewParseException("Missing '@endforeach' for '@foreach'.");
@@ -234,7 +365,7 @@ final class ViewParser
 
         $this->position++;
 
-        return new ForEachNode($source, $value, $key, $children);
+        return new ForEachNode($source, $value, $key, $children, $empty);
     }
 
     /**

@@ -64,7 +64,7 @@ PHP, Nginx, and Atom may each impose a request-body limit. Keep `client_max_body
 
 ## Apache and mod_php
 
-Enable `mod_rewrite`, point the virtual host at `public/`, and allow the included `.htaccess` file to provide front-controller rewriting:
+The Starter ships with `public/index.php` as its front controller. With `mod_php` configured to handle `.php` files, put these rewrite rules in the virtual host. Apache serves existing files such as `/style.css` directly and sends application routes such as `/docs/deployment` to Atom.
 
 ```apache
 <VirtualHost *:80>
@@ -72,10 +72,15 @@ Enable `mod_rewrite`, point the virtual host at `public/`, and allow the include
     DocumentRoot /var/www/atom/public
 
     <Directory /var/www/atom/public>
-        AllowOverride FileInfo
-        Options -Indexes
+        AllowOverride None
+        Options +FollowSymLinks -Indexes -MultiViews
         Require all granted
         DirectoryIndex index.php
+
+        RewriteEngine On
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule ^ index.php [END]
     </Directory>
 
     ErrorLog ${APACHE_LOG_DIR}/atom-error.log
@@ -83,15 +88,23 @@ Enable `mod_rewrite`, point the virtual host at `public/`, and allow the include
 </VirtualHost>
 ```
 
-On Debian-based systems, enable rewriting and reload Apache:
+On Debian-based systems, enable rewriting, check the configuration, and reload Apache after the check succeeds.
 
 ```bash
 sudo a2enmod rewrite
-sudo apachectl configtest
-sudo systemctl reload apache2
+sudo apachectl configtest && sudo systemctl reload apache2
 ```
 
-If `.htaccess` files are disabled, put the equivalent rewrite rules directly inside the virtual-host `Directory` block.
+To check the Starter deployment, set `base` to the site's URL and request a chapter, a stylesheet, and a path that has no route.
+
+```bash
+base=https://example.com
+for path in /docs/deployment /style.css /missing-deployment-check; do
+    curl -sS -o /dev/null -w "%{http_code} %{content_type}  $path\n" "$base$path"
+done
+```
+
+Expect `200 text/html` for the chapter, `200 text/css` for the stylesheet, and `404` for the missing route. A charset may follow the content type. If the home page loads but the chapter shows Apache's default 404 page, check that the active virtual host points to the Starter's `public/` directory and contains the rewrite rules above.
 
 ## Environment
 

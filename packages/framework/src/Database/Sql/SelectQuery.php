@@ -7,8 +7,10 @@ namespace Atom\Database\Sql;
 final class SelectQuery implements SqlQueryInterface
 {
     private ?Table $from = null;
-    /** @var array<int, Column|SelectExpression> */
+    /** @var array<int, Column|SelectExpression|ScalarSubquery> */
     private array $columns = [];
+    /** @var list<Column> */
+    private array $modelColumns = [];
     /** @var Join[] */
     private array $joins = [];
     private WhereGroup $where;
@@ -32,6 +34,24 @@ final class SelectQuery implements SqlQueryInterface
         return $this;
     }
 
+    public function __clone()
+    {
+        $this->where = clone $this->where;
+        $this->having = clone $this->having;
+        $this->joins = array_map(static fn (Join $join) => clone $join, $this->joins);
+        foreach ($this->columns as $index => $column) {
+            if ($column instanceof ScalarSubquery) {
+                $this->columns[$index] = clone $column;
+            }
+        }
+    }
+
+    public function setModelColumns(string ...$columns): self
+    {
+        $this->modelColumns = array_map(Column::from(...), $columns);
+        return $this;
+    }
+
     public function columns(string ...$columns): self
     {
         foreach ($columns as $column) {
@@ -47,9 +67,35 @@ final class SelectQuery implements SqlQueryInterface
         return $this;
     }
 
+    public function max(string $column): self
+    {
+        $this->columns[] = SelectExpression::max($column);
+        return $this;
+    }
+
+    public function sum(string $column): self
+    {
+        $this->columns[] = SelectExpression::sum($column);
+        return $this;
+    }
+
+    /** @param array<string, mixed> $parameters */
+    public function scalarColumn(string $expression, string $alias, array $parameters = []): self
+    {
+        $this->columns[] = SelectExpression::scalar($expression, $alias, $parameters);
+        return $this;
+    }
+
     public function clearColumns(): self
     {
+        $this->modelColumns = [];
         $this->columns = [];
+        return $this;
+    }
+
+    public function subqueryColumn(SelectQuery $query, string $alias): self
+    {
+        $this->columns[] = new ScalarSubquery($query, $alias);
         return $this;
     }
 
@@ -95,14 +141,19 @@ final class SelectQuery implements SqlQueryInterface
         return $this;
     }
 
+    public function addJoin(Join $join): self
+    {
+        $this->joins[] = $join;
+        return $this;
+    }
+
     public function join(string $table, ?callable $builder = null): self
     {
         $join = Join::inner($table);
         if ($builder !== null) {
             $builder($join);
         }
-        $this->joins[] = $join;
-        return $this;
+        return $this->addJoin($join);
     }
 
     public function leftJoin(string $table, ?callable $builder = null): self
@@ -111,8 +162,7 @@ final class SelectQuery implements SqlQueryInterface
         if ($builder !== null) {
             $builder($join);
         }
-        $this->joins[] = $join;
-        return $this;
+        return $this->addJoin($join);
     }
 
     public function rightJoin(string $table, ?callable $builder = null): self
@@ -121,19 +171,35 @@ final class SelectQuery implements SqlQueryInterface
         if ($builder !== null) {
             $builder($join);
         }
-        $this->joins[] = $join;
+        return $this->addJoin($join);
+    }
+
+    public function orderBy(string $column, string ...$columns): self
+    {
+        foreach ([$column, ...$columns] as $name) {
+            $this->orderBy[] = Sort::asc($name);
+        }
         return $this;
     }
 
-    public function orderBy(string $column): self
+    public function orderByDesc(string $column, string ...$columns): self
     {
-        $this->orderBy[] = Sort::asc($column);
+        foreach ([$column, ...$columns] as $name) {
+            $this->orderBy[] = Sort::desc($name);
+        }
         return $this;
     }
 
-    public function orderByDesc(string $column): self
+    /** @param array<string, mixed> $parameters */
+    public function orderByExp(string $expression, array $parameters = [], bool $descending = false): self
     {
-        $this->orderBy[] = Sort::desc($column);
+        $this->orderBy[] = Sort::expression($expression, $parameters, $descending);
+        return $this;
+    }
+
+    public function clearOrderBy(): self
+    {
+        $this->orderBy = [];
         return $this;
     }
 
@@ -188,13 +254,13 @@ final class SelectQuery implements SqlQueryInterface
         return $this;
     }
 
-    public function limit(int $limit): self
+    public function limit(?int $limit): self
     {
         $this->limit = $limit;
         return $this;
     }
 
-    public function offset(int $offset): self
+    public function offset(?int $offset): self
     {
         $this->offset = $offset;
         return $this;
@@ -206,11 +272,11 @@ final class SelectQuery implements SqlQueryInterface
     }
 
     /**
-     * @return array<int, Column|SelectExpression>
+     * @return array<int, Column|SelectExpression|ScalarSubquery>
      */
     public function getColumns(): array
     {
-        return $this->columns;
+        return [...$this->modelColumns, ...$this->columns];
     }
 
     /**

@@ -18,7 +18,7 @@ use Atom\Database\Schema\Reset\PostgresDatabaseResetter;
 use Atom\Database\Sql\Compiler\PostgresCompiler;
 use Atom\Database\Sql\Compiler\QueryCompilerInterface;
 
-final class PostgresDriver extends AbstractPdoDriver
+final class PostgresDriver extends AbstractPdoDriver implements TransactionalDdlDriverInterface
 {
     /**
      * @param array<int, mixed> $options

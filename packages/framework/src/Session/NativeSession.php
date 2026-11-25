@@ -7,16 +7,20 @@ namespace Atom\Session;
 use Atom\Http\Cookie;
 use Atom\Http\CookieJar;
 use Atom\Http\Request;
+use Atom\Scheduler\ClockInterface;
 use RuntimeException;
 
 final class NativeSession implements SessionInterface
 {
+    private const string LAST_ACTIVITY = "_atom_session_last_activity";
+
     private bool $started = false;
 
     public function __construct(
         private readonly SessionOptions $options,
         private readonly Request $request,
-        private readonly CookieJar $cookies
+        private readonly CookieJar $cookies,
+        private readonly ?ClockInterface $clock = null
     ) {
     }
 
@@ -41,8 +45,9 @@ final class NativeSession implements SessionInterface
             throw new RuntimeException("PHP session could not be started.");
         }
 
-        FlashData::age($_SESSION);
         $this->started = true;
+        $this->enforceIdleTimeout();
+        FlashData::age($_SESSION);
 
         if ($requestedId !== session_id()) {
             $this->queueSessionCookie();
@@ -54,6 +59,11 @@ final class NativeSession implements SessionInterface
         return $this->started;
     }
 
+    public function hasSessionCookie(): bool
+    {
+        return $this->requestSessionId() !== null;
+    }
+
     public function id(): string
     {
         $this->start();
@@ -63,7 +73,7 @@ final class NativeSession implements SessionInterface
     public function all(): array
     {
         $this->start();
-        return array_diff_key($_SESSION, [FlashData::KEY => true]);
+        return array_diff_key($_SESSION, [FlashData::KEY => true, self::LAST_ACTIVITY => true]);
     }
 
     public function has(string $key): bool
@@ -100,16 +110,13 @@ final class NativeSession implements SessionInterface
     public function clear(): void
     {
         $this->start();
-        $_SESSION = [];
+        $_SESSION = array_intersect_key($_SESSION, [self::LAST_ACTIVITY => true]);
     }
 
     public function regenerate(bool $deleteOldSession = false): void
     {
         $this->start();
-        if (!session_regenerate_id($deleteOldSession)) {
-            throw new RuntimeException("PHP session ID could not be regenerated.");
-        }
-
+        $this->regenerateId($deleteOldSession);
         $this->queueSessionCookie();
     }
 
@@ -127,6 +134,29 @@ final class NativeSession implements SessionInterface
 
         session_write_close();
         $this->started = false;
+    }
+
+    private function enforceIdleTimeout(): void
+    {
+        if ($this->options->idleTimeout === 0) {
+            unset($_SESSION[self::LAST_ACTIVITY]);
+            return;
+        }
+
+        $now = $this->clock?->now()->getTimestamp() ?? time();
+        $lastActivity = $_SESSION[self::LAST_ACTIVITY] ?? null;
+        if (is_int($lastActivity) && $now - $lastActivity >= $this->options->idleTimeout) {
+            $_SESSION = [];
+            $this->regenerateId(true);
+        }
+        $_SESSION[self::LAST_ACTIVITY] = $now;
+    }
+
+    private function regenerateId(bool $deleteOldSession): void
+    {
+        if (!session_regenerate_id($deleteOldSession)) {
+            throw new RuntimeException("PHP session ID could not be regenerated.");
+        }
     }
 
     private function sameSite(): string

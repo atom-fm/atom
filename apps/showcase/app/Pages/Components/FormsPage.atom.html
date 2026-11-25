@@ -3,7 +3,7 @@
 <Stack gap="md">
     <ComponentExample
         title="Form model"
-        description="The form passes its model into child fields, so each field can read values without prop drilling."
+        description="The form passes its model into child fields, so each field can read values without prop drilling. Reset example restores the initial values and clears feedback."
     >
         <Form submit="submit" :model="$this->form">
             <ValidationSummary title="Please fix these fields" only="title,summary" />
@@ -13,8 +13,6 @@
                     <Button size="sm" variant="ghost" atom:action="clearFlash">Dismiss</Button>
                 </Toast.Actions>
             </Toast>
-
-            <HiddenField name="categoryId" />
 
             <FormSection title="Content" description="Fields inside a form can be grouped without custom layout CSS.">
                 <TextField label="Title" name="title" help="Use a concise title that will fit in table rows." maxlength="80" />
@@ -49,7 +47,7 @@
 
             <FormActions>
                 <Button type="submit">Submit</Button>
-                <Button type="button" variant="ghost">Cancel</Button>
+                <Button type="button" variant="ghost" atom:action="resetForm">Reset example</Button>
             </FormActions>
         </Form>
     </ComponentExample>

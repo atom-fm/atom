@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Modules\ErrorPages;
 
+use Atom\Http\AccessFailure;
 use Atom\Http\Request;
 use Atom\Http\Response;
 use Atom\Http\RequestIdOptions;
@@ -77,8 +78,17 @@ final readonly class DefaultErrorPageHandler implements ErrorPageHandlerInterfac
             ->withHeaders($page->headers)
             ->header("Cache-Control", "no-store");
 
-        if ($this->wantsJson($page->request)) {
-            return $response->json($this->json($page));
+        $code = $response->headers()->get(AccessFailure::HEADER) ?? match ($page->status) {
+            401 => AccessFailure::AuthenticationRequired->value,
+            403 => AccessFailure::PermissionDenied->value,
+            default => null,
+        };
+        if ($code !== null) {
+            $response->header(AccessFailure::HEADER, $code)->addHeader("Vary", "Accept");
+        }
+
+        if ($page->request->acceptsJson()) {
+            return $response->json($this->json($page, $code));
         }
 
         return $response
@@ -104,23 +114,19 @@ final readonly class DefaultErrorPageHandler implements ErrorPageHandlerInterfac
         };
     }
 
-    private function wantsJson(Request $request): bool
-    {
-        $accept = strtolower($request->headers()->get("Accept", "") ?? "");
-
-        return str_contains($accept, "application/json") || str_contains($accept, "+json");
-    }
-
     /**
      * @return array{error: array<string, mixed>}
      */
-    private function json(ErrorPage $page): array
+    private function json(ErrorPage $page, ?string $code): array
     {
         $error = [
             "status" => $page->status,
             "title" => $page->title,
             "message" => $page->message,
         ];
+        if ($code !== null) {
+            $error["code"] = $code;
+        }
 
         if ($page->id !== null) {
             $error["id"] = $page->id;

@@ -16,6 +16,7 @@ final class Sidebar implements ComponentInterface
     public ?Fragment $footer = null;
     public AttributeBag $attributes;
     public string $brand = "";
+    public string $label = "Sidebar";
     public string $href = "";
     public string $current = "";
     #[FromContext("currentPath")]
@@ -37,7 +38,7 @@ final class Sidebar implements ComponentInterface
 
         $content .= Html::tag(
             "nav",
-            ["class" => "atom-sidebar__nav", "aria-label" => "Sidebar"],
+            ["class" => "atom-sidebar__nav", "aria-label" => $this->label],
             $this->content?->render(["currentPath" => $this->resolvedCurrentPath()]) ?? ""
         );
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Database\Orm;
 
+use Atom\Database\Model;
 use DateTimeImmutable;
 use ReflectionClass;
 
@@ -24,6 +25,9 @@ final readonly class RowHydrator
      */
     public function hydrate(string $className, array $row): object
     {
+        if ($className === \stdClass::class) {
+            return (object) $row;
+        }
         $metadata = $this->metadataFactory->for($className);
         $entity = (new ReflectionClass($className))->newInstanceWithoutConstructor();
 
@@ -33,6 +37,13 @@ final readonly class RowHydrator
             }
 
             $column->setValue($entity, $this->coerce($row[$column->columnName], $column));
+        }
+
+        if ($entity instanceof Model) {
+            $entity->syncOriginalValues(array_keys($row));
+        }
+        if ($entity instanceof HydrationAwareInterface) {
+            $entity->afterHydration($metadata);
         }
 
         return $entity;

@@ -14,11 +14,13 @@ abstract class AccountsPage extends Page
     public ?string $layout = AccountsLayout::class;
     public string $title = "Account";
     public string $stylesheet = "";
+    public string $themeStylesheet = "";
 
     protected function preparePage(string $title, AccountsRoutes $routes): void
     {
         $this->title = $title;
         $this->stylesheet = $routes->stylesheet;
+        $this->themeStylesheet = $routes->themeStylesheet;
     }
 
     protected function redirect(string $target): Response

@@ -60,6 +60,11 @@ final readonly class ColumnMetadata
         return $this->property->getValue($entity);
     }
 
+    public function isInitialized(object $entity): bool
+    {
+        return $this->property->isInitialized($entity);
+    }
+
     public function getValueOrNull(object $entity): mixed
     {
         try {

@@ -12,8 +12,10 @@
     flex-wrap: wrap;
     align-items: end;
     gap: var(--atom-space-2);
+    padding: var(--atom-space-4);
 }
 
+.atom-table__toolbar > form,
 .atom-table__toolbar > .atom-form,
 .atom-table__toolbar .atom-toolbar {
     width: 100%;
@@ -22,6 +24,14 @@
 .atom-table__toolbar > .atom-form {
     padding: 0;
     border: 0;
+    background: transparent;
+}
+
+.atom-table__toolbar .atom-toolbar:not([data-appearance]),
+.atom-table__toolbar .atom-toolbar[data-appearance=""] {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
     background: transparent;
 }
 
@@ -93,9 +103,29 @@
 }
 
 .atom-table__cell {
-    padding: 12px 14px;
+    padding: 16px 14px;
     border-bottom: 1px solid var(--atom-color-line);
     vertical-align: middle;
+}
+
+.atom-table__cell a:not(.atom-button) {
+    color: var(--atom-color-text);
+    font-weight: 650;
+    line-height: 1.4;
+}
+
+.atom-table__cell a:not(.atom-button):hover {
+    color: var(--atom-color-primary-text);
+}
+
+.atom-table__cell a:not(.atom-button):focus-visible {
+    outline: 2px solid var(--atom-color-primary);
+    outline-offset: 3px;
+    border-radius: 2px;
+}
+
+.atom-table tbody tr:focus-within {
+    background: var(--atom-color-soft);
 }
 
 .atom-table__heading--actions,

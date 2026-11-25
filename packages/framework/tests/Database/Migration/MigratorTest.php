@@ -10,6 +10,7 @@ use Atom\Console\ConsoleServices;
 use Atom\Database\DatabaseConnection;
 use Atom\Database\DatabaseServices;
 use Atom\Database\Driver\SqliteDriver;
+use Atom\Database\Lock\DatabaseLockManagerInterface;
 use Atom\Database\Migration\DatabaseMigrationRepository;
 use Atom\Database\Migration\MigrationDiscovery;
 use Atom\Database\Migration\MigrationOptions;
@@ -17,6 +18,7 @@ use Atom\Database\Migration\Migrator;
 use Atom\Database\Seeder\SeederOptions;
 use Atom\Di\Injector;
 use Atom\Di\ServiceProviderRegistry;
+use PDOException;
 use PHPUnit\Framework\TestCase;
 
 final class MigratorTest extends TestCase
@@ -80,6 +82,126 @@ final class MigratorTest extends TestCase
         $this->assertSame(0, (int) $connection->scalar(
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'migration_users'"
         ));
+    }
+
+    public function testFailedMigrationUndoesEarlierSchemaCommandsAndCanBeRetried(): void
+    {
+        $connection = new DatabaseConnection(SqliteDriver::memory());
+        $repository = new DatabaseMigrationRepository($connection);
+        $migrator = $this->migrator($connection, $repository);
+        $connection->execute("CREATE TABLE seed_users (id INTEGER)");
+
+        try {
+            $migrator->run();
+            $this->fail("Expected the second CREATE TABLE to fail.");
+        } catch (PDOException $e) {
+            $this->assertStringContainsString("already exists", $e->getMessage());
+        }
+
+        $this->assertFalse($connection->driver()->schemaInspector($connection)->hasTable("migration_users"));
+        $this->assertSame([], $repository->applied());
+        $connection->execute("DROP TABLE seed_users");
+        $this->assertSame(2, $migrator->run()->count());
+    }
+
+    public function testFailedMigrationPreservesTheCallersTransaction(): void
+    {
+        $connection = new DatabaseConnection(SqliteDriver::memory());
+        $repository = new DatabaseMigrationRepository($connection);
+        $migrator = $this->migrator($connection, $repository);
+        $schema = $connection->driver()->schemaInspector($connection);
+        $pdo = $connection->pdo();
+        $pdo->beginTransaction();
+        try {
+            $connection->execute("CREATE TABLE seed_users (id INTEGER)");
+            try {
+                $migrator->run();
+                $this->fail("Expected the second CREATE TABLE to fail.");
+            } catch (PDOException $e) {
+                $this->assertStringContainsString("already exists", $e->getMessage());
+            }
+
+            $this->assertTrue($pdo->inTransaction());
+            $this->assertTrue($schema->hasTable("seed_users"));
+            $this->assertFalse($schema->hasTable("migration_users"));
+            $connection->execute("DROP TABLE seed_users");
+            $this->assertSame(2, $migrator->run()->count());
+        } finally {
+            $pdo->rollBack();
+        }
+        $this->assertFalse($schema->hasTable("migration_users"));
+        $this->assertFalse($repository->exists());
+    }
+
+    public function testFailedRollbackRestoresDroppedTableAndItsRows(): void
+    {
+        $connection = new DatabaseConnection(SqliteDriver::memory());
+        $repository = new DatabaseMigrationRepository($connection);
+        $migrator = $this->migrator($connection, $repository);
+        $migrator->run();
+        $connection->execute("INSERT INTO seed_users (name) VALUES ('keep me')");
+        $connection->execute("DROP TABLE migration_users");
+
+        try {
+            $migrator->rollback();
+            $this->fail("Expected the second DROP TABLE to fail.");
+        } catch (PDOException $e) {
+            $this->assertStringContainsString("no such table", $e->getMessage());
+        }
+
+        $this->assertSame(["M26_01_01_000000_create_migration_users"], $repository->applied());
+        $this->assertFalse($connection->driver()->schemaInspector($connection)->hasTable("migration_posts"));
+        $this->assertSame("keep me", $connection->scalar("SELECT name FROM seed_users"));
+        $connection->execute("CREATE TABLE migration_users (id INTEGER)");
+        $this->assertSame(1, $migrator->rollback()->count());
+    }
+
+    public function testFailedHistoryInsertUndoesOnlyTheCurrentMigration(): void
+    {
+        $connection = new DatabaseConnection(SqliteDriver::memory());
+        $repository = new DatabaseMigrationRepository($connection);
+        $migrator = $this->migrator($connection, $repository);
+        $repository->create();
+        $connection->execute("CREATE TRIGGER fail_record AFTER INSERT ON migrations
+            WHEN NEW.migration = 'M26_01_01_000100_create_migration_posts'
+            BEGIN SELECT RAISE(FAIL, 'history insert failed'); END");
+
+        try {
+            $migrator->run();
+            $this->fail("Expected recording the second migration to fail.");
+        } catch (PDOException $e) {
+            $this->assertStringContainsString("history insert failed", $e->getMessage());
+        }
+
+        $schema = $connection->driver()->schemaInspector($connection);
+        $this->assertTrue($schema->hasTable("migration_users"));
+        $this->assertFalse($schema->hasTable("migration_posts"));
+        $this->assertSame(["M26_01_01_000000_create_migration_users"], $repository->applied());
+        $connection->execute("DROP TRIGGER fail_record");
+        $this->assertSame(["M26_01_01_000100_create_migration_posts"], $migrator->run()->migrations);
+    }
+
+    public function testFailedHistoryDeleteRestoresSchemaDataAndHistory(): void
+    {
+        $connection = new DatabaseConnection(SqliteDriver::memory());
+        $repository = new DatabaseMigrationRepository($connection);
+        $migrator = $this->migrator($connection, $repository);
+        $applied = $migrator->run()->migrations;
+        $connection->execute("INSERT INTO migration_posts (title) VALUES ('keep me')");
+        $connection->execute("CREATE TRIGGER fail_delete AFTER DELETE ON migrations
+            BEGIN SELECT RAISE(FAIL, 'history delete failed'); END");
+
+        try {
+            $migrator->rollback();
+            $this->fail("Expected deleting migration history to fail.");
+        } catch (PDOException $e) {
+            $this->assertStringContainsString("history delete failed", $e->getMessage());
+        }
+
+        $this->assertSame($applied, $repository->applied());
+        $this->assertSame("keep me", $connection->scalar("SELECT title FROM migration_posts"));
+        $connection->execute("DROP TRIGGER fail_delete");
+        $this->assertSame(2, $migrator->rollback()->count());
     }
 
     public function testRollbackCanRollBackMultipleBatches(): void
@@ -213,6 +335,33 @@ final class MigratorTest extends TestCase
             "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'stale_table'"
         ));
         $this->assertSame("Edin", $connection->scalar("SELECT name FROM seed_users LIMIT 1"));
+    }
+
+    public function testFreshCommandPreservesDataWhenMigrationLockIsHeld(): void
+    {
+        $providers = ServiceProviderRegistry::create()
+            ->add(ConsoleServices::class)
+            ->add(new DatabaseServices(SqliteDriver::memory(), $this->options()));
+        $injector = Injector::create($providers->bindings()->value(ServiceProviderRegistry::class, $providers));
+        $connection = $injector->get(DatabaseConnection::class);
+        $connection->execute("CREATE TABLE existing_data (name TEXT)");
+        $connection->execute("INSERT INTO existing_data (name) VALUES ('keep me')");
+        $console = $injector->get(ConsoleApplication::class);
+        $output = new BufferedConsoleOutput();
+
+        $lock = $injector->get(DatabaseLockManagerInterface::class)->acquire("migrations");
+        $this->assertNotNull($lock);
+        try {
+            $code = $console->run(["atom", "migrate:fresh"], $output);
+        } finally {
+            $lock->release();
+        }
+
+        $this->assertSame(1, $code);
+        $this->assertStringContainsString("Migrations are already running.", $output->errors());
+        $this->assertTrue($connection->driver()->schemaInspector($connection)->hasTable("existing_data"));
+        $this->assertSame("keep me", $connection->scalar("SELECT name FROM existing_data"));
+        $this->assertStringNotContainsString("Database reset.", $output->output());
     }
 
     public function testMigratorProvidesLiveSchemaInspectorToMigrations(): void

@@ -29,7 +29,9 @@ final readonly class PageRenderer
         private ViewParser $parser = new ViewParser(),
         private TemplateCache $templates = new TemplateCache(),
         private ViewRenderer $renderer = new ViewRenderer(),
-        private PageStateSerializerInterface $state = new JsonPageStateSerializer()
+        private PageStateSerializerInterface $state = new JsonPageStateSerializer(),
+        private PageInputHydratorInterface $input = new PageInputHydrator(),
+        private PageConstructorParameterBinder $constructorParameters = new PageConstructorParameterBinder()
     ) {
     }
 
@@ -39,7 +41,12 @@ final readonly class PageRenderer
     public function render(string $pageClass): mixed
     {
         return Profile::measure("page.render", function () use ($pageClass): mixed {
-            $page = $this->injector->instantiate($pageClass, context: $this->context);
+            $request = $this->context->get(Request::class);
+            $route = $this->context->get(MatchedRoute::class);
+            $parameters = $request instanceof Request
+                ? $this->constructorParameters->bind($pageClass, $request, $route instanceof MatchedRoute ? $route : null)
+                : [];
+            $page = $this->injector->instantiate($pageClass, $parameters, $this->context);
             $this->restoreState($page);
 
             return $this->renderPage($page);
@@ -48,12 +55,31 @@ final readonly class PageRenderer
 
     public function renderPage(Page $page, bool $invokeGet = true): mixed
     {
+        if ($invokeGet) {
+            $request = $this->context->get(Request::class);
+            $route = $this->context->get(MatchedRoute::class);
+            if ($request instanceof Request && $route instanceof MatchedRoute) {
+                $this->input->hydrateProperties($page, $request, $route);
+            }
+            $page->init();
+            if ($request instanceof Request && $route instanceof MatchedRoute) {
+                $this->input->hydrateForms($page, $request, $route);
+            }
+        }
+
         $result = $invokeGet
             ? Profile::measure("page.invoke.get", fn(): mixed => $this->invokeGet($page), ["page" => $page::class])
             : null;
 
         if ($result !== null) {
             return $result;
+        }
+
+        $hasUriBindings = (new PageUri())->hasBindings($page);
+        $request = $this->context->get(Request::class);
+        $requestUri = $request instanceof Request && $request->getMethod() === "GET" ? $request->getRequestUri() : null;
+        if ($hasUriBindings || $requestUri !== null) {
+            (new PageFlashStore($this->injector, $this->context))->restore($page, $hasUriBindings ? $page->url() : null, $requestUri);
         }
 
         $variables = [
@@ -86,6 +112,28 @@ final readonly class PageRenderer
         $state = Profile::measure("page.state", fn(): string => $this->state->serialize($page), ["page" => $page::class]);
 
         return $this->injectState($html, $state);
+    }
+
+    /** Render a fresh GET snapshot internally after a successful URI-state action. */
+    public function renderUpdated(Page $page, string $url, MatchedRoute $route, Request $request): mixed
+    {
+        $query = [];
+        parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        $router = new \Atom\Router\Router();
+        $router->add(\Atom\Router\RouteEntry::get($route->getRouteEntry()->getFullPath(), static fn() => null));
+        $match = (new \Atom\Router\RouteMatcher($router))->match("GET", $path);
+        if (!$match->isFound()) throw new PageActionException("Updated URI does not match the Page route.");
+        $updatedRoute = new MatchedRoute($route->getRouteEntry(), $match->matchedRoute->getRouteParams());
+        $context = clone $this->context;
+        $updatedRequest = new Request("GET", $path, $query, serverParams: $request->server()->toArray(), headers: $request->headers()->toArray());
+        $context->set(Request::class, $updatedRequest);
+        $context->set(MatchedRoute::class, $updatedRoute);
+        $next = $this->injector->instantiate($page::class, $this->constructorParameters->bind($page::class, $updatedRequest, $updatedRoute), $context);
+        $this->state->deserialize($next, $this->state->serialize($page));
+        if ($page->hasFlash()) $next->flash($page->flashMessage(), $page->flashVariant(), $page->flashTitle());
+        $renderer = new self($this->injector, $context, $this->viewLocator, $this->parser, $this->templates, $this->renderer, $this->state, $this->input, $this->constructorParameters);
+        return $renderer->renderPage($next);
     }
 
     /**

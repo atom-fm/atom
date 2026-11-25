@@ -27,7 +27,10 @@ final readonly class PhpExpressionEvaluator implements ExpressionEvaluatorInterf
 
             return $evaluate();
         } catch (Throwable $exception) {
-            throw new ViewRenderException("Failed to evaluate expression '{$expression}'.", previous: $exception);
+            throw new ViewRenderException(
+                "Failed to evaluate expression '{$expression}': {$exception->getMessage()}",
+                previous: $exception
+            );
         }
     }
 }

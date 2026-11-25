@@ -9,15 +9,19 @@ use Atom\Database\Sql\Command;
 use Atom\Database\Sql\Condition;
 use Atom\Database\Sql\CriteriaExpression;
 use Atom\Database\Sql\DeleteQuery;
+use Atom\Database\Sql\ExistsCondition;
+use Atom\Database\Sql\InSubqueryCondition;
 use Atom\Database\Sql\InsertQuery;
 use Atom\Database\Sql\Join;
 use Atom\Database\Sql\Op;
+use Atom\Database\Sql\ScalarSubquery;
 use Atom\Database\Sql\SelectExpression;
 use Atom\Database\Sql\SelectQuery;
 use Atom\Database\Sql\Sort;
 use Atom\Database\Sql\SqlQueryInterface;
 use Atom\Database\Sql\Table;
 use Atom\Database\Sql\UpdateQuery;
+use Atom\Database\Sql\UpsertQuery;
 use Atom\Database\Sql\WhereGroup;
 use RuntimeException;
 
@@ -25,9 +29,24 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
 {
     /** @var array<string, mixed> */
     private array $parameters = [];
+    /** @var array<string, true> */
+    private array $callerParameterNames = [];
+    private bool $hasBindingCollision = false;
     private int $parameterIndex = 0;
 
     public function compile(SqlQueryInterface $query): Command
+    {
+        $this->callerParameterNames = [];
+        $this->hasBindingCollision = false;
+        $command = $this->compileQuery($query);
+
+        // A later clause can claim a name already generated in an earlier one.
+        // At this point every caller binding, including those in subqueries, is known.
+        return $this->hasBindingCollision ? $this->compileQuery($query) : $command;
+    }
+
+    /** @phpstan-impure Collects caller binding names and detects collisions during compilation. */
+    private function compileQuery(SqlQueryInterface $query): Command
     {
         $this->parameters = [];
         $this->parameterIndex = 0;
@@ -35,6 +54,7 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
         return match (true) {
             $query instanceof SelectQuery => $this->compileSelect($query),
             $query instanceof InsertQuery => $this->compileInsert($query),
+            $query instanceof UpsertQuery => $this->compileUpsert($query),
             $query instanceof UpdateQuery => $this->compileUpdate($query),
             $query instanceof DeleteQuery => $this->compileDelete($query),
             default => throw new RuntimeException("Unsupported SQL query type."),
@@ -101,6 +121,36 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
         return new Command($sql, $this->parameters);
     }
 
+    protected function compileUpsert(UpsertQuery $query): Command
+    {
+        $columns = array_map($this->quoteIdentifier(...), $query->columns);
+        $tuples = [];
+        foreach ($query->rows as $row) {
+            $bindings = [];
+            foreach ($query->columns as $column) {
+                $bindings[] = $this->bind($row[$column]);
+            }
+            $tuples[] = "(" . implode(", ", $bindings) . ")";
+        }
+
+        $sql = "INSERT INTO " . $this->quoteIdentifier($query->table) . " (" . implode(", ", $columns) . ") VALUES " . implode(", ", $tuples);
+        if ($query->update !== []) {
+            $sql .= $this->compileUpsertConflict($query);
+        }
+        return new Command($sql, $this->parameters);
+    }
+
+    protected function compileUpsertConflict(UpsertQuery $query): string
+    {
+        $keys = array_map($this->quoteIdentifier(...), $query->uniqueBy);
+        $assignments = [];
+        foreach ($query->update as $column) {
+            $name = $this->quoteIdentifier($column);
+            $assignments[] = "{$name} = excluded.{$name}";
+        }
+        return " ON CONFLICT (" . implode(", ", $keys) . ") DO UPDATE SET " . implode(", ", $assignments);
+    }
+
     protected function compileUpdate(UpdateQuery $query): Command
     {
         $table = $query->getTable();
@@ -146,7 +196,7 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
     }
 
     /**
-     * @param array<int, Column|SelectExpression> $columns
+     * @param array<int, Column|SelectExpression|ScalarSubquery> $columns
      */
     protected function compileColumns(array $columns): string
     {
@@ -155,16 +205,22 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
         }
 
         return implode(", ", array_map(
-            fn(Column|SelectExpression $column) => $column instanceof SelectExpression
-                ? $this->compileSelectExpression($column)
-                : $this->compileColumn($column),
+            fn(Column|SelectExpression|ScalarSubquery $column) => match (true) {
+                $column instanceof ScalarSubquery => "(" . $this->compileSelect($column->query)->sql . ") " . $this->quoteIdentifier($column->alias),
+                $column instanceof SelectExpression => $this->compileSelectExpression($column),
+                $column->name === "*" && $column->alias === null => $column->table === null
+                    ? "*"
+                    : $this->quoteIdentifier($column->table) . ".*",
+                default => $this->compileColumn($column),
+            },
             $columns
         ));
     }
 
     protected function compileSelectExpression(SelectExpression $expression): string
     {
-        $sql = $this->compileAggregateExpression($expression->expression);
+        $this->bindNamedParameters($expression->parameters);
+        $sql = $expression->aggregate ? $this->compileAggregateExpression($expression->expression) : $expression->expression;
         return $expression->alias === null ? $sql : $sql . " " . $this->quoteIdentifier($expression->alias);
     }
 
@@ -222,12 +278,14 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
     {
         $parts = [];
 
-        foreach ($group->getItems() as $index => $item) {
-            $boolean = $item instanceof WhereGroup ? $item->boolean : $item->boolean;
-            $prefix = $index === 0 ? "" : " {$boolean} ";
+        foreach ($group->getItems() as $item) {
             if ($item instanceof WhereGroup) {
-                $group = $this->compileWhere($item);
-                $compiled = $group === "" ? "" : "({$group})";
+                $nested = $this->compileWhere($item);
+                $compiled = $nested === "" ? "" : "({$nested})";
+            } elseif ($item instanceof ExistsCondition) {
+                $compiled = "EXISTS (" . $this->compileSelect($item->query)->sql . ")";
+            } elseif ($item instanceof InSubqueryCondition) {
+                $compiled = $this->compileColumn($item->column) . " IN (" . $this->compileSelect($item->query)->sql . ")";
             } elseif ($item instanceof CriteriaExpression) {
                 $compiled = $this->compileCriteriaExpression($item);
             } else {
@@ -235,7 +293,7 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
             }
 
             if ($compiled !== "") {
-                $parts[] = $prefix . $compiled;
+                $parts[] = ($parts === [] ? "" : " {$item->boolean} ") . $compiled;
             }
         }
 
@@ -251,6 +309,8 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
             "IS NULL", "IS NOT NULL" => "{$column} {$op->operator}",
             "IN" => "{$column} IN " . $this->compileValueList($op->value),
             "BETWEEN" => "{$column} BETWEEN {$this->bind($op->value)} AND {$this->bind($op->maxValue)}",
+            "LIKE" => "{$column} LIKE {$this->bind($op->value)}" .
+                ($op->escape === null ? "" : " ESCAPE {$this->bind($op->escape)}"),
             "=" => "{$column} = " . ($op->value instanceof Column ? $this->compileColumn($op->value) : $this->bind($op->value)),
             "<>", ">=", "<=", ">", "<" => "{$column} {$op->operator} " .
                 ($op->value instanceof Column ? $this->compileColumn($op->value) : $this->bind($op->value)),
@@ -260,12 +320,21 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
 
     protected function compileCriteriaExpression(CriteriaExpression $expression): string
     {
-        foreach ($expression->parameters as $name => $value) {
+        $this->bindNamedParameters($expression->parameters);
+        return $this->quoteExpression($expression->expression);
+    }
+
+    /** @param array<string, mixed> $parameters */
+    private function bindNamedParameters(array $parameters): void
+    {
+        foreach ($parameters as $name => $value) {
             $parameterName = str_starts_with((string) $name, ":") ? (string) $name : ":" . $name;
+            if (!isset($this->callerParameterNames[$parameterName]) && array_key_exists($parameterName, $this->parameters)) {
+                $this->hasBindingCollision = true;
+            }
+            $this->callerParameterNames[$parameterName] = true;
             $this->parameters[$parameterName] = $value;
         }
-
-        return $this->quoteExpression($expression->expression);
     }
 
     /**
@@ -281,10 +350,13 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
      */
     protected function compileOrderBy(array $sorts): string
     {
-        return implode(", ", array_map(
-            fn(Sort $sort) => $this->compileColumn($sort->column) . " " . $sort->direction,
-            $sorts
-        ));
+        $parts = [];
+        foreach ($sorts as $sort) {
+            $this->bindNamedParameters($sort->parameters);
+            $column = $sort->column instanceof Column ? $this->compileColumn($sort->column) : $sort->column;
+            $parts[] = $column . " " . $sort->direction;
+        }
+        return implode(", ", $parts);
     }
 
     /**
@@ -297,7 +369,9 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
 
     protected function bind(mixed $value): string
     {
-        $name = ":p" . ++$this->parameterIndex;
+        do {
+            $name = ":p" . ++$this->parameterIndex;
+        } while (isset($this->callerParameterNames[$name]));
         $this->parameters[$name] = $value;
         return $name;
     }
@@ -336,8 +410,12 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
             "IN" => true,
             "LIKE" => true,
             "ILIKE" => true,
+            "ESCAPE" => true,
             "BETWEEN" => true,
             "EXISTS" => true,
+            "SELECT" => true,
+            "FROM" => true,
+            "WHERE" => true,
             "TRUE" => true,
             "FALSE" => true,
         ];

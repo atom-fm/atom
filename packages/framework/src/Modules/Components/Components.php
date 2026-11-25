@@ -71,7 +71,7 @@ use Atom\View\Component\ComponentSet;
 final readonly class Components
 {
     public const DEFAULT_RESOURCE_PATH = "/atom/components/resources";
-    public const STYLES_VERSION = "7";
+    public const STYLES_VERSION = "11";
 
     public static function module(string $resourcePath = self::DEFAULT_RESOURCE_PATH): ComponentsModule
     {
@@ -103,6 +103,7 @@ final readonly class Components
             "FieldError" => FieldError::class,
             "FileField" => FileField::class,
             "Form" => Form::class,
+            "FormView" => FormView::class,
             "FormActions" => FormActions::class,
             "FormRow" => FormRow::class,
             "FormSection" => FormSection::class,
@@ -113,6 +114,7 @@ final readonly class Components
             "Kbd" => Kbd::class,
             "List" => ListComponent::class,
             "ListItem" => ListItem::class,
+            "Navbar" => Navbar::class,
             "Panel" => Panel::class,
             "PageHeader" => PageHeader::class,
             "Pagination" => Pagination::class,

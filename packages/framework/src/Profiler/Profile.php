@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Atom\Profiler;
 
-use Atom\Container;
-use Throwable;
+use Atom\Application;
+use RuntimeException;
 
 final class Profile
 {
@@ -33,10 +33,10 @@ final class Profile
     public static function profiler(): Profiler
     {
         try {
-            if (Container::has(Profiler::class)) {
-                return Container::get(Profiler::class);
+            if (Application::$app !== null) {
+                return Application::$app->getProfiler();
             }
-        } catch (Throwable) {
+        } catch (RuntimeException) {
         }
 
         return self::$fallback ??= new Profiler();

@@ -18,7 +18,10 @@ use Atom\View\Component\ComponentFactoryInterface;
 use Atom\View\Component\ComponentHydrator;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\ComponentRegistry;
+use Atom\View\Component\FragmentOutlet;
 use Atom\View\Component\NewComponentFactory;
+use Atom\View\Component\StructuralComponentContext;
+use Atom\View\Component\StructuralComponentInterface;
 use Atom\View\Html;
 use ReflectionObject;
 use ReflectionProperty;
@@ -89,6 +92,10 @@ final readonly class ViewRenderer
             return $this->renderComponent($node, $context, $componentClass);
         }
 
+        if ($node->name === "Fragment") {
+            throw new ViewRenderException("A named Fragment must be a direct child of a component.");
+        }
+
         $attributes = $this->renderAttributes($node, $context);
 
         if ($node->selfClosing) {
@@ -109,6 +116,10 @@ final readonly class ViewRenderer
             return $this->components->get($node->name);
         }
 
+        if ($node->name === "FragmentOutlet") {
+            return FragmentOutlet::class;
+        }
+
         if (is_a($node->name, ComponentInterface::class, true)) {
             return $node->name;
         }
@@ -122,6 +133,17 @@ final readonly class ViewRenderer
     private function renderComponent(ElementNode $node, ViewContext $context, string $className): string
     {
         $component = $this->componentFactory->create($className);
+
+        if ($component instanceof StructuralComponentInterface) {
+            return $component->renderStructure(
+                $node,
+                new StructuralComponentContext(
+                    $this->componentHydrator(),
+                    $context,
+                    fn(array $nodes, ViewContext $context): string => $this->renderNodes($nodes, $context)
+                )
+            );
+        }
 
         $this->componentHydrator()->hydrate(
             $component,
@@ -218,7 +240,9 @@ final readonly class ViewRenderer
         }
 
         $output = "";
+        $hasItems = false;
         foreach ($source as $key => $value) {
+            $hasItems = true;
             $variables = [$this->variableName($node->value) => $value];
             if ($node->key !== null) {
                 $variables[$this->variableName($node->key)] = $key;
@@ -227,20 +251,12 @@ final readonly class ViewRenderer
             $output .= $this->renderNodes($node->children, $context->with($variables));
         }
 
-        return $output;
+        return $hasItems ? $output : $this->renderNodes($node->empty, $context);
     }
 
     private function renderAttributes(ElementNode $node, ViewContext $context): string
     {
-        return $this->formatAttributes($this->componentHydrator()->evaluateAttributes($node, $context));
-    }
-
-    /**
-     * @param array<string, mixed> $attributes
-     */
-    private function formatAttributes(array $attributes): string
-    {
-        return Html::attributes($attributes, $this->escape(...));
+        return Html::attributes($this->componentHydrator()->evaluateAttributes($node, $context));
     }
 
     private function variableName(string $name): string

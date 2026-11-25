@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Atom\Tests\Database\Schema;
 
+use Atom\Database\DatabaseConnection;
+use Atom\Database\Driver\SqliteDriver;
 use Atom\Database\Schema\Compiler\MySqlSchemaCompiler;
 use Atom\Database\Schema\Compiler\PostgresSchemaCompiler;
 use Atom\Database\Schema\Compiler\SqliteSchemaCompiler;
@@ -12,6 +14,29 @@ use PHPUnit\Framework\TestCase;
 
 final class SchemaCompilerTest extends TestCase
 {
+    public function testSqliteEnforcesCompiledForeignKey(): void
+    {
+        $schema = new Schema();
+        $schema->create("parents", static fn ($table) => $table->id());
+        $schema->create("children", static function ($table): void {
+            $table->id();
+            $table->integer("parent_id");
+            $table->foreignKey("parent_id", "parents");
+        });
+
+        $connection = new DatabaseConnection(SqliteDriver::memory());
+        foreach ($connection->driver()->schemaCompiler()->compile($schema)->commands() as $command) {
+            $connection->execute($command);
+        }
+
+        $connection->execute("INSERT INTO parents (id) VALUES (1)");
+        $this->assertSame(1, $connection->execute("INSERT INTO children (parent_id) VALUES (1)"));
+        $this->assertSame(1, $connection->scalar("PRAGMA foreign_keys"));
+
+        $this->expectException(\PDOException::class);
+        $connection->execute("INSERT INTO children (parent_id) VALUES (2)");
+    }
+
     public function testSqliteCompilerCreatesTableAndIndexesInSeparateBatches(): void
     {
         $schema = new Schema();

@@ -11,9 +11,10 @@ use Atom\View\Component\ComponentSet;
 final readonly class Client
 {
     public const DEFAULT_RESOURCE_PATH = "/atom/client/resources";
-    public const ATOM_VERSION = "10";
+    public const ATOM_VERSION = "16";
     public const MORPHDOM_VERSION = "2.7.8";
-    public const MORPHDOM_ADAPTER_VERSION = "4";
+    public const MORPHDOM_ADAPTER_VERSION = "6";
+    public const COMPONENTS_VERSION = "1";
 
     public static function definitions(): ComponentSet
     {

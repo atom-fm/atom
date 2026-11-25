@@ -34,18 +34,69 @@ Requests whose `Accept` header contains `application/json` or a `+json` media ty
 
 Debug details are included under `error.debug` only when `APP_DEBUG` is enabled.
 
+## Access failures
+
+Atom exposes stable access failure codes in the `X-Atom-Error-Code` response header. JSON clients also receive the code in `error.code`. Use the code when handling the response programmatically.
+
+| Status | Code | Meaning |
+| --- | --- | --- |
+| 401 | `authentication_required` | The route requires a signed-in identity. |
+| 403 | `invalid_csrf_token` | The request failed CSRF validation. |
+| 403 | `permission_denied` | The request was denied by an access rule. |
+
+The default error renderer assigns the authentication and permission codes to HTTP exceptions with status 401 and 403. Application permission middleware can return `AccessFailure::PermissionDenied->response($request)` using `Atom\Http\AccessFailure`. Authentication, guest-only, and CSRF middleware return plain text for browser requests and structured JSON for clients that request it. These responses use `Cache-Control: no-store`.
+
 ## HTTP Exceptions
 
-Throw `HttpException` when an exception should intentionally produce a public HTTP response:
+### Tell clients when to retry a menu request
+
+Suppose a café publishes today's menu as a text file, one dish per line. Until the file is ready, its menu endpoint should return HTTP `503` with a public message and a `Retry-After` header. An empty menu would look like a successful publication.
+
+In a fresh Atom Starter app, add these imports to `app/Application.php`.
 
 ```php
+use Atom\Di\Injector;
+use Atom\Http\Response;
 use Atom\Modules\ErrorPages\HttpException;
+use Atom\Router\Route;
+```
 
-throw new HttpException(
-    429,
-    "Please wait before trying again.",
-    ["Retry-After" => "30"]
-);
+Register the endpoint in `bootstrap()`. If the method already exists, add the route to its body.
+
+```php
+protected function bootstrap(Injector $injector): void
+{
+    Route::get("/api/menu", static function (Response $response): Response {
+        $path = dirname(__DIR__) . "/storage/daily-menu.txt";
+        $dishes = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($dishes === false) {
+            throw new HttpException(503, "Today's menu is being prepared.", ["Retry-After" => "60"]);
+        }
+
+        return $response->json(["dishes" => $dishes]);
+    })->api();
+}
+```
+
+Run `php atom serve` in the project root. Before creating the menu file, request the endpoint from a second PowerShell terminal.
+
+```powershell
+curl.exe -i -H "Accept: application/json" http://127.0.0.1:8020/api/menu
+```
+
+Look for status `503` and `Retry-After: 60`. The header asks the client to wait 60 seconds before retrying. In the JSON body, `error.message` contains `Today's menu is being prepared.` and `error.id` identifies this failure. Change the `Accept` header to `text/html` to see the same message on the HTML error page.
+
+From the same project root, publish a menu and repeat the request.
+
+```powershell
+"Tomato soup", "Mushroom pie" | Set-Content -Encoding ascii storage/daily-menu.txt
+curl.exe -i -H "Accept: application/json" http://127.0.0.1:8020/api/menu
+```
+
+The next request returns HTTP `200` with the published dishes.
+
+```json
+{"dishes":["Tomato soup","Mushroom pie"]}
 ```
 
 Unexpected exceptions always produce a generic `500` message outside debug mode.

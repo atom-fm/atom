@@ -24,6 +24,8 @@ final readonly class PageServices implements ServiceProviderInterface
             ->to(PhpExpressionEvaluator::class)
             ->singleton();
 
+        $bindings->bind(\Atom\View\Style\ComponentStyleScanner::class)->toSelf()->singleton();
+
         $bindings->bind(ComponentRegistry::class)
             ->toSelf()
             ->singleton();

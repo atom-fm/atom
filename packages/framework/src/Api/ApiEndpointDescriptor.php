@@ -26,7 +26,8 @@ final readonly class ApiEndpointDescriptor implements JsonSerializable
         public ?string $responseType,
         public array $requestFields,
         public array $responseFields = [],
-        public array $errorResponses = []
+        public array $errorResponses = [],
+        public ?int $successStatus = null
     ) {
     }
 
@@ -48,6 +49,7 @@ final readonly class ApiEndpointDescriptor implements JsonSerializable
             "requestFields" => $this->requestFields,
             "responseFields" => $this->responseFields,
             "errorResponses" => $this->errorResponses,
+            "successStatus" => $this->successStatus,
         ];
     }
 }

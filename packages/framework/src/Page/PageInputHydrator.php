@@ -11,7 +11,11 @@ use Atom\Hydrator\HydrationPlanFactory;
 use Atom\Hydrator\HydrationTarget;
 use Atom\Hydrator\ValueCoercer;
 use Atom\Router\MatchedRoute;
+use Atom\Validation\ValidationError;
+use Atom\Validation\ValidationResult;
+use DateTimeInterface;
 use ReflectionAttribute;
+use TypeError;
 
 final readonly class PageInputHydrator implements PageInputHydratorInterface
 {
@@ -23,16 +27,22 @@ final readonly class PageInputHydrator implements PageInputHydratorInterface
 
     public function hydrate(Page $page, Request $request, MatchedRoute $route): void
     {
+        $this->hydrateProperties($page, $request, $route);
+        $this->hydrateForms($page, $request, $route);
+    }
+
+    public function hydrateProperties(Page $page, Request $request, MatchedRoute $route): void
+    {
+        $page->useUriRoute($route);
         $className = $page::class;
         $context = HydrationContext::fromRequest($request, $route->getRouteParams());
 
         foreach ($this->plans->for($className)->properties as $property) {
             if ($this->isFormModel($property)) {
-                $this->hydrateFormModel($page, $property, $context, $className);
                 continue;
             }
 
-            if ($property->source === null) {
+            if ($property->source === null || ($request->getMethod() === "GET" && $property->source === "body")) {
                 continue;
             }
 
@@ -48,6 +58,16 @@ final readonly class PageInputHydrator implements PageInputHydratorInterface
                     "Unable to hydrate page input {$className}::{$property->name}. " . $exception->getMessage(),
                     previous: $exception
                 );
+            }
+        }
+    }
+
+    public function hydrateForms(Page $page, Request $request, MatchedRoute $route): void
+    {
+        $context = HydrationContext::fromRequest($request, $route->getRouteParams());
+        foreach ($this->plans->for($page::class)->properties as $property) {
+            if ($this->isFormModel($property)) {
+                $this->hydrateFormModel($page, $property, $context, $page::class);
             }
         }
     }
@@ -93,40 +113,86 @@ final readonly class PageInputHydrator implements PageInputHydratorInterface
             ? $property->property->getValue($page)
             : null;
 
+        if ($model === null && $property->allowsNull && $property->property?->isInitialized($page) === true) {
+            return;
+        }
+
         if (!$model instanceof $modelClass) {
             $model = $this->plans->for($modelClass)->createInstance();
         }
 
-        foreach ($this->plans->for($modelClass)->properties as $field) {
-            $source = $field->source ?? "body";
-            $sourceName = $field->sourceName;
+        $errors = ValidationResult::valid();
+        $this->hydrateFormObject($model, $context, $errors);
+        $property->setValue($page, $model);
 
-            if (!$this->hasInputValue($context, $source, $sourceName)) {
+        if ($errors->failed()) {
+            $page->addFormInputErrors($model, $errors);
+        }
+    }
+
+    private function hydrateFormObject(object $model, HydrationContext $context, ValidationResult $errors, string $prefix = ""): void
+    {
+        foreach ($this->plans->for($model::class)->properties as $field) {
+            // Form input may only populate public fields, never private service/context/error state.
+            $property = $field->property;
+            if ($property?->isPublic() !== true) {
                 continue;
             }
 
-            $value = $context->get($source, $sourceName);
+            $input = $context->resolve($field->source ?? "body", $field->sourceName);
+            if (!$input["found"]) {
+                continue;
+            }
+
+            $path = $prefix . $field->name;
+            try {
+                $value = $this->coercer->coerce(
+                    $input["value"],
+                    $field,
+                    $model::class,
+                    fn(string $type, array $fields): object => $this->hydrateNestedFormObject(
+                        $property->isInitialized($model) ? $property->getValue($model) : null,
+                        $type,
+                        $fields,
+                        $errors,
+                        $path
+                    )
+                );
+            } catch (HydrationException) {
+                $errors->add(new ValidationError($path, "The field has an invalid value.", "invalid_type"));
+                continue;
+            }
 
             try {
-                $field->setValue($model, $this->coercer->coerce($value, $field, $modelClass));
-            } catch (HydrationException $exception) {
-                throw new PageActionException(
-                    "Unable to hydrate form model {$modelClass}::{$field->name}. " . $exception->getMessage(),
-                    previous: $exception
-                );
+                $field->setValue($model, $value);
+            } catch (TypeError $exception) {
+                if ($property->hasHooks()) {
+                    throw $exception;
+                }
+
+                $errors->add(new ValidationError($path, "The field has an invalid value.", "invalid_type"));
             }
         }
-
-        $property->setValue($page, $model);
     }
 
-    private function hasInputValue(HydrationContext $context, string $source, string $name): bool
+    /** @param array<string, mixed> $fields */
+    private function hydrateNestedFormObject(mixed $current, string $type, array $fields, ValidationResult $errors, string $path): object
     {
-        return match ($source) {
-            "body" => array_key_exists($name, $context->body),
-            "query" => array_key_exists($name, $context->query),
-            "route" => array_key_exists($name, $context->route),
-            default => $context->get($source, $name) !== null,
-        };
+        if (is_a($type, DateTimeInterface::class, true)) {
+            throw new HydrationException("A date cannot be hydrated from nested form fields.");
+        }
+
+        if (!$current instanceof $type) {
+            $plan = $this->plans->for($type);
+            $constructor = $plan->reflection->getConstructor();
+            if (!$plan->reflection->isInstantiable() || ($constructor !== null && $constructor->getNumberOfRequiredParameters() > 0)) {
+                throw new HydrationException("The nested form object must be initialized before binding.");
+            }
+            $current = $plan->createInstance();
+        }
+
+        $this->hydrateFormObject($current, new HydrationContext(body: $fields), $errors, $path . ".");
+
+        return $current;
     }
 }

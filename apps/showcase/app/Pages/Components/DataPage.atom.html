@@ -1,4 +1,4 @@
-<ShowcasePageHeader title="Data" description="Data components render tables and list-like views from parent-owned child tags." badge="Placeholder" />
+<ShowcasePageHeader title="Data" description="Filter, sort, and paginate a user directory with Table and Column components." badge="Interactive example" />
 
 <ComponentExample title="Table columns" description="Table maps plain Column tags into column objects before rendering rows.">
     <Toast>
@@ -7,14 +7,16 @@
         </Toast.Actions>
     </Toast>
 
-    <Table :items="$this->users" as="user" :sort="$this->sort" :direction="$this->direction" sortAction="setSort('{sort}', '{direction}')">
+    <Table aria-label="User directory" :items="$this->users" as="user" :sort="$this->sort" :direction="$this->direction" sortAction="setSort('{sort}', '{direction}')">
         <Table.Toolbar>
-            <Form submit="filter">
+            <Form method="get" action="/components/data" atom:navigate atom:preserve-scroll>
+                <HiddenField name="sort" />
+                <HiddenField name="direction" />
                 <Toolbar gap="sm" align="end">
                     <TextField label="Search" name="query" placeholder="Name or role" />
                     <SelectField label="Status" name="status" :options="$this->statuses" />
                     <Button type="submit">Filter</Button>
-                    <Button variant="ghost" atom:action="clearFilters">Clear</Button>
+                    <Button :href="$this->url(['query' => null, 'status' => null, 'page' => 1])" variant="ghost" atom:navigate atom:preserve-scroll>Clear</Button>
                 </Toolbar>
             </Form>
         </Table.Toolbar>
@@ -38,7 +40,7 @@
         </Table.Empty>
 
         <Table.Summary>
-            Showing {{ $from }}-{{ $to }} of {{ $total }} users.
+        Showing {{ $from }}-{{ $to }} of {{ $total }} {{ $total === 1 ? "user" : "users" }}.
         </Table.Summary>
 
         <Table.Pagination>

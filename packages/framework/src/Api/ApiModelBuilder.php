@@ -7,6 +7,9 @@ namespace Atom\Api;
 use Atom\Api\Attributes\ArrayOf;
 use Atom\Api\Attributes\ErrorResponse;
 use Atom\Api\Attributes\ResponseOf;
+use Atom\Api\Responses\Created;
+use Atom\Collections\PagedCollection;
+use Atom\Collections\PagePayload;
 use Atom\Hydrator\Attributes\Dto;
 use Atom\Hydrator\Attributes\SourceAttributeInterface;
 use Atom\Router\RouteAction;
@@ -36,7 +39,8 @@ final class ApiModelBuilder
         $routes = array_filter(
             $router->getAllRoutes(),
             fn(RouteEntry $route): bool =>
-                $route->getMetadataOfType(ApiHidden::class) === null
+                $route->isApi()
+                && $route->getMetadataOfType(ApiHidden::class) === null
                 && $this->matchesPathPrefix($route, $pathPrefix)
         );
 
@@ -55,12 +59,51 @@ final class ApiModelBuilder
         $prefix = "/" . trim($pathPrefix, " /");
         $path = "/" . trim($route->getFullPath(), " /");
 
-        return $path === $prefix || str_starts_with($path, $prefix . "/");
+        return $prefix === "/" || $path === $prefix || str_starts_with($path, $prefix . "/");
     }
 
     private function describeRoute(RouteEntry $route): ApiEndpointDescriptor
     {
         $handler = $this->reflectHandler($route->getRouteAction());
+        $reflectionType = $handler->getReturnType();
+        $returnType = $this->typeName($reflectionType);
+        $responseOf = $this->responseType($handler);
+        $errors = $this->errorResponses($handler);
+        $successTypes = [];
+        $hasTypedError = false;
+        if ($reflectionType instanceof ReflectionUnionType) {
+            $documentedStatuses = array_column($errors, "status");
+            foreach ($reflectionType->getTypes() as $type) {
+                if (!$type instanceof ReflectionNamedType || !class_exists($type->getName())) {
+                    continue;
+                }
+
+                $class = $type->getName();
+                $isApiResult = is_subclass_of($class, ApiResponse::class) || is_subclass_of($class, ApiErrorResponse::class);
+                if (!$isApiResult || $class::STATUS->value < 400) {
+                    $successTypes[] = $class;
+                    continue;
+                }
+
+                $hasTypedError = true;
+                $status = $class::STATUS->value;
+                if (!in_array($status, $documentedStatuses, true)) {
+                    $errors[] = new ApiErrorResponseDescriptor($status, $class, null, $this->fieldsFromClass($class, null));
+                }
+            }
+        }
+
+        // Typed payloads can be transported inside a Response or a top-level list.
+        $explicitPayload = $responseOf !== null && in_array($returnType, [\Atom\Http\Response::class, "array"], true);
+        $unionPayload = $hasTypedError && count($successTypes) === 1 ? $successTypes[0] : null;
+        $successType = $unionPayload ?? $returnType;
+        $successStatus = $successType !== null && is_subclass_of($successType, ApiResponse::class)
+            && $successType::STATUS->value < 400
+            ? $successType::STATUS->value
+            : null;
+        if ($successType === Created::class) {
+            $unionPayload = $responseOf ?? Created::class;
+        }
 
         return new ApiEndpointDescriptor(
             $this->normalizeMethods($route->getMethod()),
@@ -71,10 +114,15 @@ final class ApiModelBuilder
             $this->handlerName($route->getRouteAction()),
             $route->getController(),
             $route->getMethodName(),
-            $this->typeName($handler->getReturnType()),
+            $explicitPayload ? $responseOf . ($returnType === "array" ? "[]" : "") : ($unionPayload ?? $returnType),
             $this->fieldsFromHandler($handler, $route),
-            $this->fieldsFromReturnType($handler->getReturnType(), $this->responseType($handler)),
-            $this->errorResponses($handler)
+            $explicitPayload
+                ? $this->fieldsFromClassName($responseOf, null, [], 0)
+                : ($unionPayload !== null
+                    ? $this->fieldsFromClassName($unionPayload, $responseOf, [], 0)
+                    : $this->fieldsFromReturnType($reflectionType, $responseOf)),
+            $errors,
+            $successStatus
         );
     }
 
@@ -190,6 +238,10 @@ final class ApiModelBuilder
      */
     private function fieldsFromClass(string $className, ?string $responseType, array $visited = [], int $depth = 0): array
     {
+        if (is_a($className, PagedCollection::class, true)) {
+            $className = PagePayload::class;
+        }
+
         if ($depth >= self::MAX_SCHEMA_DEPTH || isset($visited[$className])) {
             return [];
         }

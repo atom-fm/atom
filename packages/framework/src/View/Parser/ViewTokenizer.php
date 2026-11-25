@@ -123,11 +123,11 @@ final class ViewTokenizer
         $this->skipWhitespace();
 
         if (!$this->startsWith("=")) {
-            if ($expressionBinding) {
+            if ($expressionBinding && !in_array($name, ["else", "empty"], true)) {
                 throw new ViewParseException("Bound attribute '{$name}' requires a value.");
             }
 
-            return new AttributeNode($name);
+            return new AttributeNode($expressionBinding ? ":" . $name : $name);
         }
 
         $this->position++;
@@ -138,7 +138,7 @@ final class ViewTokenizer
             throw new ViewParseException("Bound attribute '{$name}' requires an expression.");
         }
 
-        return new AttributeNode($name, $expressionBinding ? new ExpressionNode(trim($value)) : $value);
+        return new AttributeNode($expressionBinding && in_array($name, ["if", "else-if", "else", "foreach", "empty"], true) ? ":" . $name : $name, $expressionBinding ? new ExpressionNode(trim($value)) : $value);
     }
 
     private function readAttributeSpread(): AttributeSpreadNode

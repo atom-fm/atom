@@ -4,8 +4,20 @@ declare(strict_types=1);
 
 namespace Atom\Database\Schema\Compiler;
 
+use Atom\Database\Schema\Table;
+use LogicException;
+
 final class SqliteSchemaCompiler extends AbstractSchemaCompiler
 {
+    protected function compileAlterTable(Table $table): array
+    {
+        if ($table->foreignKeys() !== []) {
+            throw new LogicException("Adding a foreign key to an existing SQLite table requires rebuilding the table.");
+        }
+
+        return parent::compileAlterTable($table);
+    }
+
     protected function name(string $name): string
     {
         return '"' . str_replace('"', '""', $name) . '"';
