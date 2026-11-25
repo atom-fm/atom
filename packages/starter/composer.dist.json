@@ -3,27 +3,11 @@
     "type": "project",
     "description": "A minimal Atom application with SQLite and Accounts",
     "license": "MIT",
-    "minimum-stability": "dev",
-    "prefer-stable": true,
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/atom-fm/framework"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/atom-fm/sql"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/atom-fm/orm"
-        }
-    ],
     "require": {
         "php": "^8.4",
         "ext-pdo": "*",
         "ext-pdo_sqlite": "*",
-        "atom-fm/framework": "dev-master",
+        "atom-fm/framework": "^0.1",
         "league/commonmark": "^2.9",
         "symfony/yaml": "^7.3 || ^8.0",
         "phiki/phiki": "^2.2"

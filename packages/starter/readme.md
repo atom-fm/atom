@@ -6,8 +6,16 @@ The public distribution is generated at [atom-fm/starter](https://github.com/ato
 
 The included `AGENTS.md` gives AI coding agents the application's architecture, visual direction, MorphDOM conventions, and browser-quality checklist. Keep it with the project and adapt its product brief as the site develops its own identity.
 
+## Install with Composer
+
 ```powershell
-composer install
+composer create-project atom-fm/starter my-app
+cd my-app
+```
+
+For an existing checkout, run `composer install` from the project directory. Then configure the app and start the server.
+
+```powershell
 copy .env.example .env
 php atom migrate
 php atom accounts:user:create admin@example.com change-me "Admin User"
