@@ -13,6 +13,25 @@ The current direction is:
 - a lightweight database/query/ORM layer with migrations and model base classes
 - console command discovery
 
+## Install Atom
+
+Add the stable framework to an existing PHP project.
+
+```bash
+composer require atom-fm/framework
+```
+
+Create a new application with Atom Starter.
+
+```bash
+composer create-project atom-fm/starter my-app
+cd my-app
+```
+
+Follow the [Getting started guide](https://atom-framework.dev/docs/getting-started) to configure and run your app.
+
+## Repository layout
+
 The repository contains the framework, a minimal starter application, a sample API application, and a component showcase:
 
 ```text
@@ -32,11 +51,11 @@ The repository contains the framework, a minimal starter application, a sample A
 
 - PHP 8.4
 - Composer
-- PDO SQLite for the sample app
+- PDO SQLite for Starter and the sample app
 
-## Install framework dependencies
+## Set up a source checkout
 
-From the repository root:
+From the repository root, install the development dependencies and run the checks.
 
 ```powershell
 composer setup
