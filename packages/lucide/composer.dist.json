@@ -6,25 +6,9 @@
         "MIT",
         "ISC"
     ],
-    "minimum-stability": "dev",
-    "prefer-stable": true,
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/atom-fm/framework"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/atom-fm/sql"
-        },
-        {
-            "type": "vcs",
-            "url": "https://github.com/atom-fm/orm"
-        }
-    ],
     "require": {
         "php": "^8.4",
-        "atom-fm/framework": "dev-master"
+        "atom-fm/framework": "^0.1"
     },
     "autoload": {
         "psr-4": {

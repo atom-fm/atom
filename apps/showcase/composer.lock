@@ -4,15 +4,15 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a7ac73691b5468b764dc7ae4c5d25537",
+    "content-hash": "583a74c5bac9c5393e45d431246fc9d6",
     "packages": [
         {
             "name": "atom-fm/framework",
-            "version": "dev-master",
+            "version": "0.1.x-dev",
             "dist": {
                 "type": "path",
                 "url": "../../packages/framework",
-                "reference": "e20d718f15aff8c5590813b87060d4298fc3a7e7"
+                "reference": "4388430d1043144669e742bc1da9193cf92beb9b"
             },
             "require": {
                 "atom-fm/orm": "^0.1",
@@ -68,10 +68,10 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/lucide",
-                "reference": "4c2ffcfdb5e7d6ee320b394104af6059a47676d8"
+                "reference": "02e6229de13db986f90d5b0713dbfb481169cef5"
             },
             "require": {
-                "atom-fm/framework": "dev-master",
+                "atom-fm/framework": "^0.1",
                 "php": "^8.4"
             },
             "require-dev": {
@@ -1310,7 +1310,6 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
-        "atom-fm/framework": 20,
         "atom-fm/lucide": 20
     },
     "prefer-stable": true,

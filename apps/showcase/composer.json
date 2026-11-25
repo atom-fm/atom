@@ -12,7 +12,7 @@
             "options": {
                 "symlink": true,
                 "versions": {
-                    "atom-fm/framework": "dev-master"
+                    "atom-fm/framework": "0.1.x-dev"
                 }
             }
         },
@@ -51,7 +51,7 @@
     ],
     "require": {
         "php": "^8.4",
-        "atom-fm/framework": "dev-master",
+        "atom-fm/framework": "^0.1",
         "atom-fm/lucide": "dev-master"
     },
     "autoload": {
