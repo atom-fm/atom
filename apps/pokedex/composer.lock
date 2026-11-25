@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "30fc296a24b48ab35f15341acf7f0ef3",
+    "content-hash": "baf068b4835b073b28574ee375d98e0d",
     "packages": [
         {
             "name": "atom-fm/framework",
@@ -12,9 +12,11 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/framework",
-                "reference": "ff7a79287233a3acc55bebd5655e877567a38123"
+                "reference": "e20d718f15aff8c5590813b87060d4298fc3a7e7"
             },
             "require": {
+                "atom-fm/orm": "^0.1",
+                "atom-fm/sql": "^0.1",
                 "dragonmantank/cron-expression": "^3.6",
                 "php": "^8.4",
                 "symfony/mailer": "^8.0.12"
@@ -55,6 +57,100 @@
                 "Atom",
                 "framework"
             ],
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "atom-fm/orm",
+            "version": "dev-master",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/orm"
+            },
+            "require": {
+                "atom-fm/sql": "^0.1",
+                "ext-pdo": "*",
+                "php": "^8.4"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Atom\\Database\\": "src/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "analyse": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "check": [
+                    "@analyse",
+                    "@test"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Attribute-based PHP models and persistence using PDO",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "atom-fm/sql",
+            "version": "dev-master",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/sql"
+            },
+            "require": {
+                "php": "^8.4"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Atom\\Database\\Sql\\": "src/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "analyse": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "check": [
+                    "@analyse",
+                    "@test"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Parameterized SQL query builder and dialect compilers for PHP",
             "transport-options": {
                 "symlink": true,
                 "relative": true
@@ -1169,11 +1265,11 @@
     ],
     "packages-dev": [],
     "aliases": [],
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "stability-flags": {
         "atom-fm/framework": 20
     },
-    "prefer-stable": false,
+    "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.4"

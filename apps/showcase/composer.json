@@ -25,6 +25,28 @@
                     "atom-fm/lucide": "dev-master"
                 }
             }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/sql",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/sql": "dev-master"
+                },
+                "reference": "none"
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/orm",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/orm": "dev-master"
+                },
+                "reference": "none"
+            }
         }
     ],
     "require": {

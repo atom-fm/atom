@@ -40,16 +40,10 @@ jobs:
                   restore-keys: composer-${{ runner.os }}-php-8.4-
 
             - name: Validate Composer configuration
-              run: composer validate --strict && composer validate --strict --working-dir=packages/framework
+              run: composer validate --strict
 
-            - name: Install framework dependencies
-              run: composer install --working-dir=packages/framework --no-interaction --prefer-dist --no-progress
-
-            - name: Install application dependencies
-              run: |
-                  composer install --working-dir=packages/starter --no-interaction --prefer-dist --no-progress
-                  composer install --working-dir=apps/sample --no-interaction --prefer-dist --no-progress
-                  composer install --working-dir=apps/showcase --no-interaction --prefer-dist --no-progress
+            - name: Install package and application dependencies
+              run: composer setup --no-interaction
 
             - name: Run quality checks
               run: composer check

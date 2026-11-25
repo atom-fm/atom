@@ -4,31 +4,49 @@
     "description": "Development workspace for the Atom framework, packages, and applications",
     "license": "MIT",
     "scripts": {
+        "install:sql": "composer --working-dir=packages/sql install",
+        "install:orm": "composer --working-dir=packages/orm install",
         "install:framework": "composer --working-dir=packages/framework install",
         "install:lucide": "composer --working-dir=packages/lucide install",
         "install:starter": "composer --working-dir=packages/starter install",
         "install:sample": "composer --working-dir=apps/sample install",
         "install:showcase": "composer --working-dir=apps/showcase install",
+        "install:pokedex": "composer --working-dir=apps/pokedex install",
         "setup": [
+            "@install:sql",
+            "@install:orm",
             "@install:framework",
             "@install:lucide",
             "@install:starter",
             "@install:sample",
-            "@install:showcase"
+            "@install:showcase",
+            "@install:pokedex"
         ],
+        "sql:check": "composer --working-dir=packages/sql check",
+        "orm:check": "composer --working-dir=packages/orm check",
         "framework:check": "composer --working-dir=packages/framework check",
         "lucide:test": "composer --working-dir=packages/lucide test",
+        "sql:validate": "composer --working-dir=packages/sql validate --strict",
+        "orm:validate": "composer --working-dir=packages/orm validate --strict",
+        "framework:validate": "composer --working-dir=packages/framework validate --strict",
         "starter:validate": "composer --working-dir=packages/starter validate --strict",
         "lucide:validate": "composer --working-dir=packages/lucide validate --strict",
         "sample:validate": "composer --working-dir=apps/sample validate --strict",
         "showcase:validate": "composer --working-dir=apps/showcase validate --strict",
+        "pokedex:validate": "composer --working-dir=apps/pokedex validate --strict",
         "validate:packages": [
+            "@sql:validate",
+            "@orm:validate",
+            "@framework:validate",
             "@lucide:validate",
             "@starter:validate",
             "@sample:validate",
-            "@showcase:validate"
+            "@showcase:validate",
+            "@pokedex:validate"
         ],
         "check": [
+            "@sql:check",
+            "@orm:check",
             "@framework:check",
             "@lucide:test",
             "@validate:packages"

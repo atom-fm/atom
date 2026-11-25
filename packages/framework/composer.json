@@ -10,7 +10,9 @@
     "require": {
         "php": "^8.4",
         "symfony/mailer": "^8.0.12",
-        "dragonmantank/cron-expression": "^3.6"
+        "dragonmantank/cron-expression": "^3.6",
+        "atom-fm/sql": "^0.1",
+        "atom-fm/orm": "^0.1"
     },
     "require-dev": {
         "phpunit/phpunit": "^11.0",
@@ -34,5 +36,31 @@
             "@analyse",
             "@test"
         ]
-    }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../sql",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/sql": "dev-master"
+                },
+                "reference": "none"
+            }
+        },
+        {
+            "type": "path",
+            "url": "../orm",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/orm": "dev-master"
+                },
+                "reference": "none"
+            }
+        }
+    ]
 }

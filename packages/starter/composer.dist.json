@@ -9,6 +9,14 @@
         {
             "type": "vcs",
             "url": "https://github.com/atom-fm/framework"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/atom-fm/sql"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/atom-fm/orm"
         }
     ],
     "require": {

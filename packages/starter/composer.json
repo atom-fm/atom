@@ -5,11 +5,40 @@
     "license": "MIT",
     "minimum-stability": "dev",
     "prefer-stable": true,
-    "repositories": [{
-        "type": "path",
-        "url": "../framework",
-        "options": {"symlink": true, "versions": {"atom-fm/framework": "dev-master"}}
-    }],
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../framework",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/framework": "dev-master"
+                }
+            }
+        },
+        {
+            "type": "path",
+            "url": "../sql",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/sql": "dev-master"
+                },
+                "reference": "none"
+            }
+        },
+        {
+            "type": "path",
+            "url": "../orm",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/orm": "dev-master"
+                },
+                "reference": "none"
+            }
+        }
+    ],
     "require": {
         "php": "^8.4",
         "atom-fm/framework": "dev-master",
@@ -17,5 +46,9 @@
         "symfony/yaml": "^7.3 || ^8.0",
         "phiki/phiki": "^2.2"
     },
-    "autoload": {"psr-4": {"App\\": "app/"}}
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        }
+    }
 }

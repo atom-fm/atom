@@ -39,27 +39,43 @@ jobs:
                   git config --global user.name "atom-fm package publisher"
                   git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-            - name: Publish framework
+            - name: Publish SQL, ORM, and framework
               env:
                   PACKAGE_SPLIT_TOKEN: ${{ secrets.PACKAGE_SPLIT_TOKEN }}
               run: |
-                  target="$RUNNER_TEMP/framework"
-                  git clone "https://x-access-token:${PACKAGE_SPLIT_TOKEN}@github.com/atom-fm/framework.git" "$target"
-                  rsync -a --delete \
-                      --exclude='.git/' \
-                      --exclude='vendor/' \
-                      --exclude='resource/cache/' \
-                      packages/framework/ "$target/"
-                  cd "$target"
-                  git add --all
-                  if ! git diff --cached --quiet; then
-                      git commit -m "Sync framework from atom-fm/atom@${GITHUB_SHA::7}"
-                      git push origin HEAD:master
-                  fi
-                  if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-                      git tag "$GITHUB_REF_NAME"
-                      git push origin "refs/tags/$GITHUB_REF_NAME"
-                  fi
+                  for package in sql orm framework; do
+                      target="$RUNNER_TEMP/$package"
+                      git clone "https://x-access-token:${PACKAGE_SPLIT_TOKEN}@github.com/atom-fm/$package.git" "$target"
+                      rsync -a --delete \
+                          --exclude='.git/' \
+                          --exclude='vendor/' \
+                          --exclude='resource/cache/' \
+                          --exclude='.phpunit.result.cache' \
+                          --exclude='composer.lock' \
+                          "packages/$package/" "$target/"
+
+                      (
+                          cd "$target"
+                          rm -f composer.lock
+                          if [ "$package" != sql ]; then
+                              composer config --unset repositories
+                              composer config repositories.sql vcs https://github.com/atom-fm/sql
+                          fi
+                          if [ "$package" = framework ]; then
+                              composer config repositories.orm vcs https://github.com/atom-fm/orm
+                          fi
+                          composer validate --strict
+                          git add --all
+                          if ! git diff --cached --quiet; then
+                              git commit -m "Sync $package from atom-fm/atom@${GITHUB_SHA::7}"
+                              git push origin HEAD:master
+                          fi
+                          if [ "$GITHUB_REF_TYPE" = "tag" ] && ! git show-ref --verify --quiet "refs/tags/$GITHUB_REF_NAME"; then
+                              git tag "$GITHUB_REF_NAME"
+                              git push origin "refs/tags/$GITHUB_REF_NAME"
+                          fi
+                      )
+                  done
 
             - name: Publish starter
               env:

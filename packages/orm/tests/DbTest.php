@@ -4,14 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Tests\Database;
 
-use Atom\Application;
-use Atom\Config\Config;
-use Atom\Database\DatabaseConnection;
-use Atom\Database\DatabaseConfig;
-use Atom\Database\DatabaseDriverInterface;
-use Atom\Database\DatabaseServices;
 use Atom\Database\Db;
-use Atom\Database\Driver\SqliteDriver;
 use Atom\Database\Exception\UniqueViolationException;
 use Atom\Database\Facades\Db as DbFacade;
 use Atom\Database\Model;
@@ -26,21 +19,21 @@ use Atom\Database\Orm\ColumnMetadata;
 use Atom\Database\Orm\ColumnValueProviderInterface;
 use Atom\Database\Orm\EntityMetadata;
 use Atom\Database\Orm\HydrationAwareInterface;
+use Atom\Database\Orm\PdoConnection;
 use Atom\Database\Orm\Provider\NowProvider;
+use Atom\Database\Sql\Compiler\SqliteCompiler;
 use Atom\Database\Sql\Op;
 use Atom\Database\Sql\Query;
 use Atom\Database\Sql\WhereGroup;
 use DateTimeImmutable;
-use Atom\Di\Injector;
-use Atom\Di\ServiceProviderRegistry;
-use Atom\Support\Paths;
+use PDO;
 use PHPUnit\Framework\TestCase;
 
 final class DbTest extends TestCase
 {
     public function testDatabaseConnectionDistinguishesUniqueViolationsFromOtherConstraints(): void
     {
-        $connection = new DatabaseConnection(SqliteDriver::memory());
+        $connection = self::memory();
         $connection->execute("CREATE TABLE members (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE)");
         $connection->execute("INSERT INTO members VALUES (1, 'Pikachu')");
 
@@ -68,7 +61,7 @@ final class DbTest extends TestCase
 
     public function testDbServiceExecutesQueries(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
 
         $db->execute(Query::insert("users")->values(["name" => "Edin"]));
@@ -79,7 +72,7 @@ final class DbTest extends TestCase
 
     public function testDbServiceExecutesRawSqlWithParameters(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
 
         $db->execute(
@@ -95,7 +88,7 @@ final class DbTest extends TestCase
 
     public function testNestedQueriesPreserveCallerAndGeneratedBindingsAcrossScopes(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, team INTEGER)");
         $db->execute("INSERT INTO users (id, team) VALUES (1, 2), (2, 2), (3, 9)");
 
@@ -110,7 +103,7 @@ final class DbTest extends TestCase
 
     public function testUpdatePreservesGeneratedAssignmentAndCallerFilter(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, score INTEGER)");
         $db->execute("INSERT INTO users (id, score) VALUES (1, 10), (2, 20)");
         $query = Query::update("users")->set(["score" => 2])->whereExp("id = :p1", ["p1" => 1]);
@@ -121,7 +114,7 @@ final class DbTest extends TestCase
 
     public function testDbCanHydrateRowsAsEntities(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
         $db->execute(Query::insert("users")->values(["name" => "Edin"]));
 
@@ -135,7 +128,7 @@ final class DbTest extends TestCase
 
     public function testDbSelectCanReturnRows(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, active INTEGER)");
         $db->execute(Query::insert("users")->values(["name" => "Edin", "active" => true]));
 
@@ -150,7 +143,7 @@ final class DbTest extends TestCase
 
     public function testDbSelectCanReturnEntities(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
         $db->execute(Query::insert("users")->values(["name" => "Edin"]));
 
@@ -166,7 +159,7 @@ final class DbTest extends TestCase
 
     public function testDbSelectCanReturnScalarAndTotal(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
         $db->execute(Query::insert("users")->values(["name" => "Edin"]));
         $db->execute(Query::insert("users")->values(["name" => "Amar"]));
@@ -180,7 +173,7 @@ final class DbTest extends TestCase
 
     public function testContainsMatchesLiteralTextInAColumn(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $match = "Before !%_' after";
         foreach ([$match, "Before !ABCx' after", "Before %_' after"] as $name) {
@@ -197,7 +190,7 @@ final class DbTest extends TestCase
 
     public function testWhereFromUntilIncludesTheStartAndExcludesTheEnd(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, created_at TEXT)");
         $db->execute("INSERT INTO users VALUES
@@ -214,7 +207,7 @@ final class DbTest extends TestCase
 
     public function testWhereAnyGroupsColumnsAndPreservesOperatorBindings(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->execute("CREATE TABLE contacts (id INTEGER PRIMARY KEY, name TEXT, email TEXT, active INTEGER)");
         $db->execute("INSERT INTO contacts VALUES
             (1, 'A%_', NULL, 1), (2, NULL, '%_@example.com', 1),
@@ -233,7 +226,7 @@ final class DbTest extends TestCase
 
     public function testWhereContainsAnySkipsOnlyEmptyTermsAndMatchesLiteralTextAcrossColumns(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, email TEXT, active INTEGER)");
         $db->execute("INSERT INTO users VALUES
@@ -259,7 +252,7 @@ final class DbTest extends TestCase
 
     public function testExistsChecksWhetherTheCurrentQueryReturnsARow(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->execute(Query::insert("users")->values(["name" => "Edin"]));
 
@@ -272,7 +265,7 @@ final class DbTest extends TestCase
 
     public function testPaginateClampsPagesAndKeepsTheOriginalQueryReusable(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         foreach (["Ava", "Bea", "Cole", "Skip"] as $name) {
             $db->execute(Query::insert("users")->values(["name" => $name]));
@@ -299,7 +292,7 @@ final class DbTest extends TestCase
 
     public function testCanProjectWildcardColumnsAlongsideAScalarColumn(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE articles (id INTEGER PRIMARY KEY, title TEXT)");
         $db->execute(Query::insert("articles")->values(["id" => 1, "title" => "News"]));
 
@@ -314,7 +307,7 @@ final class DbTest extends TestCase
 
     public function testPaginateKeepsScalarColumnsOnPageRows(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE articles (id INTEGER PRIMARY KEY); CREATE TABLE comments (article_id INTEGER, visible INTEGER)");
         $db->execute(Query::insert("articles")->values(["id" => 1]));
         $db->execute(Query::insert("articles")->values(["id" => 2]));
@@ -337,7 +330,7 @@ final class DbTest extends TestCase
 
     public function testModelQueriesOrderByMultipleColumnsInEitherDirection(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, sort_order INTEGER)");
         $db->execute("INSERT INTO users VALUES (1, 'Beta', 1), (2, 'Zulu', 0), (3, 'Alpha', 1), (4, 'Alpha', 1)");
@@ -348,7 +341,7 @@ final class DbTest extends TestCase
 
     public function testPaginateOrdersByAnExpressionWithBoundParameters(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE tickets (id INTEGER PRIMARY KEY, status TEXT, priority INTEGER)");
         foreach ([["closed", 5], ["open", 2], ["open", 1], ["open", 2]] as [$status, $priority]) {
             $db->execute(Query::insert("tickets")->values(["status" => $status, "priority" => $priority]));
@@ -366,7 +359,7 @@ final class DbTest extends TestCase
 
     public function testPaginateCountsGroupedAndAggregateResultRows(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, role TEXT)");
         foreach (["staff", "staff", "member", "member", "guest"] as $role) {
             $db->execute(Query::insert("users")->values(["role" => $role]));
@@ -385,7 +378,7 @@ final class DbTest extends TestCase
 
     public function testPaginateRejectsInvalidPageSizeBeforeQuerying(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
 
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage("Page size must be greater than zero.");
@@ -394,7 +387,7 @@ final class DbTest extends TestCase
 
     public function testDbCanInsertEntityAndFillAutoIncrementPrimaryKey(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
 
         $user = new DbHydratedUser();
@@ -409,7 +402,7 @@ final class DbTest extends TestCase
 
     public function testDbCanUpdateEntity(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
         $db->execute(Query::insert("users")->values(["name" => "Edin"]));
 
@@ -424,7 +417,7 @@ final class DbTest extends TestCase
 
     public function testDbCanSaveNewAndExistingEntity(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
 
         $user = new DbHydratedUser();
@@ -441,7 +434,7 @@ final class DbTest extends TestCase
 
     public function testDbUsesColumnValueProvidersOnInsertAndUpdate(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec(
             "CREATE TABLE timestamped_posts (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, created_at TEXT, updated_at TEXT)"
         );
@@ -465,7 +458,7 @@ final class DbTest extends TestCase
 
     public function testDbCanDeleteEntity(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
         $db->execute(Query::insert("users")->values(["name" => "Edin"]));
 
@@ -479,7 +472,7 @@ final class DbTest extends TestCase
 
     public function testModelSavePreservesUnselectedDefaultsAndConcurrentEdits(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbTrackedUser::useDb($db);
         $db->execute("CREATE TABLE tracked_users (id INTEGER PRIMARY KEY, name TEXT, note TEXT, private_label TEXT, optional_code TEXT)");
         $db->execute("INSERT INTO tracked_users VALUES (1, 'Alice', 'original', 'stored label', 'stored code')");
@@ -507,7 +500,7 @@ final class DbTest extends TestCase
 
     public function testModelSaveDistinguishesAnUninitializedColumnFromAnExplicitNull(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbTrackedUser::useDb($db);
         $db->execute("CREATE TABLE tracked_users (id INTEGER PRIMARY KEY, name TEXT, note TEXT, private_label TEXT, optional_code TEXT)");
         $db->execute("INSERT INTO tracked_users VALUES (1, 'Alice', NULL, 'stored label', 'stored code')");
@@ -523,7 +516,7 @@ final class DbTest extends TestCase
 
     public function testFailedModelUpdateKeepsTheOriginalValuesForRetry(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT UNIQUE)");
         $db->execute("INSERT INTO users VALUES (1, 'Alice'), (2, 'Bob')");
@@ -543,7 +536,7 @@ final class DbTest extends TestCase
 
     public function testModelBaseCanQueryFindSaveAndDelete(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
         DbModelUser::useDb($db);
 
@@ -569,11 +562,11 @@ final class DbTest extends TestCase
 
     public function testFacadeTransactionsFollowTheModelDatabaseAndRollBackModelWrites(): void
     {
-        $first = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $first = new Db(self::memory());
         Model::useDb($first);
         $this->assertSame($first, DbFacade::transaction(static fn (Db $db): Db => $db));
 
-        $second = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $second = new Db(self::memory());
         DbModelUser::useDb($second);
         $second->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $failure = new \RuntimeException("Cancel this write");
@@ -597,7 +590,7 @@ final class DbTest extends TestCase
 
     public function testNamedCountsKeepIndependentBindingsAndLeaveTheInputQueriesReusable(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         Model::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->execute("INSERT INTO users VALUES (1, 'Atom'), (2, 'Atom'), (3, ':name')");
@@ -621,7 +614,7 @@ final class DbTest extends TestCase
 
     public function testOffsetWithoutLimitReturnsAllRemainingRows(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY)");
         $db->execute("INSERT INTO users VALUES (1), (2), (3)");
         $query = $db->select("users")->orderByDesc("id");
@@ -633,7 +626,7 @@ final class DbTest extends TestCase
 
     public function testCountsRespectOffsetWithoutLimit(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY)");
         $db->execute("INSERT INTO users VALUES (1), (2), (3)");
         $remaining = $db->select("users")->where("id", Op::gt(1))->orderBy("id")->offset(1);
@@ -648,8 +641,8 @@ final class DbTest extends TestCase
 
     public function testNamedCountsRejectQueriesOnADifferentConnection(): void
     {
-        $first = new Db(new DatabaseConnection(SqliteDriver::memory()));
-        $second = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $first = new Db(self::memory());
+        $second = new Db(self::memory());
         Model::useDb($second);
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage("same database connection");
@@ -658,7 +651,7 @@ final class DbTest extends TestCase
 
     public function testSubqueryColumnsKeepTheirOwnSelectionFiltersAndBindings(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->execute("INSERT INTO users VALUES (1, 'First'), (2, 'Second'), (3, 'Second')");
@@ -682,7 +675,7 @@ final class DbTest extends TestCase
 
     public function testSubqueryColumnRequiresOneExplicitColumn(): void
     {
-        DbModelUser::useDb(new Db(new DatabaseConnection(SqliteDriver::memory())));
+        DbModelUser::useDb(new Db(self::memory()));
         $outer = DbModelUser::query();
         foreach ([[], ["users.*"], ["id", "name"]] as $columns) {
             try {
@@ -696,8 +689,8 @@ final class DbTest extends TestCase
 
     public function testSubqueryColumnRequiresTheSameConnection(): void
     {
-        $first = new Db(new DatabaseConnection(SqliteDriver::memory()));
-        $second = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $first = new Db(self::memory());
+        $second = new Db(self::memory());
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage("same database connection");
         $first->select("users")->subqueryColumn($second->select("users")->count(), "matches");
@@ -705,7 +698,7 @@ final class DbTest extends TestCase
 
     public function testRowQueryCanPaginateAProjectionWithoutChangingTheSource(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->connection()->pdo()->exec("INSERT INTO users VALUES (1, 'First'), (2, 'Second')");
         DbModelUser::useDb($db);
@@ -724,7 +717,7 @@ final class DbTest extends TestCase
 
     public function testOneModelQueryCanReturnModelsRowsOrTypedProjections(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->execute("INSERT INTO users VALUES (1, 'First'), (2, 'Second')");
@@ -754,7 +747,7 @@ final class DbTest extends TestCase
 
     public function testModelQueryPaginatesAliasedArrayResultsWithScalarColumns(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->connection()->pdo()->exec("INSERT INTO users VALUES (1, 'First'), (2, 'Second')");
         DbModelUser::useDb($db);
@@ -770,7 +763,7 @@ final class DbTest extends TestCase
 
     public function testRowResultsUseSourceRelationsAndKeepEagerLoadingOnTheModel(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbCategorizedArticle::useDb($db);
         $db->execute("CREATE TABLE articles (article_key TEXT PRIMARY KEY, category_id INTEGER, fallback_id INTEGER)");
         $db->execute("CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT)");
@@ -791,7 +784,7 @@ final class DbTest extends TestCase
 
     public function testArrayResultsKeepSourceRelationsAndRejectEagerLoading(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbInvoice::useDb($db);
         $db->execute("CREATE TABLE invoices (invoice_no TEXT)");
         $db->execute("CREATE TABLE invoice_lines (invoice_ref TEXT, line_amount REAL)");
@@ -804,7 +797,7 @@ final class DbTest extends TestCase
 
     public function testModelQueryCanPluckAnOrderedColumnWithoutChangingProjection(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->connection()->pdo()->exec("INSERT INTO users VALUES (1, 'First'), (2, NULL), (3, 'Other')");
         DbModelUser::useDb($db);
@@ -822,7 +815,7 @@ final class DbTest extends TestCase
 
     public function testKeyedPluckDistinguishesJoinedColumnsAndKeepsTheLastValueForRepeatedKeys(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, manager_id INTEGER)");
         $db->execute("INSERT INTO users VALUES (1, 'Team', NULL), (2, 'First', 1), (3, 'Second', 1)");
         DbModelUser::useDb($db);
@@ -837,7 +830,7 @@ final class DbTest extends TestCase
 
     public function testModelQueryCanReadScopedAggregatesWithoutChangingProjection(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->connection()->pdo()->exec("INSERT INTO users VALUES (1, 'Match'), (2, 'Match'), (3, 'Other')");
         DbModelUser::useDb($db);
@@ -852,7 +845,7 @@ final class DbTest extends TestCase
 
     public function testNextPositionUsesTheLargestPositionWithinTheQueryScope(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, sort_order INTEGER)");
         DbModelUser::useDb($db);
         $query = DbModelUser::query("u")->where("u.name", "Match");
@@ -873,7 +866,7 @@ final class DbTest extends TestCase
 
     public function testModelDeleteWhereUsesMappedTableAndCombinesFilters(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->connection()->pdo()->exec("INSERT INTO users VALUES (1, 'Archive'), (2, 'Keep'), (3, 'Archive')");
         DbModelUser::useDb($db);
@@ -890,7 +883,7 @@ final class DbTest extends TestCase
 
     public function testModelUpsertInsertsAndReplacesOnlySelectedColumns(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, note TEXT)");
         $this->assertSame(0, DbModelUser::upsert([], "id"));
@@ -913,7 +906,7 @@ final class DbTest extends TestCase
 
     public function testModelUpsertRejectsInconsistentRowsBeforeWriting(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         try {
@@ -926,7 +919,7 @@ final class DbTest extends TestCase
 
     public function testModelUpdateWhereUpdatesOnlyRowsMatchingAllFilters(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->connection()->pdo()->exec("INSERT INTO users VALUES (1, 'First'), (2, 'First'), (3, 'Other')");
         DbModelUser::useDb($db);
@@ -941,7 +934,7 @@ final class DbTest extends TestCase
 
     public function testUpdateByIdTargetsTheMappedKeyAndRejectsAnEmptyWrite(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         Model::useDb($db);
         $db->execute("CREATE TABLE articles (article_key TEXT PRIMARY KEY, category_id INTEGER)");
         $db->execute("INSERT INTO articles VALUES ('A', 1), ('B', 2)");
@@ -955,7 +948,7 @@ final class DbTest extends TestCase
 
     public function testUpdateByIdAppliesUpdateProvidersLastAndAcceptsProviderOnlyUpdates(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         Model::useDb($db);
         $db->execute("CREATE TABLE timestamped_posts (id INTEGER PRIMARY KEY, title TEXT, created_at TEXT, updated_at TEXT)");
         $db->execute("INSERT INTO timestamped_posts VALUES (0, 'Original', 'created', NULL)");
@@ -970,7 +963,7 @@ final class DbTest extends TestCase
 
     public function testUpdateByIdRejectsProvidersThatNeedAnEntityBeforeWriting(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         Model::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->execute("INSERT INTO users VALUES (1, 'Original')");
@@ -985,7 +978,7 @@ final class DbTest extends TestCase
 
     public function testModelKeyLookupsUseTheMappedKeyAndLoadRequestedRelations(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbCategorizedArticle::useDb($db);
         $db->execute("CREATE TABLE articles (article_key TEXT PRIMARY KEY, category_id INTEGER, fallback_id INTEGER)");
         $db->execute("CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT)");
@@ -1002,7 +995,7 @@ final class DbTest extends TestCase
 
     public function testBuilderFindScopesAllAlternativesAndKeepsTheBuilderReusable(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbInvoice::useDb($db);
         $db->execute("CREATE TABLE invoices (invoice_no TEXT PRIMARY KEY)");
         $db->execute("CREATE TABLE invoice_lines (invoice_ref TEXT, line_amount REAL)");
@@ -1025,7 +1018,7 @@ final class DbTest extends TestCase
 
     public function testBuilderFindPreservesSelectedResultTypesOnAnAliasedJoin(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->execute("INSERT INTO users VALUES (0, 'First'), (1, 'Second')");
@@ -1044,7 +1037,7 @@ final class DbTest extends TestCase
 
     public function testExceptIdTreatsNullAsANoOpAndZeroAsAnId(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
         $db->execute("INSERT INTO users VALUES (0, 'Match'), (1, 'Match'), (2, 'Other')");
@@ -1059,7 +1052,7 @@ final class DbTest extends TestCase
 
     public function testExceptIdUsesTheMappedSourceKeyOnAnAliasedJoin(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbInvoice::useDb($db);
         $db->execute("CREATE TABLE invoices (invoice_no TEXT PRIMARY KEY)");
         $db->execute("INSERT INTO invoices VALUES ('A'), ('B')");
@@ -1070,7 +1063,7 @@ final class DbTest extends TestCase
 
     public function testExceptIdRequiresASingleMappedKey(): void
     {
-        DbInvoiceLine::useDb(new Db(new DatabaseConnection(SqliteDriver::memory())));
+        DbInvoiceLine::useDb(new Db(self::memory()));
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage("must define a single primary key");
         DbInvoiceLine::query()->exceptId(1);
@@ -1078,7 +1071,7 @@ final class DbTest extends TestCase
 
     public function testAllIdsExistChecksDistinctIdsAcrossBatches(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbModelUser::useDb($db);
         $this->assertTrue(DbModelUser::allIdsExist([]));
 
@@ -1094,7 +1087,7 @@ final class DbTest extends TestCase
 
     public function testAllIdsExistUsesTheMappedStringKeyAndDatabaseComparison(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbInvoice::useDb($db);
         $db->execute("CREATE TABLE invoices (invoice_no TEXT PRIMARY KEY COLLATE NOCASE)");
         $db->execute("INSERT INTO invoices VALUES ('Inv-A'), ('01'), ('1')");
@@ -1106,7 +1099,7 @@ final class DbTest extends TestCase
 
     public function testDbSelectCanLoadBelongsToRelation(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
         $db->connection()->pdo()->exec("CREATE TABLE articles (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, category_id INTEGER)");
 
@@ -1126,7 +1119,7 @@ final class DbTest extends TestCase
 
     public function testDbSelectLoadsBelongsToRelationForManyModelsInBatch(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
         $db->connection()->pdo()->exec("CREATE TABLE articles (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, category_id INTEGER)");
 
@@ -1148,7 +1141,7 @@ final class DbTest extends TestCase
 
     public function testDbSelectCanLoadHasOneRelation(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
         $db->connection()->pdo()->exec("CREATE TABLE profiles (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, bio TEXT)");
 
@@ -1169,7 +1162,7 @@ final class DbTest extends TestCase
 
     public function testFindAndWithLoadNestedRelationsIncludingSharedAndMissingParents(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbInvoice::useDb($db);
         $db->execute("CREATE TABLE invoices (invoice_no TEXT PRIMARY KEY)");
         $db->execute("CREATE TABLE invoice_lines (invoice_ref TEXT, line_amount REAL)");
@@ -1191,7 +1184,7 @@ final class DbTest extends TestCase
 
     public function testUnknownNestedRelationIsRejectedEvenWhenTheParentCollectionIsEmpty(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbInvoice::useDb($db);
         $db->execute("CREATE TABLE invoices (invoice_no TEXT PRIMARY KEY)");
         $db->execute("CREATE TABLE invoice_lines (invoice_ref TEXT, line_amount REAL)");
@@ -1204,7 +1197,7 @@ final class DbTest extends TestCase
 
     public function testModelQueryJoinsBelongsToUsingMappedKeysAndAliases(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbInvoiceLine::useDb($db);
         $db->execute("CREATE TABLE invoices (invoice_no TEXT PRIMARY KEY)");
         $db->execute("CREATE TABLE invoice_lines (invoice_ref TEXT, line_amount REAL)");
@@ -1229,7 +1222,7 @@ final class DbTest extends TestCase
 
     public function testModelQueryCanJoinTwoRelationsToTheSameTableOnAProjection(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbCategorizedArticle::useDb($db);
         $db->execute("CREATE TABLE articles (article_key TEXT, category_id INTEGER, fallback_id INTEGER)");
         $db->execute("CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT)");
@@ -1244,7 +1237,7 @@ final class DbTest extends TestCase
 
     public function testNestedJoinsReuseAnAliasedParentAcrossProjectionsAndBranches(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbArticleFeature::useDb($db);
         $db->execute("CREATE TABLE features (id INTEGER PRIMARY KEY, article_ref TEXT)");
         $db->execute("CREATE TABLE articles (article_key TEXT PRIMARY KEY, category_id INTEGER, fallback_id INTEGER)");
@@ -1272,7 +1265,7 @@ final class DbTest extends TestCase
 
     public function testInvalidNestedJoinsLeaveTheQueryReusable(): void
     {
-        DbTreeNode::useDb(new Db(new DatabaseConnection(SqliteDriver::memory())));
+        DbTreeNode::useDb(new Db(self::memory()));
         $query = DbTreeNode::query("n");
         foreach (["parent.children", "parent.unknown", "parent."] as $path) {
             try {
@@ -1292,14 +1285,14 @@ final class DbTest extends TestCase
 
     public function testRelationJoinRejectsHasMany(): void
     {
-        DbInvoice::useDb(new Db(new DatabaseConnection(SqliteDriver::memory())));
+        DbInvoice::useDb(new Db(self::memory()));
         $this->expectException(\InvalidArgumentException::class);
         DbInvoice::query()->joinRelation("lines");
     }
 
     public function testHasManyFiltersKeepChildAlternativesCorrelatedAndPaginateParents(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbInvoice::useDb($db);
         $db->execute("CREATE TABLE invoices (invoice_no TEXT PRIMARY KEY)");
         $db->execute("CREATE TABLE invoice_lines (invoice_ref TEXT, line_amount REAL)");
@@ -1324,7 +1317,7 @@ final class DbTest extends TestCase
 
     public function testWhereHasRejectsBelongsTo(): void
     {
-        DbInvoiceLine::useDb(new Db(new DatabaseConnection(SqliteDriver::memory())));
+        DbInvoiceLine::useDb(new Db(self::memory()));
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage("Relationship 'invoice' must be a mapped HasMany relation.");
         DbInvoiceLine::query()->whereHas("invoice");
@@ -1332,7 +1325,7 @@ final class DbTest extends TestCase
 
     public function testModelQueryCountsAndSumsRelatedRowsWithoutChangingPagination(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbInvoice::useDb($db);
         $db->execute("CREATE TABLE invoices (invoice_no TEXT PRIMARY KEY)");
         $db->execute("CREATE TABLE invoice_lines (invoice_ref TEXT, line_amount REAL)");
@@ -1365,7 +1358,7 @@ final class DbTest extends TestCase
 
     public function testFilteredCountsKeepChildAlternativesScopedAndBindEachCountIndependently(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbInvoice::useDb($db);
         $db->execute("CREATE TABLE invoices (invoice_no TEXT PRIMARY KEY)");
         $db->execute("CREATE TABLE invoice_lines (invoice_ref TEXT, line_amount REAL)");
@@ -1392,7 +1385,7 @@ final class DbTest extends TestCase
 
     public function testNestedCountsFollowMappedKeysAndFilterOnlyTheFinalRelation(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         DbTreeNode::useDb($db);
         $db->execute("CREATE TABLE nodes (node_id INTEGER PRIMARY KEY, parent_id INTEGER, state TEXT)");
         $db->execute("INSERT INTO nodes VALUES
@@ -1420,7 +1413,7 @@ final class DbTest extends TestCase
 
     public function testNestedCountRejectsABelongsToSegment(): void
     {
-        DbInvoice::useDb(new Db(new DatabaseConnection(SqliteDriver::memory())));
+        DbInvoice::useDb(new Db(self::memory()));
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage("Relationship 'invoice' must be a mapped HasMany relation.");
         DbInvoice::query()->withCount("lines.invoice");
@@ -1428,14 +1421,14 @@ final class DbTest extends TestCase
 
     public function testRelationshipSumRequiresAMappedColumn(): void
     {
-        DbInvoice::useDb(new Db(new DatabaseConnection(SqliteDriver::memory())));
+        DbInvoice::useDb(new Db(self::memory()));
         $this->expectException(\InvalidArgumentException::class);
         DbInvoice::query()->withSum("lines", "missing");
     }
 
     public function testWithCountHydratesOnlyAnExplicitIntProjection(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE articles (id INTEGER PRIMARY KEY, title TEXT, category_id INTEGER)");
         $db->connection()->pdo()->exec("CREATE TABLE comments (id INTEGER PRIMARY KEY, article_id INTEGER, body TEXT)");
         $db->connection()->pdo()->exec("INSERT INTO articles VALUES (1, 'First', 1), (2, 'Second', 1)");
@@ -1461,7 +1454,7 @@ final class DbTest extends TestCase
 
     public function testDbSelectCanLoadHasManyRelation(): void
     {
-        $db = new Db(new DatabaseConnection(SqliteDriver::memory()));
+        $db = new Db(self::memory());
         $db->connection()->pdo()->exec("CREATE TABLE articles (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, category_id INTEGER)");
         $db->connection()->pdo()->exec("CREATE TABLE comments (id INTEGER PRIMARY KEY AUTOINCREMENT, article_id INTEGER, body TEXT)");
 
@@ -1487,74 +1480,13 @@ final class DbTest extends TestCase
         $this->assertEquals($article->comments, $pagedArticle->comments);
     }
 
-    public function testDatabaseServicesRegistersDriverConnectionAndDb(): void
+    private static function memory(): PdoConnection
     {
-        $driver = SqliteDriver::memory();
-        $injector = ServiceProviderRegistry::create()
-            ->add(new DatabaseServices($driver))
-            ->injector();
+        $pdo = new PDO("sqlite::memory:");
+        $pdo->setAttribute(PDO::SQLITE_ATTR_EXTENDED_RESULT_CODES, true);
+        $pdo->exec("PRAGMA foreign_keys = ON");
 
-        $db = $injector->get(Db::class);
-        $connection = $injector->get(DatabaseConnection::class);
-
-        $this->assertSame($driver, $injector->get(DatabaseDriverInterface::class));
-        $this->assertSame($connection, $db->connection());
-    }
-
-    public function testDatabaseServicesUseConventionalPathAliases(): void
-    {
-        $config = Config::fromEnv([
-            "DB_DRIVER" => "sqlite",
-            "DB_DATABASE" => "storage/app.sqlite",
-        ]);
-        $paths = (new Paths())
-            ->alias("root", "D:/Atom")
-            ->alias("migrations", "D:/Atom/app/Database/Migrations")
-            ->alias("seeders", "D:/Atom/app/Database/Seeders");
-
-        $injector = ServiceProviderRegistry::create()
-            ->add(DatabaseServices::fromConfig($config, $paths))
-            ->injector();
-
-        $this->assertSame("sqlite:D:/Atom/storage/app.sqlite", $injector->get(DatabaseDriverInterface::class)->dsn());
-        $this->assertSame("D:/Atom/app/Database/Migrations", $injector->get(\Atom\Database\Migration\MigrationOptions::class)->directory);
-        $this->assertSame("D:/Atom/app/Database/Seeders", $injector->get(\Atom\Database\Seeder\SeederOptions::class)->directory);
-    }
-
-    public function testDatabaseServicesCreatesSqliteStorageDirectoryFromConfig(): void
-    {
-        $root = sys_get_temp_dir() . "/atom_sqlite_" . uniqid();
-        $config = Config::fromEnv([
-            "DB_DRIVER" => "sqlite",
-            "DB_DATABASE" => "storage/nested/app.sqlite",
-        ]);
-        $paths = (new Paths())
-            ->alias("root", $root)
-            ->alias("migrations", $root . "/app/Database/Migrations")
-            ->alias("seeders", $root . "/app/Database/Seeders");
-
-        DatabaseServices::fromConfig($config, $paths);
-
-        $this->assertDirectoryExists($root . "/storage/nested");
-    }
-
-    public function testDatabaseServicesConfiguresModelBaseDuringApplicationBootstrap(): void
-    {
-        \Atom\Application::$app = null;
-        $app = new DbModelApplication();
-
-        try {
-            $app->initialize();
-
-            $user = new DbBootstrappedModelUser();
-            $user->name = "Atom";
-            $this->assertSame(1, DbFacade::transaction(fn () => $user->save()));
-
-            $this->assertSame(1, DbBootstrappedModelUser::count());
-            $this->assertSame("Atom", DbBootstrappedModelUser::find(1)?->name);
-        } finally {
-            \Atom\Application::$app = null;
-        }
+        return new PdoConnection($pdo, new SqliteCompiler());
     }
 }
 
@@ -1808,28 +1740,4 @@ final class DbUppercaseProvider implements ColumnValueProviderInterface
     {
         return strtoupper($column->getValue($entity));
     }
-}
-
-final class DbModelApplication extends Application
-{
-    protected function services(ServiceProviderRegistry $providers): void
-    {
-        $providers->add(new DatabaseServices(SqliteDriver::memory()));
-    }
-
-    protected function bootstrap(Injector $injector): void
-    {
-        $injector->get(DatabaseConnection::class)
-            ->execute("CREATE TABLE bootstrapped_users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)");
-    }
-}
-
-#[Table("bootstrapped_users")]
-final class DbBootstrappedModelUser extends Model
-{
-    #[PrimaryKey("id")]
-    public int $id;
-
-    #[Column("name")]
-    public string $name;
 }

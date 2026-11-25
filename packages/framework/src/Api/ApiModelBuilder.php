@@ -9,6 +9,7 @@ use Atom\Api\Attributes\ErrorResponse;
 use Atom\Api\Attributes\ResponseOf;
 use Atom\Api\Responses\Created;
 use Atom\Collections\PagedCollection;
+use Atom\Database\Orm\PageResult;
 use Atom\Collections\PagePayload;
 use Atom\Hydrator\Attributes\Dto;
 use Atom\Hydrator\Attributes\SourceAttributeInterface;
@@ -238,7 +239,7 @@ final class ApiModelBuilder
      */
     private function fieldsFromClass(string $className, ?string $responseType, array $visited = [], int $depth = 0): array
     {
-        if (is_a($className, PagedCollection::class, true)) {
+        if ($className === PageResult::class || is_a($className, PagedCollection::class, true)) {
             $className = PagePayload::class;
         }
 

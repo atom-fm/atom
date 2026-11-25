@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Atom\Database;
 
-use Atom\Collections\PagedCollection;
 use Atom\Database\Orm\EntityMetadataFactory;
 use Atom\Database\Orm\HasManyQuery;
+use Atom\Database\Orm\PageResult;
+use Atom\Database\Orm\PdoConnection;
 use Atom\Database\Orm\RelationMetadata;
 use Atom\Database\Sql\Column;
 use Atom\Database\Sql\Command;
@@ -415,8 +416,8 @@ final class DbSelect
         return array_map($mapper, $this->all());
     }
 
-    /** @return PagedCollection<TRow> */
-    public function paginate(int $page, int $pageSize): PagedCollection
+    /** @return PageResult<TRow> */
+    public function paginate(int $page, int $pageSize): PageResult
     {
         if ($pageSize <= 0) {
             throw new InvalidArgumentException("Page size must be greater than zero.");
@@ -424,10 +425,10 @@ final class DbSelect
 
         $this->validateModelResult();
         $total = $this->countForPagination();
-        $page = PagedCollection::clampPage($page, $total, $pageSize);
+        $page = PageResult::clampPage($page, $total, $pageSize);
         $query = (clone $this->query)->limit($pageSize)->offset(($page - 1) * $pageSize);
 
-        return PagedCollection::fromPage($this->fetchAll($query), $total, $page, $pageSize);
+        return new PageResult($this->fetchAll($query), $total, $page, $pageSize);
     }
 
     /**
@@ -537,7 +538,7 @@ final class DbSelect
     }
 
     /** @internal Compile one component of Db::counts() on its owning connection. */
-    public function countCommand(DatabaseConnection $connection): Command
+    public function countCommand(PdoConnection $connection): Command
     {
         if ($connection !== $this->db->connection()) {
             throw new InvalidArgumentException("All count queries must use the same database connection.");

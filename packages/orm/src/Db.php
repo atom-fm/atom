@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Database;
 
+use Atom\Database\Orm\PdoConnection;
 use Atom\Database\Orm\RowHydrator;
 use Atom\Database\Orm\ColumnMetadata;
 use Atom\Database\Orm\ColumnValueProviderInterface;
@@ -15,12 +16,12 @@ use RuntimeException;
 final readonly class Db
 {
     public function __construct(
-        private DatabaseConnection $connection,
+        private PdoConnection $connection,
         private RowHydrator $hydrator = new RowHydrator()
     ) {
     }
 
-    public function connection(): DatabaseConnection
+    public function connection(): PdoConnection
     {
         return $this->connection;
     }

@@ -298,6 +298,8 @@ In an application service, inject the configured `DatabaseConnection` and use th
 
 ## Query Builder
 
+The query builder and dialect compilers come from [atom-fm/sql](../packages/sql/readme.md). The PDO connection and model APIs come from [atom-fm/orm](../packages/orm/readme.md). Atom installs both packages and connects them to its database services.
+
 ### Search product names
 
 Search a product catalogue for the text a shopper typed. A search for `20%` should find a discount label, while a search for `BOX_A` should find that exact sequence in a product name.
@@ -585,7 +587,7 @@ With the four walkthrough tickets, both responses count three open tickets. Prio
 
 Try `/api/tickets?status=open&page=99` to see the last available page. With `/api/tickets?status=pending`, no tickets match, so the endpoint returns page `1`, total `0`, an empty list, and `next` set to `null`.
 
-Use `paginate($page, $pageSize)` to fetch a page and its total count as a `PagedCollection`. Apply filters and an explicit order before paginating. Use a unique column as the last sort key when other keys can tie. The request clamps to the available pages. Pagination applies its own limit and offset to a copy of the query. Model queries hydrate the page and load requested relations as usual. The total counts result rows, including groups when using `groupBy()` and `having()`.
+Use `paginate($page, $pageSize)` to fetch a page and its total count as a `PageResult`. Apply filters and an explicit order before paginating. Use a unique column as the last sort key when other keys can tie. The request clamps to the available pages. Pagination applies its own limit and offset to a copy of the query. Model queries hydrate the page and load requested relations as usual. The total counts result rows, including groups when using `groupBy()` and `having()`.
 
 Use `scalarColumn($expression, $alias, $parameters)` to add a per-row SQL expression, such as a correlated subquery for a display count. Write the SQL expression in code and bind values by name in the optional parameter array. Choose names distinct from the other bindings in the query. Pagination can drop these columns and their bindings from the count query.
 
@@ -620,7 +622,7 @@ resolve mappings from the source model before or after choosing a result type.
 
 Static analysis retains the selected type. For example, `Article::query()->first()`
 is inferred as `Article|null` and `Article::query()->paginate(1, 25)` as
-`PagedCollection<Article>`.
+`PageResult<Article>`.
 
 `Article::query()->withCount("comments")->all()` adds a correlated count for
 the mapped `HasMany` relationship in the same SQL statement. Declare the count

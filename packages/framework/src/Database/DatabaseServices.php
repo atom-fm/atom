@@ -12,6 +12,7 @@ use Atom\Console\ConsoleCommandSources;
 use Atom\Console\FileTemplateRenderer;
 use Atom\Database\Schema\Reset\DatabaseResetterInterface;
 use Atom\Database\Orm\EntityMetadataFactory;
+use Atom\Database\Orm\PdoConnection;
 use Atom\Database\Orm\RowHydrator;
 use Atom\Database\Lock\DatabaseLockManagerInterface;
 use Atom\Database\Migration\DatabaseMigrationRepository;
@@ -56,6 +57,10 @@ final readonly class DatabaseServices implements ServiceProviderInterface, Conso
 
         $bindings->bind(DatabaseConnection::class)
             ->toSelf()
+            ->singleton();
+
+        $bindings->bind(PdoConnection::class)
+            ->toFactory(fn(Injector $injector): DatabaseConnection => $injector->get(DatabaseConnection::class))
             ->singleton();
 
         $bindings->bind(EntityMetadataFactory::class)

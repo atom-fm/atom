@@ -22,6 +22,8 @@ Keep these principles intact:
 
 ```text
 packages/framework/  Core Composer package, source, and framework tests
+packages/sql/        Standalone SQL query builder and dialect compilers
+packages/orm/        Standalone PDO persistence, mapping, and model APIs
 packages/starter/    Composer-installable starter application source
 apps/sample/         Sample application and API
 apps/showcase/       Interactive component catalogue
@@ -128,12 +130,7 @@ From the repository root:
 composer check
 ```
 
-This runs:
-
-```powershell
-composer analyse
-composer test
-```
+This runs PHPStan and PHPUnit for SQL, ORM, and the framework, tests Lucide, and validates the Composer manifests.
 
 Useful targeted checks:
 

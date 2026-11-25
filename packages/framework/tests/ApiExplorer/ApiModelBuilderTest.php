@@ -12,6 +12,7 @@ use Atom\Api\Responses\Created;
 use Atom\Api\Responses\Conflict;
 use Atom\Api\Responses\NotFound;
 use Atom\Api\Responses\UnprocessableContent;
+use Atom\Database\Orm\PageResult;
 use Atom\Http\HttpStatus;
 use Atom\Hydrator\Attributes\Dto;
 use Atom\Hydrator\Attributes\FromBody;
@@ -54,6 +55,17 @@ final class ApiModelBuilderTest extends TestCase
         foreach ($endpoint->errorResponses as $error) {
             $this->assertSame("error", $error->fields[0]->name);
         }
+    }
+
+    public function testDescribesAnOrmPageUsingTheDeclaredItemType(): void
+    {
+        $router = new Router();
+        $router->add(RouteEntry::get("/api/users", [ApiUsersController::class, "page"])->api());
+
+        $fields = (new ApiModelBuilder())->describe($router)->endpoints[0]->responseFields;
+        $this->assertSame(["items", "page", "page_size", "total", "total_pages"], array_column($fields, "name"));
+        $this->assertSame("ApiUserResponse[]", $fields[0]->type);
+        $this->assertSame("id", $fields[0]->children[0]->name);
     }
 
     public function testDescribesControllerRouteAndDtoFields(): void
@@ -130,6 +142,12 @@ final class ApiModelBuilderTest extends TestCase
 
 final class ApiUsersController
 {
+    #[ResponseOf(ApiUserResponse::class)]
+    public function page(): PageResult
+    {
+        return new PageResult([new ApiUserResponse()], 1, 1, 10);
+    }
+
     #[ResponseOf(ApiUserResponse::class)]
     public function create(): Created|NotFound|Conflict|UnprocessableContent
     {

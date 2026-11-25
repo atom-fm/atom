@@ -2,13 +2,24 @@
     "name": "atom-fm/lucide",
     "type": "library",
     "description": "Lucide icon resolver for Atom Framework",
-    "license": ["MIT", "ISC"],
+    "license": [
+        "MIT",
+        "ISC"
+    ],
     "minimum-stability": "dev",
     "prefer-stable": true,
     "repositories": [
         {
             "type": "vcs",
             "url": "https://github.com/atom-fm/framework"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/atom-fm/sql"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/atom-fm/orm"
         }
     ],
     "require": {

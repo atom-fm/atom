@@ -3,5 +3,5 @@
 **/storage/cache
 **/storage/*.sqlite
 **/storage/*.lock
-/.phpunit.result.cache
+**/.phpunit.result.cache
 /Test.php
