@@ -42,6 +42,7 @@
     "require": {
         "php": "^8.4",
         "atom-fm/framework": "^0.2",
+        "atom-fm/orm": "^0.1",
         "league/commonmark": "^2.9",
         "symfony/yaml": "^7.3 || ^8.0",
         "phiki/phiki": "^2.2"

@@ -18,28 +18,6 @@
                     "atom-fm/framework": "0.2.x-dev"
                 }
             }
-        },
-        {
-            "type": "path",
-            "url": "../sql",
-            "options": {
-                "symlink": true,
-                "versions": {
-                    "atom-fm/sql": "dev-master"
-                },
-                "reference": "none"
-            }
-        },
-        {
-            "type": "path",
-            "url": "../orm",
-            "options": {
-                "symlink": true,
-                "versions": {
-                    "atom-fm/orm": "dev-master"
-                },
-                "reference": "none"
-            }
         }
     ],
     "require": {

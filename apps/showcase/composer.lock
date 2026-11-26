@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7b371510a07e5b2b55c60b571ccfdc68",
+    "content-hash": "6551833339e412959c3aec3b07eca5b0",
     "packages": [
         {
             "name": "atom-fm/components",
@@ -64,19 +64,22 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/framework",
-                "reference": "15693900890e020fe03993596c090d8a0a7c4b53"
+                "reference": "d839a9846bf216772171e1faf2d0ae34bedaf1e3"
             },
             "require": {
-                "atom-fm/orm": "^0.1",
-                "atom-fm/sql": "^0.1",
                 "dragonmantank/cron-expression": "^3.6",
                 "php": "^8.4",
                 "symfony/mailer": "^8.0.12"
             },
             "require-dev": {
+                "atom-fm/orm": "^0.1",
+                "atom-fm/sql": "^0.1",
                 "phpbench/phpbench": "~1.4.0",
                 "phpstan/phpstan": "^2.2",
                 "phpunit/phpunit": "^11.0"
+            },
+            "suggest": {
+                "atom-fm/orm": "Enables Atom database services, migrations, and models. ORM installs the SQL package."
             },
             "type": "library",
             "extra": {
@@ -125,7 +128,7 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/lucide",
-                "reference": "2d4e49cc803918a57e6f1b9263912a6c5452347d"
+                "reference": "03b9644d9d219f1ac6c271c200d8b820f73f533f"
             },
             "require": {
                 "atom-fm/framework": "^0.2",
@@ -155,100 +158,6 @@
                 "ISC"
             ],
             "description": "Lucide icon resolver for Atom Framework",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
-        {
-            "name": "atom-fm/orm",
-            "version": "dev-master",
-            "dist": {
-                "type": "path",
-                "url": "../../packages/orm"
-            },
-            "require": {
-                "atom-fm/sql": "^0.1",
-                "ext-pdo": "*",
-                "php": "^8.4"
-            },
-            "require-dev": {
-                "phpstan/phpstan": "^2.2",
-                "phpunit/phpunit": "^11.0"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "0.1.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Atom\\Database\\": "src/"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "phpunit"
-                ],
-                "analyse": [
-                    "phpstan analyse --memory-limit=512M"
-                ],
-                "check": [
-                    "@analyse",
-                    "@test"
-                ]
-            },
-            "license": [
-                "MIT"
-            ],
-            "description": "Attribute-based PHP models and persistence using PDO",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
-        {
-            "name": "atom-fm/sql",
-            "version": "dev-master",
-            "dist": {
-                "type": "path",
-                "url": "../../packages/sql"
-            },
-            "require": {
-                "php": "^8.4"
-            },
-            "require-dev": {
-                "phpstan/phpstan": "^2.2",
-                "phpunit/phpunit": "^11.0"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "0.1.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Atom\\Database\\Sql\\": "src/"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "phpunit"
-                ],
-                "analyse": [
-                    "phpstan analyse --memory-limit=512M"
-                ],
-                "check": [
-                    "@analyse",
-                    "@test"
-                ]
-            },
-            "license": [
-                "MIT"
-            ],
-            "description": "Parameterized SQL query builder and dialect compilers for PHP",
             "transport-options": {
                 "symlink": true,
                 "relative": true

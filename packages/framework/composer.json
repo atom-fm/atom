@@ -10,14 +10,14 @@
     "require": {
         "php": "^8.4",
         "symfony/mailer": "^8.0.12",
-        "dragonmantank/cron-expression": "^3.6",
-        "atom-fm/sql": "^0.1",
-        "atom-fm/orm": "^0.1"
+        "dragonmantank/cron-expression": "^3.6"
     },
     "require-dev": {
         "phpunit/phpunit": "^11.0",
         "phpstan/phpstan": "^2.2",
-        "phpbench/phpbench": "~1.4.0"
+        "phpbench/phpbench": "~1.4.0",
+        "atom-fm/sql": "^0.1",
+        "atom-fm/orm": "^0.1"
     },
     "autoload": {
         "psr-4": {
@@ -67,5 +67,8 @@
                 "reference": "none"
             }
         }
-    ]
+    ],
+    "suggest": {
+        "atom-fm/orm": "Enables Atom database services, migrations, and models. ORM installs the SQL package."
+    }
 }

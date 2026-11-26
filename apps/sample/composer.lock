@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "90637317f3282343972a05f75f96602c",
+    "content-hash": "4fcfb5ae16847368afe3205b5dce8a3d",
     "packages": [
         {
             "name": "atom-fm/components",
@@ -64,19 +64,22 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/framework",
-                "reference": "15693900890e020fe03993596c090d8a0a7c4b53"
+                "reference": "d839a9846bf216772171e1faf2d0ae34bedaf1e3"
             },
             "require": {
-                "atom-fm/orm": "^0.1",
-                "atom-fm/sql": "^0.1",
                 "dragonmantank/cron-expression": "^3.6",
                 "php": "^8.4",
                 "symfony/mailer": "^8.0.12"
             },
             "require-dev": {
+                "atom-fm/orm": "^0.1",
+                "atom-fm/sql": "^0.1",
                 "phpbench/phpbench": "~1.4.0",
                 "phpstan/phpstan": "^2.2",
                 "phpunit/phpunit": "^11.0"
+            },
+            "suggest": {
+                "atom-fm/orm": "Enables Atom database services, migrations, and models. ORM installs the SQL package."
             },
             "type": "library",
             "extra": {

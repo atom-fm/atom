@@ -29,6 +29,7 @@ use Atom\Database\Seeder\SeederCreator;
 use Atom\Database\Seeder\SeederOptions;
 use Atom\Database\Seeder\SeederRunner;
 use Atom\Support\Paths;
+use RuntimeException;
 
 final readonly class DatabaseServices implements ServiceProviderInterface, ConsoleCommandProviderInterface, BootstrapProviderInterface
 {
@@ -53,6 +54,10 @@ final readonly class DatabaseServices implements ServiceProviderInterface, Conso
 
     public function register(Bindings $bindings): void
     {
+        if (!class_exists(PdoConnection::class)) {
+            throw new RuntimeException("Database services require atom-fm/orm. Install it with composer require atom-fm/orm.");
+        }
+
         $bindings->value(DatabaseDriverInterface::class, $this->driver);
 
         $bindings->bind(DatabaseConnection::class)

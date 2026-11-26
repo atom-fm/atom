@@ -57,6 +57,7 @@
     "require": {
         "php": "^8.4",
         "atom-fm/framework": "^0.2",
+        "atom-fm/orm": "^0.1",
         "atom-fm/components": "^0.2"
     },
     "require-dev": {

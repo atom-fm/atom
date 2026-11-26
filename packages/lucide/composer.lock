@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "28e4733bf09b389a5d1ace0152c6cf9e",
+    "content-hash": "2c67b62a54cc098420325b5f8c5dcd39",
     "packages": [
         {
             "name": "atom-fm/framework",
@@ -12,19 +12,22 @@
             "dist": {
                 "type": "path",
                 "url": "../framework",
-                "reference": "15693900890e020fe03993596c090d8a0a7c4b53"
+                "reference": "d839a9846bf216772171e1faf2d0ae34bedaf1e3"
             },
             "require": {
-                "atom-fm/orm": "^0.1",
-                "atom-fm/sql": "^0.1",
                 "dragonmantank/cron-expression": "^3.6",
                 "php": "^8.4",
                 "symfony/mailer": "^8.0.12"
             },
             "require-dev": {
+                "atom-fm/orm": "^0.1",
+                "atom-fm/sql": "^0.1",
                 "phpbench/phpbench": "~1.4.0",
                 "phpstan/phpstan": "^2.2",
                 "phpunit/phpunit": "^11.0"
+            },
+            "suggest": {
+                "atom-fm/orm": "Enables Atom database services, migrations, and models. ORM installs the SQL package."
             },
             "type": "library",
             "extra": {
@@ -62,100 +65,6 @@
                 "Atom",
                 "framework"
             ],
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
-        {
-            "name": "atom-fm/orm",
-            "version": "dev-master",
-            "dist": {
-                "type": "path",
-                "url": "../orm"
-            },
-            "require": {
-                "atom-fm/sql": "^0.1",
-                "ext-pdo": "*",
-                "php": "^8.4"
-            },
-            "require-dev": {
-                "phpstan/phpstan": "^2.2",
-                "phpunit/phpunit": "^11.0"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "0.1.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Atom\\Database\\": "src/"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "phpunit"
-                ],
-                "analyse": [
-                    "phpstan analyse --memory-limit=512M"
-                ],
-                "check": [
-                    "@analyse",
-                    "@test"
-                ]
-            },
-            "license": [
-                "MIT"
-            ],
-            "description": "Attribute-based PHP models and persistence using PDO",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
-        {
-            "name": "atom-fm/sql",
-            "version": "dev-master",
-            "dist": {
-                "type": "path",
-                "url": "../sql"
-            },
-            "require": {
-                "php": "^8.4"
-            },
-            "require-dev": {
-                "phpstan/phpstan": "^2.2",
-                "phpunit/phpunit": "^11.0"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "0.1.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Atom\\Database\\Sql\\": "src/"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "phpunit"
-                ],
-                "analyse": [
-                    "phpstan analyse --memory-limit=512M"
-                ],
-                "check": [
-                    "@analyse",
-                    "@test"
-                ]
-            },
-            "license": [
-                "MIT"
-            ],
-            "description": "Parameterized SQL query builder and dialect compilers for PHP",
             "transport-options": {
                 "symlink": true,
                 "relative": true

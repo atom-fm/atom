@@ -154,11 +154,17 @@ The email worker ticket has the highest priority overall, but its status is `clo
 
 ## Services
 
-Register database services from the application:
+Apps that use database connections, models, migrations, or the database queue driver need `atom-fm/orm`. Composer installs `atom-fm/sql` as a dependency of ORM.
+
+```bash
+composer require "atom-fm/orm:^0.1"
+```
+
+Then register database services in the application. The provider configures the connection and adds the migration and seeder commands to `php atom`.
 
 ```php
-use Atom\Database\DatabaseConfig;
 use Atom\Database\DatabaseServices;
+use Atom\Di\ServiceProviderRegistry;
 
 protected function services(ServiceProviderRegistry $providers): void
 {

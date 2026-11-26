@@ -18,6 +18,8 @@ Each application hook configures a part of startup.
 
 ## Application Example
 
+This application opts in to database services. See [database setup](Database.md#services) for the Composer dependency and connection settings. A routing-and-pages app can start with Framework alone.
+
 ```php
 namespace App;
 
