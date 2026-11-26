@@ -36,10 +36,19 @@ final readonly class Migrator
      */
     public function pending(): array
     {
+        return $this->pendingFrom($this->all());
+    }
+
+    /**
+     * @param MigrationDefinition[] $definitions
+     * @return MigrationDefinition[]
+     */
+    private function pendingFrom(array $definitions): array
+    {
         $applied = array_flip($this->repository->applied());
 
         return array_values(array_filter(
-            $this->all(),
+            $definitions,
             static fn(MigrationDefinition $migration): bool => !isset($applied[$migration->name])
         ));
     }
@@ -60,7 +69,7 @@ final readonly class Migrator
         );
     }
 
-    /** @param (callable(): void)|null $beforeMigrations Runs under the migration lock before reading migration history. */
+    /** @param (callable(): void)|null $beforeMigrations Runs under the lock after discovery and before reading migration history. */
     public function run(?callable $beforeMigrations = null): MigrationRunResult
     {
         $lock = $this->locks->acquire("migrations");
@@ -69,6 +78,7 @@ final readonly class Migrator
         }
 
         try {
+            $definitions = $this->all();
             if ($beforeMigrations !== null) {
                 $beforeMigrations();
             }
@@ -76,7 +86,7 @@ final readonly class Migrator
             $batch = $this->repository->latestBatch() + 1;
             $migrated = [];
 
-            foreach ($this->pending() as $migration) {
+            foreach ($this->pendingFrom($definitions) as $migration) {
                 $this->executeMigration($migration, "up", fn() => $this->repository->record($migration->name, $batch));
                 $migrated[] = $migration->name;
             }

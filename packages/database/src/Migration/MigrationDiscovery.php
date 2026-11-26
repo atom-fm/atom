@@ -20,6 +20,7 @@ final class MigrationDiscovery
         $directory = rtrim(str_replace("\\", "/", realpath($options->directory) ?: $options->directory), "/");
         $namespace = trim($options->namespace, "\\");
         $definitions = [];
+        $migrationFiles = [];
 
         foreach ($this->files($directory) as $file) {
             $name = pathinfo($file, PATHINFO_FILENAME);
@@ -30,7 +31,7 @@ final class MigrationDiscovery
                 : require $file;
 
             if ($migration instanceof Migration) {
-                $definitions[] = new MigrationDefinition($name, static function () use ($file, $name): Migration {
+                $factory = static function () use ($file, $name): Migration {
                     $migration = require $file;
 
                     if (!$migration instanceof Migration) {
@@ -38,13 +39,19 @@ final class MigrationDiscovery
                     }
 
                     return $migration;
-                });
+                };
+            } elseif ($className !== null && class_exists($className) && is_subclass_of($className, Migration::class)) {
+                $factory = static fn(): Migration => new $className();
+            } else {
                 continue;
             }
 
-            if ($className !== null && class_exists($className) && is_subclass_of($className, Migration::class)) {
-                $definitions[] = new MigrationDefinition($name, static fn(): Migration => new $className());
+            if (isset($migrationFiles[$name])) {
+                throw new RuntimeException("Duplicate migration name '{$name}' in '{$migrationFiles[$name]}' and '{$file}'.");
             }
+
+            $migrationFiles[$name] = $file;
+            $definitions[] = new MigrationDefinition($name, $factory);
         }
 
         usort($definitions, static fn(MigrationDefinition $a, MigrationDefinition $b): int => $a->name <=> $b->name);
