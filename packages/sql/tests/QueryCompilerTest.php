@@ -9,7 +9,9 @@ use Atom\Database\Sql\Compiler\PostgresCompiler;
 use Atom\Database\Sql\Compiler\SqliteCompiler;
 use Atom\Database\Sql\Op;
 use Atom\Database\Sql\Query;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class QueryCompilerTest extends TestCase
 {
@@ -64,6 +66,32 @@ final class QueryCompilerTest extends TestCase
                 self::assertSame([], $command->parameters);
             }
         }
+    }
+
+    #[TestWith([SqliteCompiler::class], "SQLite")]
+    #[TestWith([MySqlCompiler::class], "MySQL")]
+    public function testRejectsIlikeOutsidePostgres(string $compilerClass): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("ILIKE is only supported by the PostgreSQL compiler.");
+
+        (new $compilerClass())->compile(Query::select("users")->where("name", Op::ilike("ada%")));
+    }
+
+    public function testPostgresCompilesIlikeWithABoundValue(): void
+    {
+        $command = (new PostgresCompiler())->compile(Query::select("users")->where("name", Op::ilike("ada%")));
+
+        self::assertSame('SELECT * FROM "users" WHERE "name" ILIKE :p1', $command->sql);
+        self::assertSame([":p1" => "ada%"], $command->parameters);
+    }
+
+    public function testSqliteRejectsDeleteLimit(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("The SQLite compiler does not support DELETE LIMIT.");
+
+        (new SqliteCompiler())->compile(Query::delete("users")->where("id", 1)->limit(1));
     }
 
     public function testCompilesOffsetWithoutLimitForSqliteAndMySql(): void

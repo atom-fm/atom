@@ -30,6 +30,11 @@ final class PostgresCompiler extends AbstractSqlCompiler
         return "";
     }
 
+    protected function compileIlike(string $column, mixed $value): string
+    {
+        return "{$column} ILIKE {$this->bind($value)}";
+    }
+
     protected function compileDeleteLimit(?int $limit): string
     {
         if ($limit !== null) {

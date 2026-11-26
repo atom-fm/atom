@@ -311,11 +311,17 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
             "BETWEEN" => "{$column} BETWEEN {$this->bind($op->value)} AND {$this->bind($op->maxValue)}",
             "LIKE" => "{$column} LIKE {$this->bind($op->value)}" .
                 ($op->escape === null ? "" : " ESCAPE {$this->bind($op->escape)}"),
+            "ILIKE" => $this->compileIlike($column, $op->value),
             "=" => "{$column} = " . ($op->value instanceof Column ? $this->compileColumn($op->value) : $this->bind($op->value)),
             "<>", ">=", "<=", ">", "<" => "{$column} {$op->operator} " .
                 ($op->value instanceof Column ? $this->compileColumn($op->value) : $this->bind($op->value)),
             default => "{$column} {$op->operator} " . $this->bind($op->value),
         };
+    }
+
+    protected function compileIlike(string $column, mixed $value): string
+    {
+        throw new RuntimeException("ILIKE is only supported by the PostgreSQL compiler.");
     }
 
     protected function compileCriteriaExpression(CriteriaExpression $expression): string
