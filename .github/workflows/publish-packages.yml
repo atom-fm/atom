@@ -7,6 +7,11 @@ on:
         tags:
             - "v*"
     workflow_dispatch:
+        inputs:
+            verify_packagist_hooks:
+                description: Send a push to each newly extracted package even if its files are unchanged
+                type: boolean
+                default: false
 
 permissions:
     contents: read
@@ -42,6 +47,7 @@ jobs:
             - name: Sync library package repositories
               env:
                   PACKAGE_SPLIT_TOKEN: ${{ secrets.PACKAGE_SPLIT_TOKEN }}
+                  VERIFY_PACKAGIST_HOOKS: ${{ inputs.verify_packagist_hooks }}
               run: |
                   for package in sql orm validation view di profiler mail console database framework components; do
                       target="$RUNNER_TEMP/$package"
@@ -63,6 +69,13 @@ jobs:
                           if ! git diff --cached --quiet; then
                               git commit -m "Sync $package from atom-fm/atom@${GITHUB_SHA::7}"
                               git push origin HEAD:master
+                          elif [ "$VERIFY_PACKAGIST_HOOKS" = true ] && [ "$GITHUB_REF" = refs/heads/master ]; then
+                              case "$package" in
+                                  validation|view|di|profiler|mail|console|database)
+                                      git commit --allow-empty -m "Verify Packagist webhook from atom-fm/atom@${GITHUB_SHA::7}"
+                                      git push origin HEAD:master
+                                      ;;
+                              esac
                           fi
                           if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$package" = framework ] && ! git show-ref --verify --quiet "refs/tags/$GITHUB_REF_NAME"; then
                               git tag "$GITHUB_REF_NAME"
