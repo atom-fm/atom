@@ -140,7 +140,7 @@ Bootstrappers run after modules, components, and pages are registered, and befor
 
 ## Profiling
 
-`Profiler` is bound in the application container. `Profile::begin()` and `Profile::measure()` use the active profiler provided by Application. In standalone scripts, they record spans in a default profiler available through `Profile::profiler()`.
+`atom-fm/profiler` provides the `Atom\Profiler` classes. Framework binds `Profiler` in the application container. `Profile::begin()` and `Profile::measure()` use the active profiler provided by Application. In standalone scripts, they record spans in a default profiler available through `Profile::profiler()`.
 
 ```php
 use Atom\Profiler\Profile;

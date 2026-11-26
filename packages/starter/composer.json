@@ -70,6 +70,17 @@
                 },
                 "reference": "none"
             }
+        },
+        {
+            "type": "path",
+            "url": "../profiler",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/profiler": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
         }
     ],
     "require": {
