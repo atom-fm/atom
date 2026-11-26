@@ -15,17 +15,20 @@ final readonly class PhpExpressionEvaluator implements ExpressionEvaluatorInterf
             $thisObject = $variables["this"] ?? null;
             unset($variables["this"]);
 
-            $evaluate = function () use ($expression, $variables): mixed {
-                extract($variables, EXTR_SKIP);
-
-                return eval("return {$expression};");
+            $evaluate = function (array $variables, string $expression): mixed {
+                // Remove the parameters from scope unless the template supplies those names.
+                return eval(
+                    'unset($expression); extract($variables, EXTR_OVERWRITE); '
+                    . (array_key_exists("variables", $variables) ? "" : 'unset($variables); ')
+                    . "return {$expression};"
+                );
             };
 
             if (is_object($thisObject)) {
                 $evaluate = $evaluate->bindTo($thisObject, $thisObject::class);
             }
 
-            return $evaluate();
+            return $evaluate($variables, $expression);
         } catch (Throwable $exception) {
             throw new ViewRenderException(
                 "Failed to evaluate expression '{$expression}': {$exception->getMessage()}",

@@ -12,6 +12,7 @@ use Atom\View\Ast\ExpressionNode;
 use Atom\View\Ast\FragmentNode;
 use Atom\View\Ast\TextNode;
 use Atom\View\Ast\ViewNodeInterface;
+use Atom\View\Parser\ExpressionDelimiter;
 use Atom\View\Render\ExpressionEvaluatorInterface;
 use Atom\View\Render\ViewContext;
 use Atom\View\Render\ViewRenderException;
@@ -77,23 +78,28 @@ final readonly class ComponentHydrator
 
     private function interpolate(string $value, ViewContext $context): string
     {
-        $parts = preg_split('/\{\{(.*?)\}\}/s', $value, flags: PREG_SPLIT_DELIM_CAPTURE);
         $result = "";
-        foreach ($parts as $index => $part) {
-            if ($index % 2 === 0) {
-                $result .= html_entity_decode($part, ENT_QUOTES | ENT_HTML5, "UTF-8");
-                continue;
+        $offset = 0;
+        while (($start = strpos($value, "{{", $offset)) !== false) {
+            $end = ExpressionDelimiter::findEnd($value, $start + 2);
+            if ($end === null) {
+                if (strpos($value, "}}", $start + 2) !== false) {
+                    throw new ViewRenderException("Unclosed attribute expression.");
+                }
+                break;
             }
 
-            $expression = trim($part);
+            $result .= html_entity_decode(substr($value, $offset, $start - $offset), ENT_QUOTES | ENT_HTML5, "UTF-8");
+            $expression = trim(substr($value, $start + 2, $end - $start - 2));
             if ($expression === "") {
                 throw new ViewRenderException("Attribute expression cannot be empty.");
             }
 
             $result .= (string) $this->evaluator->evaluate($expression, $context);
+            $offset = $end + 2;
         }
 
-        return $result;
+        return $result . html_entity_decode(substr($value, $offset), ENT_QUOTES | ENT_HTML5, "UTF-8");
     }
 
     /**

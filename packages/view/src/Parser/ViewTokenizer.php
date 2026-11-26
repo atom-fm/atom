@@ -167,9 +167,9 @@ final class ViewTokenizer
     private function readExpressionValue(): string
     {
         $this->expect("{{");
-        $end = strpos($this->source, "}}", $this->position);
+        $end = ExpressionDelimiter::findEnd($this->source, $this->position);
 
-        if ($end === false) {
+        if ($end === null) {
             throw new ViewParseException("Unclosed expression.");
         }
 
