@@ -103,13 +103,31 @@ final class ConsoleParameterBinder
             return $value;
         }
 
-        return match ($type->getName()) {
-            "int" => (int) $value,
-            "float" => (float) $value,
-            "bool" => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
+        $typeName = $type->getName();
+        $converted = match ($typeName) {
+            "int" => is_string($value) ? $this->parseInt($value) : null,
+            "float" => is_string($value) && is_numeric($value) && is_finite((float) $value) ? (float) $value : null,
+            "bool" => is_bool($value) || (is_string($value) && trim($value) !== "")
+                ? filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+                : null,
             "string" => is_bool($value) ? ($value ? "1" : "0") : (string) $value,
             default => $value,
         };
+
+        if ($converted === null && in_array($typeName, ["int", "float", "bool"], true)) {
+            throw new RuntimeException("Invalid value for console parameter '{$parameter->getName()}'. Expected {$typeName}.");
+        }
+
+        return $converted;
+    }
+
+    private function parseInt(string $value): ?int
+    {
+        // Preserve leading-zero decimal inputs while checking for integer overflow.
+        $decimal = preg_replace('/^([+-]?)0+(?=[0-9])/', '$1', trim($value));
+        $integer = filter_var($decimal, FILTER_VALIDATE_INT);
+
+        return $integer === false ? null : $integer;
     }
 }
 

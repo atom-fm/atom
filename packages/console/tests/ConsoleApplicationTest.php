@@ -100,6 +100,36 @@ final class ConsoleApplicationTest extends TestCase
         self::assertSame("[true,false,true,false]", $output->output());
     }
 
+    public function testMalformedScalarValuesFailBeforeTheCommandRuns(): void
+    {
+        $console = (new ConsoleApplication())->attach(ConsoleFlagCommands::class);
+
+        foreach ([
+            ["--count=oops", "count"],
+            ["--count=1.5", "count"],
+            ["--count=99999999999999999999999999", "count"],
+            ["--count", "count"],
+            ["--ratio=oops", "ratio"],
+            ["--ratio=1e999", "ratio"],
+            ["--enabled=maybe", "enabled"],
+            ["--enabled=", "enabled"],
+        ] as [$option, $parameter]) {
+            $output = new BufferedConsoleOutput();
+            self::assertSame(1, $console->run(["atom", "scalars", $option], $output), $option);
+            self::assertSame("", $output->output(), $option);
+            self::assertStringContainsString("Invalid value for console parameter '{$parameter}'", $output->errors());
+        }
+    }
+
+    public function testValidScalarValuesStillBind(): void
+    {
+        $console = (new ConsoleApplication())->attach(ConsoleFlagCommands::class);
+        $output = new BufferedConsoleOutput();
+
+        self::assertSame(0, $console->run(["atom", "scalars", "-005", "--ratio=2.5e-1", "--enabled=no"], $output), $output->errors());
+        self::assertSame("[-5,0.25,false]", $output->output());
+    }
+
     public function testCanRunCommandInstance(): void
     {
         $console = new ConsoleApplication();
@@ -284,6 +314,12 @@ final class ConsoleApplicationTest extends TestCase
 
 final class ConsoleFlagCommands
 {
+    #[ConsoleCommand("scalars")]
+    public function scalars(int $count = 1, float $ratio = 1.0, bool $enabled = true): string
+    {
+        return json_encode([$count, $ratio, $enabled], JSON_THROW_ON_ERROR);
+    }
+
     #[ConsoleCommand("flags")]
     public function flags(bool $verbose, bool $enabled = true, bool $force = false, ?bool $confirm = null): string
     {
