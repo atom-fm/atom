@@ -1,0 +1,7 @@
+<phpunit bootstrap="vendor/autoload.php" cacheResult="false">
+  <testsuites>
+    <testsuite name="Framework database integration">
+      <directory suffix="Test.php">integration</directory>
+    </testsuite>
+  </testsuites>
+</phpunit>

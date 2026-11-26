@@ -56,4 +56,6 @@ php vendor/bin/phpunit -c phpunit.integration.xml
 docker compose -f compose.integration.yaml down
 ```
 
-The opt-in suite uses native PDO prepared statements on MySQL and PostgreSQL to verify parameter overrides for query builders and compiled commands. The database ports are bound to localhost, and database data is stored in temporary container filesystems. The default PHPUnit suite continues to use SQLite.
+The opt-in suite uses native PDO prepared statements on MySQL and PostgreSQL to verify parameter overrides, batch upserts, unique-constraint errors, and transaction commit and rollback. The database ports are bound to localhost, and database data is stored in temporary container filesystems. The default PHPUnit suite continues to use SQLite.
+
+The Framework migration integration suite uses the same Compose databases. With the containers running, run `composer install` and `php vendor/bin/phpunit -c phpunit.integration.xml` from `packages/framework` to verify migration apply and rollback on both engines.
