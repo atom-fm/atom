@@ -6,6 +6,7 @@ namespace Atom\Tests\Integration;
 
 use Atom\Application;
 use Atom\Di\Injector;
+use Atom\Dispatcher\ResponseEmitterInterface;
 use Atom\Http\Request;
 use Atom\Http\Response;
 use Atom\Hydrator\Attributes\Dto;
@@ -24,6 +25,53 @@ final class DtoRequestInputTest extends TestCase
     {
         Application::$app = null;
         Route::clearRouter();
+    }
+
+    #[DataProvider("timedErrorResponses")]
+    public function testErrorResponsesIncludeTimingThroughApplicationEntryPoints(
+        bool $emit,
+        string $path,
+        string $requestBody,
+        int $status,
+        string $message
+    ): void {
+        $app = new DtoRequestInputApplication();
+        $app->initialize();
+        $emitter = new class implements ResponseEmitterInterface {
+            public ?Response $response = null;
+
+            public function emit(Response $response): void
+            {
+                $this->response = $response;
+            }
+        };
+        $app->getBindings()->value(ResponseEmitterInterface::class, $emitter);
+        $request = $this->request($path, $requestBody);
+
+        $response = $emit ? $app->run($request) : $app->handle($request);
+
+        self::assertSame($status, $response->getStatus());
+        self::assertSame("application/json", $response->headers()->get("Content-Type"));
+        $error = json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR)["error"];
+        self::assertSame($message, is_array($error) ? $error["title"] : $error);
+        self::assertSame($emit ? $response : null, $emitter->response);
+        foreach (["X-Atom-Time", "X-Atom-Time-Request-Dispatch"] as $header) {
+            self::assertMatchesRegularExpression('/^\d+\.\d{2}ms$/D', (string) $response->headers()->get($header), $header);
+        }
+    }
+
+    /** @return iterable<string, array{bool, string, string, int, string}> */
+    public static function timedErrorResponses(): iterable
+    {
+        foreach (["handle" => false, "run" => true] as $entryPoint => $emit) {
+            yield "{$entryPoint} malformed JSON" => [$emit, "/dto", '{"quantity":', 400, "Bad request"];
+            yield "{$entryPoint} invalid DTO" => [
+                $emit, "/dto", '{"quantity":[]}', 422, "Invalid or missing body field: quantity",
+            ];
+            yield "{$entryPoint} dependency failure" => [
+                $emit, "/broken", '{"quantity":1,"shipping_address":{"postal_code":"42"}}', 500, "Something went wrong",
+            ];
+        }
     }
 
     #[DataProvider("invalidBodyFields")]
