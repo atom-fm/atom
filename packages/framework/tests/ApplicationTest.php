@@ -15,6 +15,7 @@ use Atom\Console\ConsoleApplication;
 use Atom\Console\Attributes\ConsoleCommand;
 use Atom\Console\ConsoleOutput;
 use Atom\Di\Bindings;
+use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
 use Atom\Di\ServiceProviderInterface;
 use Atom\Di\ServiceProviderRegistry;
@@ -212,6 +213,53 @@ final class ApplicationTest extends TestCase
         $this->assertSame("Hello Atom", $response->getContent());
         $this->assertNull($app->emitter->response);
         $this->assertSame(["name" => "Atom"], $app->getCurrentRoute()?->getRouteParams());
+    }
+
+    public function testFailedRequestReleasesItsScopeBeforeSuccessfulRun(): void
+    {
+        $app = new TestApplication();
+        $app->initialize();
+        $emittedRequest = null;
+        $app->getBindings()->factory(
+            ResponseEmitterInterface::class,
+            static function (Injector $injector, InjectionContext $context) use ($app, &$emittedRequest): ResponseEmitterInterface {
+                $emittedRequest = $injector->get(Request::class, $context);
+                return $app->emitter;
+            }
+        )->scoped();
+
+        $failedRequest = new Request("GET", "/fail/first");
+        $failed = $app->handle($failedRequest);
+        self::assertSame(500, $failed->getStatus());
+        self::assertSame(["name" => "first"], $app->getCurrentRoute()?->getRouteParams());
+        self::assertNotEmpty($failed->headers()->all("Set-Cookie"));
+        self::assertNotNull($failed->headers()->get("X-Atom-Time-Failed-Work"));
+        self::assertNull($app->emitter->response);
+        self::assertNotSame($failedRequest, $app->getRequest());
+
+        $successfulRequest = new Request("GET", "/hello/second");
+        $successful = $app->run($successfulRequest);
+        self::assertSame(200, $successful->getStatus());
+        self::assertSame("Hello second", $successful->getContent());
+        self::assertSame(["name" => "second"], $app->getCurrentRoute()?->getRouteParams());
+        self::assertSame([], $successful->headers()->all("Set-Cookie"));
+        self::assertNull($successful->headers()->get("X-Atom-Time-Failed-Work"));
+        self::assertNotNull($successful->headers()->get("X-Atom-Time-Request-Dispatch"));
+        self::assertSame($successful, $app->emitter->response);
+        self::assertSame($successfulRequest, $emittedRequest);
+        self::assertNotSame($successfulRequest, $app->getRequest());
+    }
+
+    public function testNestedRequestRestoresTheOuterRequestScope(): void
+    {
+        $app = new TestApplication();
+        $response = $app->handle(new Request("GET", "/nested/outer"));
+
+        self::assertSame(200, $response->getStatus());
+        self::assertSame("500 /nested/outer outer", $response->getContent());
+        self::assertSame(["name" => "outer"], $app->getCurrentRoute()?->getRouteParams());
+        self::assertSame([], $response->headers()->all("Set-Cookie"));
+        self::assertNull($response->headers()->get("X-Atom-Time-Failed-Work"));
     }
 
     public function testGlobalCorsMiddlewareHandlesPreflightBeforeRouteMatching(): void
@@ -491,6 +539,16 @@ final class TestApplication extends Application
         Profile::measure("test.bootstrap", static fn(): null => null);
 
         Route::get("/hello/{name}", fn(string $name) => "Hello " . $name);
+        Route::get("/fail/{name}", static function (Response $response): never {
+            $response->cookie(Cookie::create("failed", "request"));
+            Profile::measure("failed.work", static fn(): null => null);
+            throw new \RuntimeException("Request failed.");
+        });
+        Route::get("/nested/{name}", function (): string {
+            $inner = $this->handle(new Request("GET", "/fail/inner"));
+            $name = $this->getCurrentRoute()?->getRouteParams()["name"] ?? "";
+            return $inner->getStatus() . " " . $this->getRequest()->getPath() . " " . $name;
+        });
         Route::get("/profile/repeated", function (Profiler $profiler): string {
             $profiler->measure("custom.work", static fn(): null => null);
             Profile::measure("custom.work", static fn(): null => null);

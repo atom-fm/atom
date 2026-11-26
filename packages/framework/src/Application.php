@@ -86,6 +86,7 @@ abstract class Application
     private ?Bindings $bindings = null;
     private ?Injector $injector = null;
     private ?InjectionContext $currentContext = null;
+    private ?MatchedRoute $lastMatchedRoute = null;
     private bool $initialized = false;
     protected string $baseUrl = "";
 
@@ -172,7 +173,11 @@ abstract class Application
 
     final public function getCurrentRoute(): ?MatchedRoute
     {
-        $route = $this->currentContext?->get(MatchedRoute::class);
+        if ($this->currentContext === null) {
+            return $this->lastMatchedRoute;
+        }
+
+        $route = $this->currentContext->get(MatchedRoute::class);
         return $route instanceof MatchedRoute ? $route : null;
     }
 
@@ -446,15 +451,21 @@ abstract class Application
 
     final public function handle(?Request $request = null): Response
     {
+        return $this->processRequest($request, emit: false);
+    }
+
+    private function processRequest(?Request $request, bool $emit): Response
+    {
         $initializing = !$this->initialized;
         try {
             $this->initialize();
         } catch (Throwable $exception) {
-            return $this->renderException($exception, $request ?? Request::fromGlobals());
+            return $this->finishResponse($this->renderException($exception, $request ?? Request::fromGlobals()), $emit);
         }
 
         $profiler = new Profiler();
         $previousProfiler = $this->requestProfiler;
+        $previousContext = $this->currentContext;
         $this->requestProfiler = $profiler;
         $this->currentContext = new InjectionContext();
         $this->currentContext->set(Profiler::class, $profiler);
@@ -469,8 +480,12 @@ abstract class Application
                 $response->header("X-Atom-Time-App-Initialize", number_format($this->bootstrapProfiler->total("app.initialize"), 2, ".", "") . "ms");
             }
             $this->addProfilerHeaders($response, $profiler);
-            return $response;
+            return $this->finishResponse($response, $emit);
         } finally {
+            if ($previousContext === null) {
+                $this->lastMatchedRoute = $this->getCurrentRoute();
+            }
+            $this->currentContext = $previousContext;
             $this->requestProfiler = $previousProfiler;
         }
     }
@@ -525,9 +540,15 @@ abstract class Application
 
     final public function run(?Request $request = null): Response
     {
-        $response = $this->handle($request);
-        $emitter = $this->injector === null ? new ResponseEmitter() : $this->getResponseEmitter();
-        $emitter->emit($response);
+        return $this->processRequest($request, emit: true);
+    }
+
+    private function finishResponse(Response $response, bool $emit): Response
+    {
+        if ($emit) {
+            $emitter = $this->injector === null ? new ResponseEmitter() : $this->getResponseEmitter();
+            $emitter->emit($response);
+        }
 
         return $response;
     }
