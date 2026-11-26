@@ -175,3 +175,33 @@ curl.exe -i --data-urlencode "title=Weekend opening" --data-urlencode "body=Door
 
 The response is HTTP `200` with `{"title":"Weekend opening","status":"draft"}`. The endpoint checks the draft without saving it.
 
+## Nested objects
+
+Add `#[ValidateNested]` to each object property whose values should be checked. Import `Atom\Validation\ValidateNested` and put the validation rules on the nested class.
+
+```php
+final class ShippingAddress
+{
+    #[Required("Enter a postal code.")]
+    public string $postalCode = "";
+}
+
+#[Dto]
+final readonly class OrderInput
+{
+    public function __construct(
+        #[ValidateNested]
+        public ShippingAddress $address
+    ) {
+    }
+}
+```
+
+When a DTO action calls `Validator::for()->validate($input)`, `messages()` returns errors under dotted PHP property names such as `address.postalCode`, including when hydration uses a different input name. Use the same HTTP `422` response pattern as above to send those errors to the caller.
+
+Page forms use the same attribute on their model properties. Call `$this->validate()` in the form action before saving. A field named `address[postalCode]` displays the error for `address.postalCode`.
+
+Each level of nesting requires its own `#[ValidateNested]`. A null or uninitialized nested property is skipped. Add `#[Required]` to that property if an object must be present.
+
+The Showcase order form at `/examples/order-form` demonstrates errors at `address.postalCode` and `address.unit.number`. After saving an order, the update form submits only `address[unit][number]` and keeps the other fields from the saved order.
+

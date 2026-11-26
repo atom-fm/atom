@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Atom\Tests\Validation;
 
 use Atom\Tests\Validation\Types\CreateArticleDto;
+use Atom\Validation\Rules\Required;
 use Atom\Validation\Schema;
+use Atom\Validation\ValidateNested;
 use Atom\Validation\Validation;
 use Atom\Validation\Validator;
 use PHPUnit\Framework\TestCase;
@@ -65,6 +67,34 @@ final class ValidationTest extends TestCase
         $this->assertTrue($result->passed());
     }
 
+    public function testNestedValidationOnlyFollowsMarkedPropertiesAndStopsAtCycles(): void
+    {
+        $root = new NestedValidationNode();
+        $root->label = "Root";
+        $child = new NestedValidationNode();
+        $root->child = $child;
+        $root->alternate = $child;
+        $root->unmarked = $child;
+        $child->child = $root;
+
+        $result = Validator::for()->validate($root);
+
+        self::assertSame(["child.label", "alternate.label"], array_keys($result->messages()));
+        self::assertSame("required", $result->errorsFor("child.label")[0]->code);
+    }
+
+    public function testNestedValidationChecksPresenceOnlyWhenRequired(): void
+    {
+        $parent = new NestedValidationParent();
+        $validator = Validator::for();
+
+        self::assertSame(["requiredChild"], array_keys($validator->validate($parent)->messages()));
+
+        $parent->requiredChild = new NestedValidationNode();
+
+        self::assertSame(["requiredChild.label"], array_keys($validator->validate($parent)->messages()));
+    }
+
     public function testLegacyValidationBuilderStillWorksForSimpleRules(): void
     {
         $validation = Validation::create(function (Validation $rules): void {
@@ -95,5 +125,26 @@ final class ValidationTest extends TestCase
             "title" => ["Give this article a title."],
         ], $result->messages());
     }
+}
+
+final class NestedValidationParent
+{
+    #[Required]
+    #[ValidateNested]
+    public ?NestedValidationNode $requiredChild = null;
+
+    #[ValidateNested]
+    public NestedValidationNode $optionalChild;
+}
+
+final class NestedValidationNode
+{
+    #[Required]
+    public string $label = "";
+    #[ValidateNested]
+    public ?self $child = null;
+    #[ValidateNested]
+    public ?self $alternate = null;
+    public ?self $unmarked = null;
 }
 

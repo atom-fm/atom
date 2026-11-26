@@ -1,9 +1,14 @@
 <Form :model="$this->order" submit="order.save">
+    <TextField name="reference" />
     <TextField name="quantity" />
     <TextField name="rush" />
     <TextField name="address[number]" />
     <TextField name="address[street]" />
+    <TextField name="address[postalCode]" />
     <TextField name="address[unit][number]" />
     <p id="address-error">{{ $this->order->errors()->first("address") }}</p>
     <p id="result">{{ $this->order->result }}</p>
+</Form>
+<Form :model="$this->delivery" submit="delivery.save">
+    <TextField name="note" />
 </Form>

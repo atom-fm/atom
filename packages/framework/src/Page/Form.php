@@ -21,7 +21,7 @@ abstract class Form
 
     public function validate(): bool
     {
-        $this->validation = Validator::for(static::class)->validate($this);
+        $this->validation = Validator::for()->validate($this);
         return $this->errors()->passed();
     }
 

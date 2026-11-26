@@ -453,6 +453,17 @@ the route or loaded domain model. Initialize forms with constructor dependencies
 in `init()` after binding the Page's request properties. Atom hydrates posted form
 fields after `init()` and before `get()`, so constructor defaults are overlaid by
 submitted values and survive failed submissions. Avoid replacing forms in `get()`.
+A field omitted from the request keeps the value supplied by `init()` or its
+property default, including fields on nested objects. Validation rules such as
+`#[Required]` run when an action calls `validate()`. A preview action can skip
+validation and use a partial submission. On an edit, `init()` can seed the
+existing values from the record or from explicitly restored `#[State]` data.
+
+With multiple forms, each loaded form keeps its values for fields absent from the
+request. Form models read from the same POST body, so use distinct field names
+when forms need independent values. `#[FormModel]` alone does not carry values
+between requests.
+
 A `#[FormModel]` property may be declared as a base form class: when `init()` supplies
 a concrete subclass, hydration uses that instance's public fields and keeps its
 constructor context intact.

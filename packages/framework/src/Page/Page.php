@@ -92,7 +92,7 @@ abstract class Page
 
     public function validate(): bool
     {
-        $this->validation = Validator::for(static::class)->validate($this);
+        $this->validation = Validator::for()->validate($this);
 
         return $this->validation->passed();
     }
@@ -100,7 +100,7 @@ abstract class Page
     /** @param array<string, mixed>|object $model */
     protected function validateModel(array|object $model, string|null $className = null): bool
     {
-        $this->validation = Validator::for($className ?? (is_object($model) ? $model::class : null))->validate($model);
+        $this->validation = Validator::for($className)->validate($model);
 
         return $this->validation->passed();
     }

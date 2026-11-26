@@ -7,10 +7,14 @@ namespace Atom\Tests\Integration;
 use Atom\Application;
 use Atom\Di\Injector;
 use Atom\Http\Request;
+use Atom\Http\Response;
 use Atom\Hydrator\Attributes\Dto;
 use Atom\Hydrator\Attributes\FromBody;
 use Atom\Hydrator\Exception\HydrationException;
 use Atom\Router\Route;
+use Atom\Validation\Rules\Pattern;
+use Atom\Validation\ValidateNested;
+use Atom\Validation\Validator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -51,6 +55,31 @@ final class DtoRequestInputTest extends TestCase
         self::assertSame(422, $response->getStatus());
     }
 
+    public function testNestedDtoRuleReturns422WithADottedPropertyPath(): void
+    {
+        $response = (new DtoRequestInputApplication())->handle($this->request(
+            "/validated-dto",
+            '{"quantity":1,"shipping_address":{"postal_code":"invalid"}}'
+        ));
+
+        self::assertSame(422, $response->getStatus());
+        self::assertSame(
+            ["errors" => ["address.postalCode" => ["Enter a numeric postal code."]]],
+            json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR)
+        );
+    }
+
+    public function testValidNestedDtoPassesValidation(): void
+    {
+        $response = (new DtoRequestInputApplication())->handle($this->request(
+            "/validated-dto",
+            '{"quantity":1,"shipping_address":{"postal_code":"42"}}'
+        ));
+
+        self::assertSame(200, $response->getStatus());
+        self::assertSame(["quantity" => 1], json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR));
+    }
+
     public function testGenuineDependencyFailureStillReturns500(): void
     {
         $response = (new DtoRequestInputApplication())->handle($this->request(
@@ -75,6 +104,13 @@ final class DtoRequestInputApplication extends Application
     protected function bootstrap(Injector $injector): void
     {
         Route::post("/dto", static fn(OrderInput $input): array => ["quantity" => $input->quantity]);
+        Route::post("/validated-dto", static function (OrderInput $input, Response $response): Response {
+            $validation = Validator::for()->validate($input);
+
+            return $validation->failed()
+                ? $response->status(422)->json(["errors" => $validation->messages()])
+                : $response->json(["quantity" => $input->quantity]);
+        });
         Route::post("/optional-dto", static fn(?OrderInput $input): array => ["quantity" => $input?->quantity]);
         Route::post("/broken", static fn(OrderInput $input, BrokenOrderService $service): array => []);
     }
@@ -86,6 +122,7 @@ final readonly class OrderInput
     public function __construct(
         public int $quantity,
         #[FromBody("shipping_address")]
+        #[ValidateNested]
         public OrderAddressInput $address
     ) {
     }
@@ -94,6 +131,7 @@ final readonly class OrderInput
 final class OrderAddressInput
 {
     #[FromBody("postal_code")]
+    #[Pattern('/^\d+$/D', "Enter a numeric postal code.")]
     public string $postalCode;
 }
 

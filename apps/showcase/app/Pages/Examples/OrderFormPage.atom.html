@@ -1,0 +1,57 @@
+<ShowcasePageHeader title="Order form" description="Save an order, then update the delivery unit by itself. Order details are stored in this browser session." />
+
+<Stack gap="md">
+    <div role="status">
+        @if($this->saved)
+            <Alert variant="success" icon="lucide:circle-check" title="Order saved" />
+        @endif
+    </div>
+
+    @if($this->savedOrder === null)
+        <Panel title="New order">
+            <Form id="new-order" :model="$this->order" submit="save" csrf novalidate>
+                <ValidationSummary title="Check the order details" />
+                <FormRow>
+                    <TextField label="Order reference" name="reference" required />
+                    <TextField label="Quantity" name="quantity" inputmode="numeric" required />
+                </FormRow>
+
+                <FormSection title="Shipping address">
+                    <TextField label="Street address" name="address[street]" autocomplete="street-address" required />
+                    <FormRow>
+                        <TextField label="Postal code" name="address[postalCode]" inputmode="numeric" autocomplete="postal-code" help="Enter five digits." required />
+                        <TextField label="Unit number" name="address[unit][number]" inputmode="numeric" help="Leave blank if there is no unit." />
+                    </FormRow>
+                </FormSection>
+
+                <FormActions>
+                    <Button type="submit">Save order</Button>
+                </FormActions>
+            </Form>
+        </Panel>
+    @else
+        <Panel title="Saved order">
+            <dl id="saved-order">
+                <dt>Order reference</dt><dd>{{ $this->savedOrder['reference'] }}</dd>
+                <dt>Quantity</dt><dd>{{ $this->savedOrder['quantity'] }}</dd>
+                <dt>Street address</dt><dd>{{ $this->savedOrder['street'] }}</dd>
+                <dt>Postal code</dt><dd>{{ $this->savedOrder['postalCode'] }}</dd>
+                <dt>Unit number</dt><dd>{{ $this->savedOrder['unitNumber'] ?? 'None' }}</dd>
+            </dl>
+        </Panel>
+
+        <Panel title="Update delivery unit">
+            <Form id="update-order-unit" :model="$this->order" submit="save" csrf novalidate>
+                <ValidationSummary title="Check the delivery details" />
+                <TextField label="Unit number" name="address[unit][number]" inputmode="numeric" help="The rest of the saved order carries over. Leave blank to remove the unit." />
+                <FormActions>
+                    <Button type="submit">Update unit</Button>
+                </FormActions>
+            </Form>
+        </Panel>
+
+        <Form submit="startOver" csrf>
+            <Button type="submit" variant="ghost">Start a new order</Button>
+        </Form>
+    @endif
+</Stack>

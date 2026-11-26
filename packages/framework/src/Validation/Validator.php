@@ -10,8 +10,8 @@ use ReflectionProperty;
 
 final class Validator
 {
-    /** @var array<class-string, array<string, ValidationRuleInterface[]>> */
-    private static array $attributeRules = [];
+    /** @var array<class-string, array{schema: Schema, nested: list<string>}> */
+    private static array $attributePlans = [];
 
     private function __construct(private readonly Schema|string|null $source = null)
     {
@@ -44,49 +44,52 @@ final class Validator
 
     /**
      * @param class-string $className
+     * @param list<object> $ancestors
      */
-    private function validateAttributes(array|object $target, string $className): ValidationResult
+    private function validateAttributes(array|object $target, string $className, array $ancestors = []): ValidationResult
     {
-        $schema = new Schema();
+        $plan = self::$attributePlans[$className] ??= $this->buildAttributePlan($className);
+        $result = $plan["schema"]->validate($target);
+        if (is_object($target)) {
+            $ancestors[] = $target;
+        }
 
-        foreach ($this->rulesFor($className) as $field => $rules) {
-            $builder = $schema->field($field);
+        foreach ($plan["nested"] as $field) {
+            $value = is_array($target) ? ($target[$field] ?? null) : ($target->{$field} ?? null);
+            if (!is_object($value) || in_array($value, $ancestors, true)) {
+                continue;
+            }
 
-            foreach ($rules as $rule) {
-                $builder->rule($rule);
+            foreach ($this->validateAttributes($value, $value::class, $ancestors)->all() as $error) {
+                $result->add($error->forField("{$field}.{$error->field}"));
             }
         }
 
-        return $schema->validate($target);
+        return $result;
     }
 
     /**
      * @param class-string $className
-     * @return array<string, ValidationRuleInterface[]>
+     * @return array{schema: Schema, nested: list<string>}
      */
-    private function rulesFor(string $className): array
-    {
-        return self::$attributeRules[$className] ??= $this->buildRules($className);
-    }
-
-    /**
-     * @param class-string $className
-     * @return array<string, ValidationRuleInterface[]>
-     */
-    private function buildRules(string $className): array
+    private function buildAttributePlan(string $className): array
     {
         $reflection = new ReflectionClass($className);
-        $fields = [];
+        $schema = new Schema();
+        $nested = [];
 
         foreach ($reflection->getProperties() as $property) {
-            $rules = $this->rulesFromProperty($property);
+            $field = $property->getName();
+            foreach ($this->rulesFromProperty($property) as $rule) {
+                $schema->field($field)->rule($rule);
+            }
 
-            if ($rules !== []) {
-                $fields[$property->getName()] = $rules;
+            if ($property->getAttributes(ValidateNested::class) !== []) {
+                $nested[] = $field;
             }
         }
 
-        return $fields;
+        return ["schema" => $schema, "nested" => $nested];
     }
 
     /**
