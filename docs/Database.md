@@ -1217,6 +1217,8 @@ Use `php atom migrate:status` to see which migrations have run and `php atom mig
 
 SQLite and PostgreSQL commit each migration's schema changes and history entry in one transaction. If a schema command or history write fails during `migrate` or `migrate:rollback`, Atom rolls back that migration. Earlier migrations completed by the same command stay committed. When calling the migrator inside an existing transaction, Atom uses a savepoint per migration and leaves the final commit to the caller.
 
+Omit `down()` to make a migration irreversible. Rollback stops when it reaches that migration and keeps its history entry.
+
 MySQL schema changes can commit implicitly. After a failure, inspect the schema and migration history and reconcile any partial changes before retrying.
 
 ### Rehearse a change to a populated table

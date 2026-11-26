@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Atom\Database\Migration;
 
 use Atom\Database\Schema\Schema;
+use RuntimeException;
 
 abstract class Migration
 {
@@ -12,5 +13,6 @@ abstract class Migration
 
     public function down(Schema $schema): void
     {
+        throw new RuntimeException("This migration is irreversible because it does not implement down().");
     }
 }
