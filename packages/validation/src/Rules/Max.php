@@ -22,7 +22,7 @@ final readonly class Max extends AbstractRule
             return null;
         }
 
-        return (float) $value > $this->value
+        return !is_finite((float) $value) || (float) $value > $this->value
             ? $this->error($context, "max", "The field must be at most {max}.", ["max" => $this->value])
             : null;
     }

@@ -9,6 +9,7 @@ use Atom\Validation\Rules\Required;
 use Atom\Validation\Schema;
 use Atom\Validation\ValidateNested;
 use Atom\Validation\Validation;
+use Atom\Validation\ValidationError;
 use Atom\Validation\Validator;
 use PHPUnit\Framework\TestCase;
 
@@ -158,6 +159,24 @@ final class ValidationTest extends TestCase
         $this->assertTrue($result->failed());
         $this->assertSame("max_length", $result->errorsFor("title")[0]->code);
         $this->assertSame("required", $result->errorsFor("body")[0]->code);
+    }
+
+    public function testResultInterpolatesDefaultAndCustomMessages(): void
+    {
+        $schema = Schema::make();
+        $schema->field("name")->minLength(3);
+        $schema->field("quantity")->between(2, 5, "Choose {min} to {max}.");
+        $result = $schema->validate(["name" => "x", "quantity" => 1]);
+
+        self::assertSame("The field must be at least 3 characters.", $result->first("name"));
+        self::assertSame(["Choose 2 to 5."], $result->jsonSerialize()["errors"]["quantity"]);
+        self::assertSame(["min" => 2.0, "max" => 5.0], $result->errorsFor("quantity")[0]->parameters);
+
+        $error = new ValidationError("friend", "{name} {unknown}", "example", [
+            "name" => "{other}",
+            "other" => "Example",
+        ]);
+        self::assertSame("{other} {unknown}", $error->forField("group.friend")->message);
     }
 
     public function testResultMessagesAreFormFriendly(): void

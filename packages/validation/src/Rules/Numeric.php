@@ -17,7 +17,7 @@ final readonly class Numeric extends AbstractRule
             return null;
         }
 
-        return is_numeric($value)
+        return is_numeric($value) && is_finite((float) $value)
             ? null
             : $this->error($context, "numeric", "The field must be numeric.");
     }

@@ -24,7 +24,7 @@ final readonly class Between extends AbstractRule
 
         $number = (float) $value;
 
-        return $number < $this->min || $number > $this->max
+        return !is_finite($number) || $number < $this->min || $number > $this->max
             ? $this->error($context, "between", "The field must be between {min} and {max}.", [
                 "min" => $this->min,
                 "max" => $this->max,

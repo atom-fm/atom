@@ -99,6 +99,18 @@ final class RuleTest extends TestCase
         $this->assertRuleFails(new Between(2, 5), 6, "between");
     }
 
+    public function testNumericRulesRejectNonFiniteValues(): void
+    {
+        foreach ([NAN, INF, -INF, "1e9999", "-1e9999"] as $value) {
+            $this->assertRuleFails(new Numeric(), $value, "numeric");
+            $this->assertRuleFails(new Min(2), $value, "min");
+            $this->assertRuleFails(new Max(5), $value, "max");
+            $this->assertRuleFails(new Between(2, 5), $value, "between");
+        }
+
+        $this->assertRulePasses(new Between(2, 5), "3e0");
+    }
+
     public function testDateRejectsNullBytes(): void
     {
         $this->assertRuleFails(new Date("Y-m-d"), "2026-06-25\0", "date");

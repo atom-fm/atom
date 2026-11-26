@@ -22,7 +22,7 @@ final readonly class Min extends AbstractRule
             return null;
         }
 
-        return (float) $value < $this->value
+        return !is_finite((float) $value) || (float) $value < $this->value
             ? $this->error($context, "min", "The field must be at least {min}.", ["min" => $this->value])
             : null;
     }
