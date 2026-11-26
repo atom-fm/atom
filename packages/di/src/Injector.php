@@ -73,7 +73,11 @@ final class Injector
 
     public function get(string $token, ?InjectionContext $context = null): mixed
     {
-        $context ??= self::implicitContext();
+        return $this->resolve($token, $context ?? self::implicitContext());
+    }
+
+    private function resolve(string $token, InjectionContext $context, bool $optional = false): mixed
+    {
         if ($context->has($token)) {
             return $context->get($token);
         }
@@ -87,6 +91,10 @@ final class Injector
 
         if ($provider === null) {
             if (!class_exists($token)) {
+                if ($optional) {
+                    return null;
+                }
+
                 throw new DependencyResolutionException($this->formatMessage(
                     "No provider found for token '{$token}'.",
                     $context,
@@ -97,6 +105,10 @@ final class Injector
             $typeFactory = $this->findTypeFactory($token);
             if ($typeFactory !== null) {
                 return $this->resolveToken($token, $context, fn(): mixed => $typeFactory->create($token, $this, $context));
+            }
+
+            if ($optional && !(new ReflectionClass($token))->isInstantiable()) {
+                return null;
             }
 
             $provider = Provider::type($token);
@@ -315,17 +327,7 @@ final class Injector
 
         $type = $parameter->getType();
         if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
-            try {
-                return $this->get($type->getName(), $context);
-            } catch (ScopedDependencyException|UnrecoverableDependencyException $exception) {
-                throw $exception;
-            } catch (DependencyResolutionException $exception) {
-                if ($type->allowsNull()) {
-                    return null;
-                }
-
-                throw $exception;
-            }
+            return $this->resolve($type->getName(), $context, optional: $type->allowsNull());
         }
 
         if ($parameter->isDefaultValueAvailable()) {

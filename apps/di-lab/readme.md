@@ -9,6 +9,8 @@ composer check
 
 The sample prices two orders using constructor injection, a service provider, and a type factory that reads order data from the active scope. The checks also exercise named argument overrides, lifetimes, aliases, child injectors, and error paths. Sample classes live in [app](app) and checks live in [check.php](check.php).
 
+The optional dependency checks verify that an absent binding can resolve to `null` and that errors from a registered factory, alias, or matching type factory propagate.
+
 ## API review
 
 | Area | API to retain |
@@ -22,7 +24,6 @@ The sample prices two orders using constructor injection, a service provider, an
 
 ### Confirmed findings
 
-- `Injector::invoke()` accepts `callable`, but an object with `__invoke()` reaches `ReflectionFunction` and raises `TypeError`. [Callable reflection](../../packages/di/src/Injector.php#L338)
-- `Injector::addTypeFactory()` registers a factory that lookup ignores when the injector uses a `Bindings` instance. The lab registers its factory with `Bindings::addTypeFactory()`. [Type factory lookup](../../packages/di/src/Injector.php#L260)
-- An ordinary factory failure becomes `null` when a constructor parameter is nullable. A missing binding and a broken registered service currently produce the same result in that case. [Parameter resolution](../../packages/di/src/Injector.php#L305)
-- Replacing a binding after its singleton has resolved leaves the old value cached. The API needs a defined behavior for rebinding after first resolution. [Singleton lookup](../../packages/di/src/Injector.php#L74)
+- `Injector::invoke()` accepts `callable`, but an object with `__invoke()` reaches `ReflectionFunction` and raises `TypeError`. [Callable reflection](../../packages/di/src/Injector.php#L340)
+- `Injector::addTypeFactory()` registers a factory that lookup ignores when the injector uses a `Bindings` instance. The lab registers its factory with `Bindings::addTypeFactory()`. [Type factory lookup](../../packages/di/src/Injector.php#L272)
+- Replacing a binding after its singleton has resolved leaves the old value cached. The API needs a defined behavior for rebinding after first resolution. [Singleton lookup](../../packages/di/src/Injector.php#L86)

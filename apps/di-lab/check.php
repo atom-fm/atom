@@ -90,4 +90,48 @@ try {
     verify(str_contains($exception->getMessage(), "order.missing"), "The error did not identify the missing token.");
 }
 
+$optionalCatalog = static fn(?PriceCatalog $catalog): ?PriceCatalog => $catalog;
+verify(Injector::create()->invoke($optionalCatalog) === null, "An absent optional dependency did not resolve to null.");
+verify(
+    Injector::create()->invoke(static fn(?ReflectionFunctionAbstract $function): ?ReflectionFunctionAbstract => $function) === null,
+    "An unbound abstract type did not resolve to null."
+);
+
+$catalogContext = new InjectionContext();
+$catalogContext->set(PriceCatalog::class, $catalog);
+verify(
+    Injector::create()->invoke($optionalCatalog, context: $catalogContext) === $catalog,
+    "An optional dependency ignored the value supplied by the context."
+);
+
+$factoryFailure = new RuntimeException("Catalog could not be opened.");
+$brokenCatalog = Bindings::create();
+$brokenCatalog->factory(PriceCatalog::class, static fn(): never => throw $factoryFailure);
+try {
+    Injector::create($brokenCatalog)->invoke($optionalCatalog);
+    throw new RuntimeException("A failing optional factory was replaced with null.");
+} catch (DependencyResolutionException $exception) {
+    verify(str_contains($exception->getMessage(), $factoryFailure->getMessage()), "The factory failure was lost.");
+    $cause = $exception;
+    while ($cause->getPrevious() !== null) {
+        $cause = $cause->getPrevious();
+    }
+    verify($cause === $factoryFailure, "The original factory exception was lost.");
+}
+
+$brokenAlias = Bindings::create()->existing(PriceCatalog::class, "shop.missing_catalog");
+try {
+    Injector::create($brokenAlias)->invoke($optionalCatalog);
+    throw new RuntimeException("A broken alias was replaced with null.");
+} catch (DependencyResolutionException $exception) {
+    verify(str_contains($exception->getMessage(), "shop.missing_catalog"), "The alias failure hid its target.");
+}
+
+try {
+    $injector->invoke(static fn(?OrderInput $input): ?OrderInput => $input);
+    throw new RuntimeException("A failing optional type factory was replaced with null.");
+} catch (DependencyResolutionException $exception) {
+    verify(str_contains($exception->getMessage(), "order.sku"), "The type factory failure hid the missing input.");
+}
+
 echo "DI Lab checks passed.\n";
