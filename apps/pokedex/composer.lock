@@ -4,63 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "155fd9234320967d4766a924630418e8",
+    "content-hash": "a36c16064cbcfafb8adf67fbe180bbf3",
     "packages": [
-        {
-            "name": "atom-fm/components",
-            "version": "0.2.x-dev",
-            "dist": {
-                "type": "path",
-                "url": "../../packages/components"
-            },
-            "require": {
-                "atom-fm/framework": "^0.2",
-                "atom-fm/profiler": "^0.1",
-                "atom-fm/validation": "^0.1",
-                "atom-fm/view": "^0.1",
-                "php": "^8.4"
-            },
-            "require-dev": {
-                "phpstan/phpstan": "^2.2",
-                "phpunit/phpunit": "^11.0"
-            },
-            "type": "library",
-            "extra": {
-                "branch-alias": {
-                    "dev-master": "0.2.x-dev"
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "Atom\\Components\\": "src/"
-                }
-            },
-            "autoload-dev": {
-                "psr-4": {
-                    "Atom\\Tests\\": "tests/"
-                }
-            },
-            "scripts": {
-                "test": [
-                    "phpunit"
-                ],
-                "analyse": [
-                    "phpstan analyse --memory-limit=512M"
-                ],
-                "check": [
-                    "@analyse",
-                    "@test"
-                ]
-            },
-            "license": [
-                "MIT"
-            ],
-            "description": "Server-rendered UI components for Atom Framework",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
-        },
         {
             "name": "atom-fm/di",
             "version": "0.1.x-dev",

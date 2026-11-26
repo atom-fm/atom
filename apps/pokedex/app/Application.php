@@ -13,8 +13,6 @@ use Atom\Http\Response;
 use Atom\Module\ModuleRegistry;
 use Atom\Modules\ApiExplorer\ApiExplorer;
 use Atom\Modules\Client\Client;
-use Atom\Components\Components;
-use Atom\Integration\View\ComponentModule;
 use Atom\Router\Route;
 
 final class Application extends \Atom\Application
@@ -33,11 +31,6 @@ final class Application extends \Atom\Application
     {
         $modules
             ->add(Client::module())
-            ->add(new ComponentModule(
-                Components::definitions(),
-                Components::resourceDirectory(),
-                Components::DEFAULT_RESOURCE_PATH
-            ))
             ->add(ApiExplorer::module(), "/atom/api");
     }
 
