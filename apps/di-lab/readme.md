@@ -24,6 +24,4 @@ The type factory checks cover both registration paths, lookup order, and isolati
 | Extension points | `TypeFactory::match()` and `TypeInfo` support matched construction, including Framework's DTO integration. `UnrecoverableDependencyException` lets an integration propagate domain-specific input errors unchanged. |
 | Diagnostics | `DependencyResolutionException`, `CircularDependencyException`, and `ScopedDependencyException` describe resolution failures and their dependency paths. |
 
-### Confirmed findings
-
-- Replacing a binding after its singleton has resolved leaves the old value cached. The API needs a defined behavior for rebinding after first resolution. [Singleton lookup](../../packages/di/src/Injector.php#L86)
+The singleton rebinding checks verify that a child and its parent share the replacement singleton and that a replacement can change the lifetime to transient.

@@ -15,6 +15,8 @@ final class Bindings implements IteratorAggregate
 {
     /** @var array<string, Provider> */
     private array $providers = [];
+    /** @var array<string, int> */
+    private array $revisions = [];
     /** @var TypeFactory[] */
     private array $typeFactories = [];
 
@@ -64,7 +66,14 @@ final class Bindings implements IteratorAggregate
     public function setProvider(Provider $provider): BindingRegistration
     {
         $this->providers[$provider->token] = $provider;
+        $this->revisions[$provider->token] = $this->revision($provider->token) + 1;
         return new BindingRegistration($this, $provider);
+    }
+
+    /** @internal */
+    public function revision(string $token): int
+    {
+        return $this->revisions[$token] ?? 0;
     }
 
     /**

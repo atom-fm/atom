@@ -78,7 +78,7 @@ final class ApplicationTest extends TestCase
     }
 
     #[TestWith([false, "module"], "module overrides an unresolved binding")]
-    #[TestWith([true, "ready"], "resolved singleton keeps its identity")]
+    #[TestWith([true, "module"], "module replaces a resolved singleton")]
     public function testModuleBindingPrecedence(bool $resolveEarly, string $expected): void
     {
         $app = new class($resolveEarly) extends Application {
@@ -116,7 +116,7 @@ final class ApplicationTest extends TestCase
         $response = $app->handle(new Request("GET", "/binding"));
         $this->assertSame($expected, $response->getContent());
         if ($resolveEarly) {
-            $this->assertSame($app->original, $app->getInjector()->get(TestApplicationMarker::class));
+            $this->assertNotSame($app->original, $app->getInjector()->get(TestApplicationMarker::class));
         }
     }
 

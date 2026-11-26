@@ -88,7 +88,7 @@ $bindings->bind(RequestState::class)
     ->transient();
 ```
 
-Singleton services are shared for the lifetime of the injector:
+Singleton services are shared for the lifetime of their binding. Replacing a binding in `Bindings` makes future resolutions use the replacement and its configured lifetime. Child injectors that inherit the binding see the same replacement.
 
 ```php
 $bindings->bind(DatabaseConnection::class)

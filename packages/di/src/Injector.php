@@ -27,7 +27,7 @@ final class Injector
 
     /** @var array<string, Provider> */
     private array $providers = [];
-    /** @var array<string, mixed> */
+    /** @var array<string, array{revision: int, instance: mixed}> */
     private array $singletons = [];
     /** @var TypeFactory[] */
     private array $typeFactories = [];
@@ -83,9 +83,12 @@ final class Injector
         }
 
         $owner = $this->findProviderOwner($token) ?? $this;
-        if (array_key_exists($token, $owner->singletons)) {
-            return $owner->singletons[$token];
+        $revision = $owner->bindings?->revision($token) ?? 0;
+        $cached = $owner->singletons[$token] ?? null;
+        if ($cached !== null && $cached["revision"] === $revision) {
+            return $cached["instance"];
         }
+        unset($owner->singletons[$token]);
 
         $provider = $owner->localProvider($token);
 
@@ -125,8 +128,8 @@ final class Injector
             $provider->lifetime === ProviderLifetime::Singleton
         );
 
-        if ($provider->lifetime === ProviderLifetime::Singleton) {
-            $owner->singletons[$provider->token] = $instance;
+        if ($provider->lifetime === ProviderLifetime::Singleton && $revision === ($owner->bindings?->revision($token) ?? 0)) {
+            $owner->singletons[$token] = ["revision" => $revision, "instance" => $instance];
         }
 
         if ($provider->lifetime === ProviderLifetime::Scoped) {

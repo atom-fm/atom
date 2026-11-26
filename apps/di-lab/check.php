@@ -169,4 +169,17 @@ try {
     verify(str_contains($exception->getMessage(), "order.sku"), "The type factory failure hid the missing input.");
 }
 
+$replacementBindings = Bindings::create();
+$replacementBindings->factory("catalog", static fn(): object => new stdClass())->singleton();
+$owner = Injector::create($replacementBindings);
+$consumer = $owner->createChild();
+$original = $consumer->get("catalog");
+$replacementBindings->factory("catalog", static fn(): object => new stdClass())->singleton();
+$replacement = $consumer->get("catalog");
+verify($replacement !== $original, "Rebinding kept the original singleton.");
+verify($owner->get("catalog") === $replacement, "The child and parent did not share the replacement.");
+
+$replacementBindings->factory("catalog", static fn(): object => new stdClass())->transient();
+verify($owner->get("catalog") !== $consumer->get("catalog"), "The replacement ignored its transient lifetime.");
+
 echo "DI Lab checks passed.\n";
