@@ -85,6 +85,7 @@ try {
     const save = page.locator("#save");
     const alternate = page.locator("#alternate");
     const result = page.locator("#result");
+    const actionError = page.getByRole("alert").filter({ hasText: "The server could not complete this action. Please try again." });
     const requestCount = () => page.evaluate(() => window.submitRequests);
     const nextPost = () => page.waitForResponse(response => response.request().method() === "POST");
 
@@ -120,6 +121,7 @@ try {
     const failedResponse = await failed;
     assert.equal(failedResponse.status(), 500);
     assert.equal(failedResponse.request().headers()["x-requested-with"], "Atom");
+    await actionError.waitFor();
     await page.waitForFunction(() => !document.querySelector("#save").disabled);
     assert.equal(await title.isVisible(), true);
     assert.equal(await title.inputValue(), "Retry this");
@@ -128,6 +130,7 @@ try {
     await save.click();
     assert.equal((await retried).status(), 200);
     await page.waitForFunction(() => document.querySelector("[name=title]").value === "Saved title");
+    await actionError.waitFor({ state: "detached" });
     assert.equal(submissions.length, 4);
     assert.equal(submissions.at(-1).title, "Retry this");
     assert.deepEqual(errors, []);

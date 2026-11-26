@@ -7,9 +7,10 @@ function scenario(uri, status = 200) {
     const requests = [], history = [], listeners = {};
     const location = new URL("http://example.test/catalog?new=1");
     let updates = 0;
-    const body = { querySelector: () => null };
+    const body = { querySelector: () => null, prepend() {} };
     const document = {
         body,
+        createElement: () => ({ setAttribute() {} }),
         querySelector: () => null,
         addEventListener() {},
         documentElement: { classList: { add() {} } },

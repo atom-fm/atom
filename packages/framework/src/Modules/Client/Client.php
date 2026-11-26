@@ -11,7 +11,7 @@ use Atom\View\Component\ComponentSet;
 final readonly class Client
 {
     public const DEFAULT_RESOURCE_PATH = "/atom/client/resources";
-    public const ATOM_VERSION = "17";
+    public const ATOM_VERSION = "18";
     public const MORPHDOM_VERSION = "2.7.8";
     public const MORPHDOM_ADAPTER_VERSION = "6";
 

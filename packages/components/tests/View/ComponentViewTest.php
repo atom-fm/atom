@@ -108,7 +108,7 @@ final class ComponentViewTest extends TestCase
             '<link rel="stylesheet" href="/atom/components/resources/atom.css?v=12">',
             $html
         );
-        $this->assertStringContainsString('<script src="/atom/client/resources/atom.js?v=17"></script>', $html);
+        $this->assertStringContainsString('<script src="/atom/client/resources/atom.js?v=18"></script>', $html);
         $this->assertStringContainsString(
             '<script src="/atom/client/resources/morphdom.js?v=2.7.8"></script>',
             $html

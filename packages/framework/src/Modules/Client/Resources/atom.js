@@ -17,6 +17,7 @@
     };
     var inputDebounceMs = 300;
     var submittingForms = new WeakSet();
+    var actionError = null;
 
     // History traversal changes history.state before popstate runs. Keep the
     // outgoing entry's key until its final position has been captured.
@@ -239,9 +240,9 @@
                 return;
             }
 
-            fail();
+            fail(xhr.status);
         };
-        xhr.onerror = fail;
+        xhr.onerror = function () { fail(0); };
         xhr.send(body);
     }
 
@@ -253,6 +254,11 @@
     }
 
     function updatePage(html, url, options) {
+        if (actionError !== null) {
+            actionError.remove();
+            actionError = null;
+        }
+
         var next = parsePage(html);
         var position = contentScroll();
         var destination = new URL(url || window.location.href, window.location.href);
@@ -311,7 +317,18 @@
     function setBusy(busy) {
     }
 
-    function showError(message) {
+    function showError(message, status, container) {
+        if (status >= 500) {
+            var target = container && container.isConnected ? container : document.body;
+            if (actionError === null) {
+                actionError = document.createElement("p");
+                actionError.setAttribute("role", "alert");
+            }
+            target.prepend(actionError);
+            actionError.textContent = "The server could not complete this action. Please try again.";
+            return;
+        }
+
         var response = document.querySelector(".response-preview pre");
 
         if (response !== null) {
@@ -377,9 +394,9 @@
             }
         }
 
-        function fail() {
+        function fail(status) {
             settle(function () {
-                showError("Request failed before a response was received.");
+                showError("Request failed before a response was received.", status, form);
             });
         }
 
@@ -436,10 +453,10 @@
                 updatePage(html, responseUrl);
                 setBusy(false);
             },
-            function () {
+            function (status) {
                 setBusy(false);
                 target && (target.disabled = false);
-                showError("Action failed before a response was received.");
+                showError("Action failed before a response was received.", status, target && target.form);
             }
         );
     }
@@ -503,9 +520,9 @@
                 updatePage(html, responseUrl);
                 setBusy(false);
             },
-            function () {
+            function (status) {
                 setBusy(false);
-                showError("Action failed before a response was received.");
+                showError("Action failed before a response was received.", status, field.form);
             },
             {
                 "X-Atom-Intent": "action",

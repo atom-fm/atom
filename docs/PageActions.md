@@ -19,6 +19,8 @@ The server can keep returning complete HTML. The client decides how to apply it.
 
 Ordinary form posts and Atom-enhanced requests use the same status rules. A malformed `_action`, an unavailable action, or invalid action arguments return `400 Bad Request`. When a form fails validation and the action redisplays the page, the response remains `200 OK` and includes the field errors. A dependency failure while invoking an action returns `500 Internal Server Error`.
 
+For an enhanced action that receives a server error, the browser shows a retry message and keeps the current page and form values in place. If the action came from a form, the submit button becomes available again.
+
 ## Define an action
 
 Build a counter whose step can change between clicks. In a fresh Atom Starter app, save the page class as `app/Pages/CounterPage.php`. Mark both numbers with `#[State]` so Atom restores them before each action runs.
