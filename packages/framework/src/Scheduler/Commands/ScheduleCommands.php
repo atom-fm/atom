@@ -6,9 +6,9 @@ namespace Atom\Scheduler\Commands;
 
 use Atom\Console\Attributes\ConsoleCommand;
 use Atom\Console\ConsoleOutput;
-use Atom\Scheduler\ClockInterface;
 use Atom\Scheduler\Schedule;
 use Atom\Scheduler\ScheduleRunner;
+use Atom\Support\ClockInterface;
 
 final readonly class ScheduleCommands
 {

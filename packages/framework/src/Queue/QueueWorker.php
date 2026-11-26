@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Queue;
 
-use Atom\Scheduler\ScheduleTaskLocks;
+use Atom\Support\FileOverlapLocks;
 use Throwable;
 
 final readonly class QueueWorker
@@ -13,7 +13,7 @@ final readonly class QueueWorker
         private QueueInterface $queue,
         private JobExecutor $executor,
         private QueueOptions $options,
-        private ?ScheduleTaskLocks $taskLocks = null
+        private ?FileOverlapLocks $taskLocks = null
     ) {
     }
 

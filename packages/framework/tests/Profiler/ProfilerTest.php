@@ -4,18 +4,15 @@ declare(strict_types=1);
 
 namespace Atom\Tests\Profiler;
 
-use Atom\Application;
-use Atom\Config\Config;
-use Atom\Di\ServiceProviderRegistry;
-use Atom\Profiler\Profiler;
 use Atom\Profiler\Profile;
+use Atom\Profiler\Profiler;
 use PHPUnit\Framework\TestCase;
 
 final class ProfilerTest extends TestCase
 {
     protected function tearDown(): void
     {
-        Application::$app = null;
+        Profile::resolveUsing(null);
         Profile::reset();
     }
 
@@ -60,7 +57,7 @@ final class ProfilerTest extends TestCase
         $this->assertSame(1, $summary["view.parse"]->count);
     }
 
-    public function testProfileFacadeUsesFallbackWhenApplicationIsNotReady(): void
+    public function testProfileFacadeUsesStandaloneProfiler(): void
     {
         $result = Profile::measure("fallback.work", static fn(): string => "done");
 
@@ -68,25 +65,19 @@ final class ProfilerTest extends TestCase
         $this->assertSame("fallback.work", Profile::profiler()->spans()[0]->name);
     }
 
-    public function testProfileFacadeUsesApplicationProfiler(): void
+    public function testProfileFacadeUsesProfilerFromResolverWhenAvailable(): void
     {
-        $app = new ProfilerTestApplication();
-        $app->initialize();
+        $fallback = Profile::profiler();
+        $profiler = new Profiler();
+        Profile::resolveUsing(static fn(): Profiler => $profiler);
 
-        Profile::measure("app.work", static fn(): null => null);
+        Profile::begin("resolved.work")->end();
 
-        $this->assertSame($app->getProfiler(), Profile::profiler());
-        $this->assertContains("app.work", array_map(static fn($span): string => $span->name, $app->getProfiler()->spans()));
-    }
-}
+        $this->assertSame($profiler, Profile::profiler());
+        $this->assertSame(1, $profiler->count("resolved.work"));
+        $this->assertSame(0, $fallback->count("resolved.work"));
 
-final class ProfilerTestApplication extends Application
-{
-    protected function configure(Config $config): void
-    {
-    }
-
-    protected function services(ServiceProviderRegistry $providers): void
-    {
+        Profile::resolveUsing(static fn(): ?Profiler => null);
+        $this->assertSame($fallback, Profile::profiler());
     }
 }

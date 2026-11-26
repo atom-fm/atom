@@ -244,7 +244,7 @@ Explicit providers always win over type factories.
 
 ### Test a booking deadline with a fixed clock
 
-A booking is open until its deadline and closes at the exact cutoff. Atom Starter binds `Atom\Scheduler\ClockInterface` to the system clock. A child injector lets a test supply a fixed time for that same constructor dependency.
+A booking is open until its deadline and closes at the exact cutoff. Framework binds `Atom\Support\ClockInterface` to the system clock for application services, including Session and Scheduler. A child injector lets a test supply a fixed time for that same constructor dependency.
 
 In a starter project with Composer dependencies installed, create `app/Bookings/BookingWindow.php`.
 
@@ -255,7 +255,7 @@ declare(strict_types=1);
 
 namespace App\Bookings;
 
-use Atom\Scheduler\ClockInterface;
+use Atom\Support\ClockInterface;
 use DateTimeImmutable;
 
 final readonly class BookingWindow
@@ -283,7 +283,7 @@ declare(strict_types=1);
 use App\Application;
 use App\Bookings\BookingWindow;
 use Atom\Di\Provider;
-use Atom\Scheduler\ClockInterface;
+use Atom\Support\ClockInterface;
 
 require __DIR__ . "/vendor/autoload.php";
 

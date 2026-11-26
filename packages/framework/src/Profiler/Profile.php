@@ -4,12 +4,23 @@ declare(strict_types=1);
 
 namespace Atom\Profiler;
 
-use Atom\Application;
-use RuntimeException;
+use Closure;
 
 final class Profile
 {
     private static ?Profiler $fallback = null;
+
+    /** @var (Closure(): ?Profiler)|null */
+    private static ?Closure $resolver = null;
+
+    /**
+     * @internal
+     * @param (Closure(): ?Profiler)|null $resolver
+     */
+    public static function resolveUsing(?Closure $resolver): void
+    {
+        self::$resolver = $resolver;
+    }
 
     /**
      * @param array<string, mixed> $metadata
@@ -32,14 +43,7 @@ final class Profile
 
     public static function profiler(): Profiler
     {
-        try {
-            if (Application::$app !== null) {
-                return Application::$app->getProfiler();
-            }
-        } catch (RuntimeException) {
-        }
-
-        return self::$fallback ??= new Profiler();
+        return self::$resolver?->__invoke() ?? (self::$fallback ??= new Profiler());
     }
 
     public static function reset(): void

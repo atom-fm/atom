@@ -12,6 +12,7 @@ use Atom\Api\Responses\Created;
 use Atom\Api\Responses\Conflict;
 use Atom\Api\Responses\NotFound;
 use Atom\Api\Responses\UnprocessableContent;
+use Atom\Collections\PagedCollection;
 use Atom\Database\Orm\PageResult;
 use Atom\Http\HttpStatus;
 use Atom\Hydrator\Attributes\Dto;
@@ -21,6 +22,7 @@ use Atom\Router\RouteEntry;
 use Atom\Router\Router;
 use Atom\Validation\Rules\MaxLength;
 use Atom\Validation\Rules\Required;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class ApiModelBuilderTest extends TestCase
@@ -57,15 +59,30 @@ final class ApiModelBuilderTest extends TestCase
         }
     }
 
-    public function testDescribesAnOrmPageUsingTheDeclaredItemType(): void
+    #[TestWith(["page"], "ORM page")]
+    #[TestWith(["collection"], "paged collection")]
+    public function testDescribesPaginationUsingTheDeclaredItemType(string $action): void
     {
         $router = new Router();
-        $router->add(RouteEntry::get("/api/users", [ApiUsersController::class, "page"])->api());
+        $router->add(RouteEntry::get("/api/users", [ApiUsersController::class, $action])->api());
 
         $fields = (new ApiModelBuilder())->describe($router)->endpoints[0]->responseFields;
         $this->assertSame(["items", "page", "page_size", "total", "total_pages"], array_column($fields, "name"));
         $this->assertSame("ApiUserResponse[]", $fields[0]->type);
         $this->assertSame("id", $fields[0]->children[0]->name);
+    }
+
+    public function testDescribesPaginationItemsAsAnArrayWithoutADeclaredType(): void
+    {
+        $router = new Router();
+        $router->add(RouteEntry::get(
+            "/api/users",
+            static fn (): PagedCollection => PagedCollection::fromPage([], 0, 1, 10)
+        )->api());
+
+        $fields = (new ApiModelBuilder())->describe($router)->endpoints[0]->responseFields;
+        self::assertSame(["array", "int", "int", "int", "int"], array_column($fields, "type"));
+        self::assertSame([], $fields[0]->children);
     }
 
     public function testDescribesControllerRouteAndDtoFields(): void
@@ -146,6 +163,12 @@ final class ApiUsersController
     public function page(): PageResult
     {
         return new PageResult([new ApiUserResponse()], 1, 1, 10);
+    }
+
+    #[ResponseOf(ApiUserResponse::class)]
+    public function collection(): PagedCollection
+    {
+        return PagedCollection::fromPage([new ApiUserResponse()], 1, 1, 10);
     }
 
     #[ResponseOf(ApiUserResponse::class)]

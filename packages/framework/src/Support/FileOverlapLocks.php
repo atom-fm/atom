@@ -2,29 +2,28 @@
 
 declare(strict_types=1);
 
-namespace Atom\Scheduler;
+namespace Atom\Support;
 
-use Atom\Support\Paths;
 use RuntimeException;
 
 /** @internal */
-final readonly class ScheduleTaskLocks
+final readonly class FileOverlapLocks
 {
-    public function __construct(private Paths $paths)
+    public function __construct(private Paths $paths, private string $directory)
     {
     }
 
     /** @return resource|null The caller owns the open lock file. */
     public function acquire(string $key)
     {
-        $directory = $this->paths->resolve("@root/storage/scheduler");
+        $directory = $this->paths->resolve($this->directory);
         if (!is_dir($directory) && !@mkdir($directory, 0777, true) && !is_dir($directory)) {
-            throw new RuntimeException("Cannot create the scheduler lock directory.");
+            throw new RuntimeException("Cannot create the overlap lock directory.");
         }
 
         $file = @fopen($directory . "/" . hash("sha256", $key) . ".lock", "c+b");
         if ($file === false) {
-            throw new RuntimeException("Cannot open the scheduler lock for '{$key}'.");
+            throw new RuntimeException("Cannot open the overlap lock for '{$key}'.");
         }
         if (flock($file, LOCK_EX | LOCK_NB, $wouldBlock)) {
             return $file;
@@ -34,6 +33,6 @@ final readonly class ScheduleTaskLocks
         if ($wouldBlock) {
             return null;
         }
-        throw new RuntimeException("Cannot acquire the scheduler lock for '{$key}'.");
+        throw new RuntimeException("Cannot acquire the overlap lock for '{$key}'.");
     }
 }

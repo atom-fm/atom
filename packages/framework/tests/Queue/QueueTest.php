@@ -34,11 +34,11 @@ use Atom\Queue\QueueException;
 use Atom\Queue\QueueServices;
 use Atom\Queue\QueueWorker;
 use Atom\Queue\WorkerResult;
-use Atom\Scheduler\ClockInterface;
 use Atom\Scheduler\Schedule;
 use Atom\Scheduler\ScheduleMinuteClaims;
 use Atom\Scheduler\ScheduleRunner;
-use Atom\Scheduler\ScheduleTaskLocks;
+use Atom\Support\ClockInterface;
+use Atom\Support\FileOverlapLocks;
 use DateTimeImmutable;
 use Fiber;
 use PDO;
@@ -366,7 +366,8 @@ final class QueueTest extends TestCase
         $injector = Injector::create($bindings);
         $injector->get(JobRegistry::class)->register(PausingJob::class);
         $firstWorker = $injector->get(QueueWorker::class);
-        $secondWorker = new QueueWorker($other, $injector->get(JobExecutor::class), $options, new ScheduleTaskLocks(new Paths($root)));
+        $locks = new FileOverlapLocks(new Paths($root), "@root/storage/scheduler");
+        $secondWorker = new QueueWorker($other, $injector->get(JobExecutor::class), $options, $locks);
 
         $clock = new class implements ClockInterface {
             public DateTimeImmutable $time;
@@ -385,7 +386,7 @@ final class QueueTest extends TestCase
             new ConsoleApplication($injector),
             $injector->get(JobDispatcherInterface::class),
             new ScheduleMinuteClaims(new Paths($root)),
-            new ScheduleTaskLocks(new Paths($root))
+            $locks
         );
 
         try {
@@ -393,6 +394,7 @@ final class QueueTest extends TestCase
             $first = new Fiber($firstWorker->runOnce(...));
             $first->start();
             $this->assertTrue($first->isSuspended());
+            $this->assertFileExists($root . "/storage/scheduler/" . hash("sha256", "poll") . ".lock");
 
             $clock->time = $clock->time->modify("+1 minute");
             $this->assertSame(1, $runner->run()->count());

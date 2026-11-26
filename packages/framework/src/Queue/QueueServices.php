@@ -10,12 +10,14 @@ use Atom\Database\DatabaseConnection;
 use Atom\Di\Bindings;
 use Atom\Di\Injector;
 use Atom\Di\ServiceProviderInterface;
+use Atom\Support\OverlapLockServices;
 use Atom\Support\Paths;
 
 final readonly class QueueServices implements ServiceProviderInterface, ConsoleCommandProviderInterface
 {
     public function register(Bindings $bindings): void
     {
+        (new OverlapLockServices())->register($bindings);
         $bindings->bind(JobRegistry::class)->toSelf()->singleton();
         $bindings->bind(JobExecutor::class)
             ->toFactory(static fn(Injector $injector): JobExecutor => new JobExecutor(

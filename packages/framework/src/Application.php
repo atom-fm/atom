@@ -47,6 +47,7 @@ use Atom\Queue\JobRegistry;
 use Atom\Queue\QueueServices;
 use Atom\Page\PageRouteRegistrar;
 use Atom\Page\PageServices;
+use Atom\Profiler\Profile;
 use Atom\Profiler\Profiler;
 use Atom\Router\MatchedRoute;
 use Atom\Router\Route;
@@ -57,6 +58,7 @@ use Atom\Session\SessionServices;
 use Atom\Security\SecurityServices;
 use Atom\Scheduler\Schedule;
 use Atom\Scheduler\ScheduleServices;
+use Atom\Support\ClockServices;
 use Atom\Support\Paths;
 use Atom\View\Component\ComponentRegistry;
 use RuntimeException;
@@ -86,6 +88,7 @@ abstract class Application
             throw new RuntimeException("Application was already initialized");
         }
         static::$app = $this;
+        Profile::resolveUsing(static fn(): ?Profiler => self::$app?->activeProfiler());
     }
 
     final public function getProviders(): ServiceProviderRegistry
@@ -130,8 +133,12 @@ abstract class Application
 
     final public function getProfiler(): Profiler
     {
-        return $this->requestProfiler ?? $this->bootstrapProfiler
-            ?? throw new RuntimeException("Application has not been initialized.");
+        return $this->activeProfiler() ?? throw new RuntimeException("Application has not been initialized.");
+    }
+
+    private function activeProfiler(): ?Profiler
+    {
+        return $this->requestProfiler ?? $this->bootstrapProfiler;
     }
 
     final public function getRouter(): Router
@@ -219,6 +226,7 @@ abstract class Application
     {
         $providers
             ->add(CacheServices::class)
+            ->add(ClockServices::class)
             ->add(ConsoleServices::class)
             ->add(DispatcherServices::class)
             ->add(IdentityServices::class)

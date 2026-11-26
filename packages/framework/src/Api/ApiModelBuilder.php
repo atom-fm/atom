@@ -8,9 +8,9 @@ use Atom\Api\Attributes\ArrayOf;
 use Atom\Api\Attributes\ErrorResponse;
 use Atom\Api\Attributes\ResponseOf;
 use Atom\Api\Responses\Created;
+use Atom\Collections\PagePayload;
 use Atom\Collections\PagedCollection;
 use Atom\Database\Orm\PageResult;
-use Atom\Collections\PagePayload;
 use Atom\Hydrator\Attributes\Dto;
 use Atom\Hydrator\Attributes\SourceAttributeInterface;
 use Atom\Router\RouteAction;
@@ -328,6 +328,10 @@ final class ApiModelBuilder
      */
     private function arrayItemType(ReflectionProperty $property, ?string $responseType): ?string
     {
+        if ($property->getName() === "items" && $property->getDeclaringClass()->getName() === PagePayload::class) {
+            return $responseType;
+        }
+
         $attributes = $property->getAttributes(ArrayOf::class);
         if ($attributes === []) {
             return null;

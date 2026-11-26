@@ -7,7 +7,7 @@ namespace Atom\Session;
 use Atom\Http\Cookie;
 use Atom\Http\CookieJar;
 use Atom\Http\Request;
-use Atom\Scheduler\ClockInterface;
+use Atom\Support\ClockInterface;
 use RuntimeException;
 
 final class NativeSession implements SessionInterface

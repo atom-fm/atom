@@ -8,6 +8,8 @@ use Atom\Console\BufferedConsoleOutput;
 use Atom\Console\ConsoleApplication;
 use Atom\Queue\JobDispatcherInterface;
 use Atom\Queue\QueueJobDispatcher;
+use Atom\Support\ClockInterface;
+use Atom\Support\FileOverlapLocks;
 use RuntimeException;
 use Throwable;
 
@@ -19,7 +21,7 @@ final readonly class ScheduleRunner
         private ConsoleApplication $console,
         private JobDispatcherInterface $jobs,
         private ?ScheduleMinuteClaims $minuteClaims = null,
-        private ?ScheduleTaskLocks $taskLocks = null
+        private ?FileOverlapLocks $taskLocks = null
     ) {
     }
 

@@ -256,6 +256,8 @@ final class ApplicationTest extends TestCase
         $response = $app->handle(new Request("GET", "/hello/Atom"));
 
         $this->assertSame($app->getProfiler(), $app->getInjector()->get(Profiler::class));
+        $this->assertSame($app->getProfiler(), Profile::profiler());
+        $this->assertSame(1, $app->getProfiler()->count("test.bootstrap"));
         $this->assertNotNull($response->headers()->get("X-Atom-Time"));
         $this->assertNotNull($response->headers()->get("X-Atom-Time-App-Initialize"));
         $this->assertNotNull($response->headers()->get("X-Atom-Time-Request-Dispatch"));
@@ -420,6 +422,7 @@ final class TestApplication extends Application
     protected function bootstrap(Injector $injector): void
     {
         $this->bootstrapped = true;
+        Profile::measure("test.bootstrap", static fn(): null => null);
 
         Route::get("/hello/{name}", fn(string $name) => "Hello " . $name);
         Route::get("/profile/repeated", function (Profiler $profiler): string {

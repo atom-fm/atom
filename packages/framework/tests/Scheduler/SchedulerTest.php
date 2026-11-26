@@ -11,13 +11,16 @@ use Atom\Console\ConsoleApplication;
 use Atom\Console\ConsoleInput;
 use Atom\Console\ConsoleOutput;
 use Atom\Di\Injector;
+use Atom\Di\ServiceProviderRegistry;
 use Atom\Queue\JobDispatcherInterface;
 use Atom\Queue\JobInterface;
 use Atom\Queue\JobRegistry;
-use Atom\Scheduler\ClockInterface;
 use Atom\Scheduler\Commands\ScheduleCommands;
 use Atom\Scheduler\Schedule;
 use Atom\Scheduler\ScheduleRunner;
+use Atom\Scheduler\ScheduleServices;
+use Atom\Support\ClockInterface;
+use Atom\Support\SystemClock;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\TestWith;
@@ -28,6 +31,15 @@ final class SchedulerTest extends TestCase
     protected function tearDown(): void
     {
         Application::$app = null;
+    }
+
+    public function testStandaloneScheduleProviderUsesTheSharedClockByDefault(): void
+    {
+        $injector = ServiceProviderRegistry::create()->add(ScheduleServices::class)->injector();
+        $clock = $injector->get(ClockInterface::class);
+
+        self::assertInstanceOf(SystemClock::class, $clock);
+        self::assertSame($clock, $injector->get(ClockInterface::class));
     }
 
     public function testFluentFrequenciesBuildCronExpressions(): void
@@ -158,6 +170,7 @@ final class SchedulerTest extends TestCase
                 usleep(10000);
             }
             $this->assertFileExists($root . "/" . $record, file_get_contents($root . "/first.log"));
+            $this->assertFileExists($root . "/storage/scheduler/" . hash("sha256", $mode) . ".lock");
             $second = $this->startSchedule($root, "second", "2026-11-23T09:01:00Z", $mode);
             $this->assertSame(0, proc_close($second), file_get_contents($root . "/second.log"));
             $this->assertStringContainsString("No scheduled tasks to run.", file_get_contents($root . "/second.log"));

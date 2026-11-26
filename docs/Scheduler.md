@@ -228,4 +228,6 @@ $schedule->command("cache:prune")
 
 Processes using the same key and shared `storage/scheduler` directory skip the task while the lock is held. Other due tasks can proceed. Combine this with `oncePerMinute()` to deduplicate repeated invocations. If an invocation skips a busy task, it leaves the minute unclaimed so a later invocation in the same minute can still run it.
 
+Scheduler and Queue workers use the same lock files. Each filename is the SHA-256 digest of the overlap key followed by `.lock`.
+
 For the built-in file and database queues, the scheduler passes the key to the worker. Each due occurrence can be queued while an earlier one runs. If the worker finds the key locked, it defers that job for `QUEUE_RETRY_DELAY` seconds with a minimum of one second. Deferral keeps the attempt count unchanged. All workers for the task must share the same lock directory on a filesystem that supports file locks.

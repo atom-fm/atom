@@ -13,9 +13,9 @@ use Atom\Queue\JobDispatcherInterface;
 use Atom\Queue\JobInterface;
 use Atom\Queue\JobRegistry;
 use Atom\Queue\QueueServices;
-use Atom\Scheduler\ClockInterface;
 use Atom\Scheduler\Schedule;
 use Atom\Scheduler\ScheduleServices;
+use Atom\Support\ClockInterface;
 use Atom\Support\Paths;
 
 require dirname(__DIR__, 3) . "/vendor/autoload.php";
@@ -67,10 +67,9 @@ $jobs = new class($root) implements JobDispatcherInterface {
         return "test";
     }
 };
-$bindings = Bindings::create();
+$bindings = Bindings::create()->value(ClockInterface::class, $clock);
 (new ScheduleServices())->register($bindings);
 $bindings->value(Schedule::class, $schedule)
-    ->value(ClockInterface::class, $clock)
     ->value(JobDispatcherInterface::class, $jobs)
     ->value(Paths::class, new Paths($root));
 $execution = new SchedulerProbeExecution($root, $process);

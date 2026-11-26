@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Atom\Scheduler;
+namespace Atom\Support;
 
 use DateTimeImmutable;
 

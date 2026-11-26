@@ -146,6 +146,8 @@ final class PagedResponse
 
 Use `#[ArrayOf(SomeResponse::class)]` when the array item type is concrete and does not depend on the action response.
 
+For actions that return `PagedCollection` or ORM `PageResult`, `#[ResponseOf]` supplies the schema for `items` in the built-in pagination response.
+
 `ApiDescription` contains endpoint descriptors:
 
 ```php
