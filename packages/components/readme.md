@@ -1,6 +1,14 @@
 # Atom Components
 
-Server-rendered widgets, styles, and browser controls for Atom Framework. Enable the package by adding its module to the application's module registry.
+Server-rendered widgets, styles, and browser controls for Atom Framework.
+
+Install the package in your application.
+
+```bash
+composer require atom-fm/components
+```
+
+Enable it by adding its module to the application's module registry.
 
 ```php
 use Atom\Components\Components;
@@ -22,10 +30,10 @@ Register the framework's Client module to use `ClientScripts`. The component and
 
 Run `composer setup` from the repository root to install the package and showcase. Run `composer components:check` for component PHP tests and static analysis.
 
-Start the [showcase](../../apps/showcase) from its directory.
+Start the [showcase](https://github.com/atom-fm/atom/tree/master/apps/showcase) from its directory.
 
 ```bash
 php -S 127.0.0.1:8022 -t public
 ```
 
-See the [browser controls guide](../../docs/client-components.md) for the demo and browser tests.
+See the [browser controls guide](https://github.com/atom-fm/atom/blob/master/docs/client-components.md) for the demo and browser tests.

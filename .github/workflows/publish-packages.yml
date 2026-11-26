@@ -39,11 +39,11 @@ jobs:
                   git config --global user.name "atom-fm package publisher"
                   git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-            - name: Publish SQL, ORM, and framework
+            - name: Publish SQL, ORM, Framework, and Components
               env:
                   PACKAGE_SPLIT_TOKEN: ${{ secrets.PACKAGE_SPLIT_TOKEN }}
               run: |
-                  for package in sql orm framework; do
+                  for package in sql orm framework components; do
                       target="$RUNNER_TEMP/$package"
                       git clone "https://x-access-token:${PACKAGE_SPLIT_TOKEN}@github.com/atom-fm/$package.git" "$target"
                       rsync -a --delete \
@@ -59,6 +59,8 @@ jobs:
                           rm -f composer.lock
                           if [ "$package" != sql ]; then
                               composer config --unset repositories
+                          fi
+                          if [ "$package" = orm ] || [ "$package" = framework ]; then
                               composer config repositories.sql vcs https://github.com/atom-fm/sql
                           fi
                           if [ "$package" = framework ]; then

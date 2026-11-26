@@ -4,11 +4,11 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "28dcac70b36ff9da0cf28588bd311ec1",
+    "content-hash": "d01773f3d761c6577f90b937f5253119",
     "packages": [
         {
             "name": "atom-fm/components",
-            "version": "0.1.x-dev",
+            "version": "0.2.x-dev",
             "dist": {
                 "type": "path",
                 "url": "../../packages/components"
@@ -24,7 +24,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-master": "0.1.x-dev"
+                    "dev-master": "0.2.x-dev"
                 }
             },
             "autoload": {

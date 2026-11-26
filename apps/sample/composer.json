@@ -48,7 +48,7 @@
             "options": {
                 "symlink": true,
                 "versions": {
-                    "atom-fm/components": "0.1.x-dev"
+                    "atom-fm/components": "0.2.x-dev"
                 },
                 "reference": "none"
             }
@@ -57,7 +57,7 @@
     "require": {
         "php": "^8.4",
         "atom-fm/framework": "^0.2",
-        "atom-fm/components": "^0.1"
+        "atom-fm/components": "^0.2"
     },
     "require-dev": {
         "filp/whoops": "^2.3"
