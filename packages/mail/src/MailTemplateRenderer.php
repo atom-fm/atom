@@ -23,7 +23,8 @@ final readonly class MailTemplateRenderer
                 include $__path;
             })($template->path, $template->variables);
 
-            return ob_get_clean() ?: "";
+            $body = ob_get_clean();
+            return $body === false ? "" : $body;
         } catch (Throwable $exception) {
             while (ob_get_level() > $bufferLevel) {
                 ob_end_clean();

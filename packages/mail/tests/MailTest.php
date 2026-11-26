@@ -67,6 +67,19 @@ final class MailTest extends TestCase
         }
     }
 
+    public function testMailTemplatePreservesZeroOutput(): void
+    {
+        $template = tempnam(sys_get_temp_dir(), "atom_mail_");
+        self::assertNotFalse($template);
+
+        try {
+            file_put_contents($template, "<?php echo 0;");
+            self::assertSame("0", (new MailTemplateRenderer())->render(new MailTemplate($template)));
+        } finally {
+            unlink($template);
+        }
+    }
+
     public function testMissingMailTemplateRaisesMailException(): void
     {
         $this->expectException(MailException::class);
