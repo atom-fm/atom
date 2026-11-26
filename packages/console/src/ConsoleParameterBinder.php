@@ -73,12 +73,12 @@ final class ConsoleParameterBinder
             return $this->coerce($argument, $parameter);
         }
 
-        if ($this->isBool($parameter)) {
-            return false;
-        }
-
         if ($parameter->isDefaultValueAvailable()) {
             return $parameter->getDefaultValue();
+        }
+
+        if ($this->isBool($parameter)) {
+            return false;
         }
 
         if ($parameter->allowsNull()) {

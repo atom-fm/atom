@@ -80,6 +80,26 @@ final class ConsoleApplicationTest extends TestCase
         self::assertSame("message" . PHP_EOL, $output->output());
     }
 
+    public function testOmittedBooleanFlagsUseDeclaredDefaultsOrFalse(): void
+    {
+        $console = (new ConsoleApplication())->attach(ConsoleFlagCommands::class);
+        $output = new BufferedConsoleOutput();
+
+        self::assertSame(0, $console->run(["atom", "flags"], $output), $output->errors());
+        self::assertSame("[false,true,false,null]", $output->output());
+    }
+
+    public function testExplicitBooleanFlagsOverrideDefaults(): void
+    {
+        $console = (new ConsoleApplication())->attach(ConsoleFlagCommands::class);
+        $output = new BufferedConsoleOutput();
+
+        self::assertSame(0, $console->run([
+            "atom", "flags", "--verbose", "--enabled=false", "--force", "--confirm=false",
+        ], $output), $output->errors());
+        self::assertSame("[true,false,true,false]", $output->output());
+    }
+
     public function testCanRunCommandInstance(): void
     {
         $console = new ConsoleApplication();
@@ -260,6 +280,15 @@ final class ConsoleApplicationTest extends TestCase
         );
     }
 
+}
+
+final class ConsoleFlagCommands
+{
+    #[ConsoleCommand("flags")]
+    public function flags(bool $verbose, bool $enabled = true, bool $force = false, ?bool $confirm = null): string
+    {
+        return json_encode([$verbose, $enabled, $force, $confirm], JSON_THROW_ON_ERROR);
+    }
 }
 
 final class ConsoleIoCommands
