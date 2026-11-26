@@ -1,0 +1,10 @@
+<!doctype html>
+<main atom:update-root>
+    <h1>Edit record</h1>
+    <form method="post" atom:submit="record.save">
+        <input type="hidden" name="_action" value="record.save" />
+        <label>Title <input name="title" required /></label>
+        <button type="submit">Save record</button>
+    </form>
+</main>
+<script src="/atom.js"></script>

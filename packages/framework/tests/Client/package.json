@@ -2,7 +2,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "test": "node forms.test.mjs && node navigation.test.mjs",
+        "test": "node forms.test.mjs && node navigation.test.mjs && node page-save.test.mjs",
         "test:forms": "node forms.test.mjs",
         "test:uri": "node uri.test.mjs"
     },
