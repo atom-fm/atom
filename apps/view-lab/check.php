@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Atom\View\Parser\ViewParser;
 use Atom\View\TemplateCache;
+use ViewLab\NativeText;
 use ViewLab\Panel;
 
 $renderer = require __DIR__ . "/bootstrap.php";
@@ -32,6 +33,9 @@ foreach ([
 
 $standalonePanel = $renderer->renderComponent(Panel::class, ["title" => "Standalone panel"]);
 verify(str_contains($standalonePanel, "<h2>Standalone panel</h2>"), "The panel did not render by class.");
+
+verify($renderer->renderComponent(NativeText::class, ["text" => "0"]) === "0", "Native template output lost the zero.");
+verify($renderer->renderComponent(NativeText::class, ["text" => ""]) === "", "Empty native template output changed.");
 
 $cache = new TemplateCache();
 $parse = (new ViewParser())->parseFile(...);

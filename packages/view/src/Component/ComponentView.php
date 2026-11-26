@@ -36,7 +36,9 @@ final readonly class ComponentView
 
             $include->bindTo($component, $component::class)?->__invoke($path, $variables);
 
-            return ob_get_clean() ?: "";
+            $html = ob_get_clean();
+
+            return $html === false ? "" : $html;
         } catch (Throwable $exception) {
             while (ob_get_level() > $bufferLevel) {
                 ob_end_clean();
