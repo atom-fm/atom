@@ -43,11 +43,11 @@ final class ConsoleParameterBinder
         $type = $parameter->getType();
         $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
 
-        if ($name === "input" || $typeName === ConsoleInput::class) {
+        if ($typeName === ConsoleInput::class || ($type === null && $name === "input")) {
             return $this->input;
         }
 
-        if ($name === "output" || $typeName === ConsoleOutput::class) {
+        if ($typeName === ConsoleOutput::class || ($type === null && $name === "output")) {
             return $this->output;
         }
 

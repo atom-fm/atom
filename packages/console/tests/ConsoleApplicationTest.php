@@ -62,6 +62,24 @@ final class ConsoleApplicationTest extends TestCase
         $this->assertSame("HELLO, ATOM!" . PHP_EOL, $output->output());
     }
 
+    public function testScalarInputAndOutputNamesBindFromArgumentsAndOptions(): void
+    {
+        $console = (new ConsoleApplication())->attach(ConsoleIoCommands::class);
+        $output = new BufferedConsoleOutput();
+
+        self::assertSame(0, $console->run(["atom", "io:scalar", "source", "--output=destination"], $output), $output->errors());
+        self::assertSame("source -> destination", $output->output());
+    }
+
+    public function testTypedConsoleIoTakesPrecedenceOverParameterNames(): void
+    {
+        $console = (new ConsoleApplication())->attach(ConsoleIoCommands::class);
+        $output = new BufferedConsoleOutput();
+
+        self::assertSame(0, $console->run(["atom", "io:typed", "message"], $output), $output->errors());
+        self::assertSame("message" . PHP_EOL, $output->output());
+    }
+
     public function testCanRunCommandInstance(): void
     {
         $console = new ConsoleApplication();
@@ -242,6 +260,21 @@ final class ConsoleApplicationTest extends TestCase
         );
     }
 
+}
+
+final class ConsoleIoCommands
+{
+    #[ConsoleCommand("io:scalar")]
+    public function scalar(string $input, string $output): string
+    {
+        return "{$input} -> {$output}";
+    }
+
+    #[ConsoleCommand("io:typed")]
+    public function typed(ConsoleInput $output, ConsoleOutput $input): void
+    {
+        $input->line($output->argument(0) ?? "");
+    }
 }
 
 final readonly class ConsoleGreetingService
