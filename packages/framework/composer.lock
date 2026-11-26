@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0bf109acc95cbfe482f50f5133014e27",
+    "content-hash": "b2b5b8bc9391cccb6b3aea80887dd5ed",
     "packages": [
         {
             "name": "atom-fm/console",
@@ -1423,6 +1423,60 @@
         }
     ],
     "packages-dev": [
+        {
+            "name": "atom-fm/database",
+            "version": "0.1.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "../database"
+            },
+            "require": {
+                "atom-fm/orm": "^0.1",
+                "atom-fm/sql": "^0.1",
+                "ext-pdo": "*",
+                "php": "^8.4"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Atom\\Database\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Atom\\Tests\\Database\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "analyse": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "check": [
+                    "@analyse",
+                    "@test"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "PDO drivers, schema tools, and migrations for PHP",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
         {
             "name": "atom-fm/orm",
             "version": "dev-master",

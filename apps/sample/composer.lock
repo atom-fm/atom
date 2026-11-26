@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0d6c0dc5cfb180886e79ff28231c577c",
+    "content-hash": "a2308a1eeddb8364dccec5b5d1427660",
     "packages": [
         {
             "name": "atom-fm/components",
@@ -113,6 +113,60 @@
             }
         },
         {
+            "name": "atom-fm/database",
+            "version": "0.1.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/database"
+            },
+            "require": {
+                "atom-fm/orm": "^0.1",
+                "atom-fm/sql": "^0.1",
+                "ext-pdo": "*",
+                "php": "^8.4"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Atom\\Database\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Atom\\Tests\\Database\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "analyse": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "check": [
+                    "@analyse",
+                    "@test"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "PDO drivers, schema tools, and migrations for PHP",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
             "name": "atom-fm/di",
             "version": "0.1.x-dev",
             "dist": {
@@ -169,7 +223,7 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/framework",
-                "reference": "30c91b9666a68b980604f385c27cf7fc01832f2d"
+                "reference": "da7242f211288e342737e4e7c8b5ba013e7367bc"
             },
             "require": {
                 "atom-fm/console": "^0.1",
@@ -182,6 +236,7 @@
                 "php": "^8.4"
             },
             "require-dev": {
+                "atom-fm/database": "^0.1",
                 "atom-fm/orm": "^0.1",
                 "atom-fm/sql": "^0.1",
                 "phpbench/phpbench": "~1.4.0",
@@ -189,7 +244,7 @@
                 "phpunit/phpunit": "^11.0"
             },
             "suggest": {
-                "atom-fm/orm": "Enables Atom database services, migrations, and models. ORM installs the SQL package."
+                "atom-fm/database": "Enables Atom database services and migrations. Installs ORM and SQL."
             },
             "type": "library",
             "extra": {

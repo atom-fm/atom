@@ -21,6 +21,10 @@ final readonly class DatabaseDriverFactory
 
     public function create(DatabaseConfig $config): DatabaseDriverInterface
     {
+        if (!interface_exists(DatabaseDriverInterface::class)) {
+            throw new DatabaseDriverFactoryException("Database services require atom-fm/database. Install it with composer require atom-fm/database.");
+        }
+
         return match (strtolower($config->driver)) {
             "sqlite" => new SqliteDriver($this->path($config->database), $config->options),
             "mysql", "mariadb" => new MySqlDriver(

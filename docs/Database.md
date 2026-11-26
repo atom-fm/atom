@@ -154,10 +154,10 @@ The email worker ticket has the highest priority overall, but its status is `clo
 
 ## Services
 
-Apps that use database connections, models, migrations, or the database queue driver need `atom-fm/orm`. Composer installs `atom-fm/sql` as a dependency of ORM.
+Apps that use Framework database services, migrations, or the database queue driver need `atom-fm/database`. Composer installs ORM and SQL with it.
 
 ```bash
-composer require "atom-fm/orm:^0.1"
+composer require "atom-fm/database:^0.1"
 ```
 
 Then register database services in the application. The provider configures the connection and adds the migration and seeder commands to `php atom`.
@@ -310,7 +310,7 @@ In an application service, inject the configured `DatabaseConnection` and use th
 
 ## Query Builder
 
-The query builder and dialect compilers come from [atom-fm/sql](../packages/sql/readme.md). The PDO connection and model APIs come from [atom-fm/orm](../packages/orm/readme.md). Atom installs both packages and connects them to its database services.
+The query builder and dialect compilers come from [atom-fm/sql](../packages/sql/readme.md). PDO execution and model APIs come from [atom-fm/orm](../packages/orm/readme.md). [atom-fm/database](../packages/database/README.md) provides drivers, schema tools, and migrations. Framework registers these services and their CLI commands for apps that opt in.
 
 ### Search product names
 

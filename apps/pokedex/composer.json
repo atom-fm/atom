@@ -38,6 +38,17 @@
         },
         {
             "type": "path",
+            "url": "../../packages/database",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/database": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
+        },
+        {
+            "type": "path",
             "url": "../../packages/validation",
             "options": {
                 "symlink": true,
@@ -106,7 +117,7 @@
     "require": {
         "php": "^8.4",
         "atom-fm/framework": "^0.2",
-        "atom-fm/orm": "^0.1"
+        "atom-fm/database": "^0.1"
     },
     "autoload": {
         "psr-4": {
