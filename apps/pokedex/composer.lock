@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1e7f991efc521b4048aee8472b409fc8",
+    "content-hash": "7dc321998dc0e59ad810011db5ed347f",
     "packages": [
         {
             "name": "atom-fm/components",
@@ -64,9 +64,10 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/framework",
-                "reference": "d839a9846bf216772171e1faf2d0ae34bedaf1e3"
+                "reference": "ed7fe8281cb58142df455185166f0ac0bf5ac58c"
             },
             "require": {
+                "atom-fm/validation": "^0.1",
                 "dragonmantank/cron-expression": "^3.6",
                 "php": "^8.4",
                 "symfony/mailer": "^8.0.12"
@@ -211,6 +212,57 @@
                 "MIT"
             ],
             "description": "Parameterized SQL query builder and dialect compilers for PHP",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "atom-fm/validation",
+            "version": "0.1.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/validation"
+            },
+            "require": {
+                "php": "^8.4"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Atom\\Validation\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Atom\\Tests\\Validation\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "analyse": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "check": [
+                    "@analyse",
+                    "@test"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Attribute and schema validation for PHP",
             "transport-options": {
                 "symlink": true,
                 "relative": true

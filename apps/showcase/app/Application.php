@@ -37,6 +37,7 @@ final class Application extends \Atom\Application
             "@root/public",
             "@root/../../packages/framework/src",
             "@root/../../packages/components/src",
+            "@root/../../packages/validation/src",
         ]), "/atom/dev");
     }
 

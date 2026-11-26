@@ -46,6 +46,17 @@
                 },
                 "reference": "none"
             }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/validation",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/validation": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
         }
     ],
     "require": {

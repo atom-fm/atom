@@ -4,6 +4,8 @@
 
 Validation supports two styles: fluent schemas for manual validation and attributes for DTO validation.
 
+Framework installs `atom-fm/validation` for its rules, schemas, and results. Framework handles turning request and page input into models and decides how to present validation errors. For plain PHP usage, see the [standalone example](../packages/validation/readme.md).
+
 ## Fluent Schema
 
 Build a preview endpoint for a ticket form. It accepts a subject of up to 80 characters and a priority of `normal` or `urgent`. The caller can use the field names in the response to display errors beside the corresponding inputs.

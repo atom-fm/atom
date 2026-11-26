@@ -25,6 +25,7 @@ packages/framework/  Core Composer package, source, and framework tests
 packages/components/ Server-rendered widgets, component assets, and component tests
 packages/sql/        Standalone SQL query builder and dialect compilers
 packages/orm/        Standalone PDO persistence, mapping, and model APIs
+packages/validation/ Standalone PHP validation rules, schemas, and results
 packages/starter/    Composer-installable starter application source
 apps/sample/         Sample application and API
 apps/showcase/       Interactive component catalogue
@@ -133,7 +134,7 @@ From the repository root:
 composer check
 ```
 
-This runs PHPStan and PHPUnit for SQL, ORM, and the framework, tests Lucide, and validates the Composer manifests.
+This runs PHPStan and PHPUnit for SQL, ORM, Validation, Framework, and Components, tests Lucide, and validates the Composer manifests.
 
 Useful targeted checks:
 

@@ -6,6 +6,7 @@
     "scripts": {
         "install:sql": "composer --working-dir=packages/sql install",
         "install:orm": "composer --working-dir=packages/orm install",
+        "install:validation": "composer --working-dir=packages/validation install",
         "install:framework": "composer --working-dir=packages/framework install",
         "install:components": "composer --working-dir=packages/components install",
         "install:lucide": "composer --working-dir=packages/lucide install",
@@ -16,6 +17,7 @@
         "setup": [
             "@install:sql",
             "@install:orm",
+            "@install:validation",
             "@install:framework",
             "@install:components",
             "@install:lucide",
@@ -26,11 +28,13 @@
         ],
         "sql:check": "composer --working-dir=packages/sql check",
         "orm:check": "composer --working-dir=packages/orm check",
+        "validation:check": "composer --working-dir=packages/validation check",
         "framework:check": "composer --working-dir=packages/framework check",
         "components:check": "composer --working-dir=packages/components check",
         "lucide:test": "composer --working-dir=packages/lucide test",
         "sql:validate": "composer --working-dir=packages/sql validate --strict",
         "orm:validate": "composer --working-dir=packages/orm validate --strict",
+        "validation:validate": "composer --working-dir=packages/validation validate --strict",
         "framework:validate": "composer --working-dir=packages/framework validate --strict",
         "components:validate": "composer --working-dir=packages/components validate --strict",
         "starter:validate": "composer --working-dir=packages/starter validate --strict",
@@ -41,6 +45,7 @@
         "validate:packages": [
             "@sql:validate",
             "@orm:validate",
+            "@validation:validate",
             "@framework:validate",
             "@components:validate",
             "@lucide:validate",
@@ -52,6 +57,7 @@
         "check": [
             "@sql:check",
             "@orm:check",
+            "@validation:check",
             "@framework:check",
             "@components:check",
             "@lucide:test",
