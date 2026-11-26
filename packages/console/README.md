@@ -31,6 +31,10 @@ exit($console->run($argv));
 
 Save the example as `cli.php` and run `php cli.php greet Atom`.
 
+Use `--` after the command name to pass all following tokens as positional
+arguments, even if they start with a dash. Negative numbers such as `-5`
+are positional arguments with or without the separator.
+
 By default, Console constructs registered classes without constructor arguments.
 You can register an already constructed command or pass a resolver factory to
 `ConsoleApplication` for service injection. The factory receives the current

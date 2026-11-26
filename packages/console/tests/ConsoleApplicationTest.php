@@ -34,6 +34,22 @@ final class ConsoleApplicationTest extends TestCase
         $this->assertTrue($input->option("v"));
     }
 
+    public function testDoubleDashEndsOptionParsing(): void
+    {
+        $input = ConsoleInput::fromArgv(["atom", "sample", "-v", "--", "--help", "-x", "--"]);
+
+        self::assertSame(["--help", "-x", "--"], $input->arguments());
+        self::assertSame(["v" => true], $input->options());
+    }
+
+    public function testNegativeNumbersArePositionalArguments(): void
+    {
+        $input = ConsoleInput::fromArgv(["atom", "sample", "-5", "-0.5", "-1e3", "-v", "--limit=-2"]);
+
+        self::assertSame(["-5", "-0.5", "-1e3"], $input->arguments());
+        self::assertSame(["v" => true, "limit" => "-2"], $input->options());
+    }
+
     public function testRunsCommandResolvedByCallback(): void
     {
         $console = $this->consoleWithGreeting("Hello");

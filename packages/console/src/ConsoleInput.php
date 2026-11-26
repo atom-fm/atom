@@ -26,16 +26,22 @@ final readonly class ConsoleInput
         $commandName = array_shift($argv) ?? "help";
         $arguments = [];
         $options = [];
+        $parseOptions = true;
 
         foreach ($argv as $token) {
-            if (str_starts_with($token, "--")) {
+            if ($parseOptions && $token === "--") {
+                $parseOptions = false;
+                continue;
+            }
+
+            if ($parseOptions && str_starts_with($token, "--")) {
                 $option = substr($token, 2);
                 [$name, $value] = self::parseOption($option);
                 $options[$name] = $value;
                 continue;
             }
 
-            if (str_starts_with($token, "-") && strlen($token) > 1) {
+            if ($parseOptions && str_starts_with($token, "-") && strlen($token) > 1 && !is_numeric($token)) {
                 $options[substr($token, 1)] = true;
                 continue;
             }
