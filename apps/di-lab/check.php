@@ -47,6 +47,22 @@ verify(
     $injector->invoke($total, ["input" => new OrderInput("pen", 1)], $order) === 150,
     "An explicit callable argument did not override injection."
 );
+
+$totalWithFee = new class(50) {
+    public function __construct(private readonly int $feeInCents)
+    {
+    }
+
+    public function __invoke(OrderQuote $quote, OrderInput $input): int
+    {
+        return $quote->totalInCents($input) + $this->feeInCents;
+    }
+};
+verify(
+    $injector->invoke($totalWithFee, context: $order) === 1250,
+    "An invokable object did not receive injected arguments or retain its instance state."
+);
+
 verify(
     $injector->instantiate(OrderQuote::class, ["currency" => "GBP"])->currency === "GBP",
     "An explicit constructor argument did not take precedence over the Inject attribute."

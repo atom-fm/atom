@@ -16,7 +16,7 @@ The optional dependency checks verify that an absent binding can resolve to `nul
 | Area | API to retain |
 | --- | --- |
 | Registration | `Bindings` for types, values, factories, aliases, and lifetimes. `Provider` also supports building an injector from explicit registrations. |
-| Resolution | `Injector::get()` for tokens and concrete classes, `instantiate()` for construction with named arguments, and `invoke()` for calling functions and methods with injection. `has()` reports a registered token or an existing class. Construction can still fail. |
+| Resolution | `Injector::get()` for tokens and concrete classes, `instantiate()` for construction with named arguments, and `invoke()` for calling functions, methods, and invokable objects with injection. `has()` reports a registered token or an existing class. Construction can still fail. |
 | Scoping | `InjectionContext` holds per-operation values and scoped instances. `createChild()` adds local bindings and shares the parent's singletons for inherited bindings. |
 | Composition | `ServiceProviderInterface` and `ServiceProviderRegistry` group registrations. `#[Inject]` selects an explicit token for a parameter. |
 | Extension points | `TypeFactory::match()` and `TypeInfo` support matched construction, including Framework's DTO integration. `UnrecoverableDependencyException` lets an integration propagate domain-specific input errors unchanged. |
@@ -24,6 +24,5 @@ The optional dependency checks verify that an absent binding can resolve to `nul
 
 ### Confirmed findings
 
-- `Injector::invoke()` accepts `callable`, but an object with `__invoke()` reaches `ReflectionFunction` and raises `TypeError`. [Callable reflection](../../packages/di/src/Injector.php#L340)
-- `Injector::addTypeFactory()` registers a factory that lookup ignores when the injector uses a `Bindings` instance. The lab registers its factory with `Bindings::addTypeFactory()`. [Type factory lookup](../../packages/di/src/Injector.php#L272)
+- `Injector::addTypeFactory()` registers a factory that lookup ignores when the injector uses a `Bindings` instance. The lab registers its factory with `Bindings::addTypeFactory()`. [Type factory lookup](../../packages/di/src/Injector.php#L276)
 - Replacing a binding after its singleton has resolved leaves the old value cached. The API needs a defined behavior for rebinding after first resolution. [Singleton lookup](../../packages/di/src/Injector.php#L86)

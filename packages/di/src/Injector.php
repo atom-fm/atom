@@ -170,6 +170,10 @@ final class Injector
      */
     public function invoke(callable|array $callback, array $parameters = [], ?InjectionContext $context = null): mixed
     {
+        if (is_object($callback) && !$callback instanceof Closure) {
+            $callback = [$callback, "__invoke"];
+        }
+
         $context ??= self::implicitContext();
         $reflection = $this->reflectCallable($callback);
         $arguments = $this->resolveParameters($reflection, $parameters, $context);
