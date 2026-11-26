@@ -43,7 +43,26 @@ Use `$db->select(Article::class)` and `$db->save($article)` to choose the databa
 
 When executing a query builder or a compiled `Command`, pass execution parameters to override bindings by placeholder name. For example, `["id" => 2]` and `[":id" => 2]` both override `:id`. Other bindings keep their compiled values.
 
+On PostgreSQL, entity inserts read generated primary keys directly from the inserted row using `RETURNING`.
+
+When an entity has a generated primary key and no insertable columns, `save()` lets the database supply the defaults and assigns the generated key to the entity.
+
 `paginate()` returns a `PageResult` with the page items, page number, page size, and totals. It supports iteration and JSON serialization. For SQLite, enable `PDO::SQLITE_ATTR_EXTENDED_RESULT_CODES` on your connection to distinguish unique violations from other constraint errors.
+
+## Supported API
+
+| Area | Contract |
+| --- | --- |
+| Connection and execution | Construct `PdoConnection` with a PDO instance or a connection factory and the SQL compiler for that dialect. Use `Db` to execute SQL strings, query builders, and compiled commands. |
+| Persistence | Use explicit `Db` operations or the `Model` convenience methods after `Model::useDb()`. Use table, column, primary-key, and relation attributes to map entities. `Model` tracks changes, and column value providers supply values for writes. |
+| Reads | Use `Db::select()` and `DbSelect` to return models, rows, or typed projections. Supported operations include filters, ordering, aggregates, eager loading, relation filters, and pagination. `PageResult` supports iteration and JSON serialization. |
+| Transactions and errors | `transaction()` commits a successful callback and rolls back a callback that throws. `UniqueViolationException` exposes the original PDO exception. Affected row counts follow the database driver. |
+
+## Framework integration
+
+- Framework's `DatabaseConnection` extends `PdoConnection` and passes in a lazy PDO factory and a dialect compiler. Migrations and database queues use this connection contract.
+- Framework registers `Db`, `EntityMetadataFactory`, and `RowHydrator` as services. Startup calls `Model::useDb()` to configure the default database for models and the database facade.
+- The API model builder recognizes `PageResult` when generating response schemas. Framework owns database configuration, schema changes, and migration orchestration.
 
 ## MySQL and PostgreSQL integration tests
 

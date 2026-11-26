@@ -110,6 +110,10 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
 
         $values = $query->getValues();
         if ($values === []) {
+            if ($query->usesDefaultValues()) {
+                return new Command("INSERT INTO " . $this->compileTable($table) . $this->defaultValuesClause());
+            }
+
             throw new RuntimeException("Insert query must define values.");
         }
 
@@ -119,6 +123,11 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
         $sql .= " VALUES (" . implode(", ", array_map(fn(mixed $value) => $this->bind($value), $values)) . ")";
 
         return new Command($sql, $this->parameters);
+    }
+
+    protected function defaultValuesClause(): string
+    {
+        return " DEFAULT VALUES";
     }
 
     protected function compileUpsert(UpsertQuery $query): Command

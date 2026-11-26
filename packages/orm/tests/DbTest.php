@@ -29,8 +29,12 @@ use DateTimeImmutable;
 use PDO;
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__ . "/GeneratedKeyMappingAssertions.php";
+
 final class DbTest extends TestCase
 {
+    use GeneratedKeyMappingAssertions;
+
     public function testDatabaseConnectionDistinguishesUniqueViolationsFromOtherConstraints(): void
     {
         $connection = self::memory();
@@ -504,6 +508,46 @@ final class DbTest extends TestCase
 
         $this->assertSame(1, $affected);
         $this->assertNull($db->select(DbHydratedUser::class)->where("id", 1)->first());
+    }
+
+    public function testGeneratedKeysRespectMappedColumnAndPropertyTypes(): void
+    {
+        $db = new Db(self::memory());
+        $db->execute('CREATE TABLE key_mapping_fixture ("GeneratedKey" INTEGER PRIMARY KEY, label VARCHAR(20))');
+
+        $this->assertGeneratedKeysMatchMappedProperties($db);
+    }
+
+    public function testFailedInsertLeavesGeneratedKeyUnsetAndCanBeRetried(): void
+    {
+        $db = new Db(self::memory());
+        $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE)");
+        $db->execute(Query::insert("users")->values(["name" => "Taken"]));
+
+        $user = new DbModelUser();
+        $user->name = "Taken";
+        try {
+            $db->save($user);
+            self::fail("Expected the duplicate name to fail.");
+        } catch (UniqueViolationException) {
+            self::assertFalse(isset($user->id));
+        }
+
+        $user->name = "Corrected";
+        self::assertSame(1, $db->save($user));
+        self::assertSame("Corrected", $db->scalar(Query::select("users")->columns("name")->where("id", $user->id)));
+        self::assertSame(2, (int) $db->scalar(Query::select("users")->count()));
+    }
+
+    public function testSaveInsertsAModelWithOnlyAGeneratedPrimaryKey(): void
+    {
+        $db = new Db(self::memory());
+        $db->execute("CREATE TABLE default_only_fixture (id INTEGER PRIMARY KEY)");
+
+        $model = new DbDefaultOnlyModel();
+        self::assertSame(1, $db->save($model));
+        self::assertSame(1, $model->id);
+        self::assertSame([["id" => 1]], $db->all("SELECT id FROM default_only_fixture"));
     }
 
     public function testSaveUpdatesExistingRowsWithZeroPrimaryKeys(): void
@@ -1578,6 +1622,13 @@ final class DbModelUser extends Model
 
     #[Column("name")]
     public string $name;
+}
+
+#[Table("default_only_fixture")]
+final class DbDefaultOnlyModel extends Model
+{
+    #[PrimaryKey]
+    public ?int $id = null;
 }
 
 #[Table("tracked_users")]

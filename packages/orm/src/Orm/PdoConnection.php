@@ -7,6 +7,7 @@ namespace Atom\Database\Orm;
 use Atom\Database\Exception\UniqueViolationException;
 use Atom\Database\Sql\Command;
 use Atom\Database\Sql\Compiler\QueryCompilerInterface;
+use Atom\Database\Sql\InsertQuery;
 use Closure;
 use Atom\Database\Sql\SelectQuery;
 use Atom\Database\Sql\SqlQueryInterface;
@@ -101,6 +102,25 @@ class PdoConnection
     public function lastInsertId(?string $name = null): string|false
     {
         return $this->pdo()->lastInsertId($name);
+    }
+
+    /**
+     * @internal
+     * @return array{int, string|false}
+     */
+    public function insertWithGeneratedKey(InsertQuery $query, string $column): array
+    {
+        if ($this->pdo()->getAttribute(PDO::ATTR_DRIVER_NAME) === "pgsql") {
+            $command = $this->compile($query);
+            $identifier = '"' . str_replace('"', '""', $column) . '"';
+            $id = $this->scalar(new Command($command->sql . " RETURNING " . $identifier, $command->parameters));
+
+            return $id === false ? [0, false] : [1, (string) $id];
+        }
+
+        $affected = $this->execute($query);
+
+        return [$affected, $affected > 0 ? $this->lastInsertId() : false];
     }
 
     public function transaction(callable $callback): mixed

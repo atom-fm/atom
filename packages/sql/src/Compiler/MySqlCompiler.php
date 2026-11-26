@@ -8,6 +8,11 @@ use Atom\Database\Sql\UpsertQuery;
 
 class MySqlCompiler extends AbstractSqlCompiler
 {
+    protected function defaultValuesClause(): string
+    {
+        return " () VALUES ()";
+    }
+
     protected function compileUpsertConflict(UpsertQuery $query): string
     {
         $assignments = [];

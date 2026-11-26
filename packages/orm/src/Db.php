@@ -83,10 +83,15 @@ final readonly class Db
             }
         }
 
-        $affected = $this->execute(Query::insert($metadata->tableName)->values($values));
+        $query = Query::insert($metadata->tableName)->values($values);
+        if ($values === [] && $autoIncrementKey !== null) {
+            $query->defaultValues();
+        }
 
-        if ($autoIncrementKey !== null) {
-            $id = $this->connection->lastInsertId();
+        if ($autoIncrementKey === null) {
+            $affected = $this->execute($query);
+        } else {
+            [$affected, $id] = $this->connection->insertWithGeneratedKey($query, $autoIncrementKey->columnName);
             if ($id !== false) {
                 $autoIncrementKey->setValue($entity, $this->coercePrimaryKey($id, $autoIncrementKey->propertyType));
             }
