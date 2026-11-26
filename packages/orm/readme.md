@@ -44,3 +44,16 @@ Use `$db->select(Article::class)` and `$db->save($article)` to choose the databa
 When executing a query builder or a compiled `Command`, pass execution parameters to override bindings by placeholder name. For example, `["id" => 2]` and `[":id" => 2]` both override `:id`. Other bindings keep their compiled values.
 
 `paginate()` returns a `PageResult` with the page items, page number, page size, and totals. It supports iteration and JSON serialization. For SQLite, enable `PDO::SQLITE_ATTR_EXTENDED_RESULT_CODES` on your connection to distinguish unique violations from other constraint errors.
+
+## MySQL and PostgreSQL integration tests
+
+From a monorepo checkout, run these commands in this package directory. Use Docker Compose and PHP 8.4 with `pdo_mysql` and `pdo_pgsql` enabled.
+
+```powershell
+composer install
+docker compose -f compose.integration.yaml up -d --wait
+php vendor/bin/phpunit -c phpunit.integration.xml
+docker compose -f compose.integration.yaml down
+```
+
+The opt-in suite uses native PDO prepared statements on MySQL and PostgreSQL to verify parameter overrides for query builders and compiled commands. The database ports are bound to localhost, and database data is stored in temporary container filesystems. The default PHPUnit suite continues to use SQLite.

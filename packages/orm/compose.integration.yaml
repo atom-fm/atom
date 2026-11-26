@@ -1,0 +1,35 @@
+name: atom-orm-integration
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: atom_orm_test
+      MYSQL_USER: atom_test
+      MYSQL_PASSWORD: atom_test
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    ports:
+      - "127.0.0.1:13306:3306"
+    tmpfs:
+      - /var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysql", "-h", "127.0.0.1", "-u", "atom_test", "-patom_test", "-D", "atom_orm_test", "-e", "SELECT 1"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: atom_orm_test
+      POSTGRES_USER: atom_test
+      POSTGRES_PASSWORD: atom_test
+    ports:
+      - "127.0.0.1:15432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "atom_test", "-d", "atom_orm_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 30

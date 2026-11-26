@@ -1,1 +1,4 @@
 /tests export-ignore
+/integration export-ignore
+/compose.integration.yaml export-ignore
+/phpunit.integration.xml export-ignore
