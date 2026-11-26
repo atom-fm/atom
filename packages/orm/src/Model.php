@@ -18,6 +18,9 @@ abstract class Model
 {
     private const int ID_BATCH_SIZE = 500;
 
+    /** @var array<class-string<Model>, Db> */
+    private static array $connections = [];
+
     /** @var array<string, mixed>|null Writable column values observed during hydration or written by this model. */
     private ?array $originalColumnValues = null;
     /** @var array<string, mixed> Initial PHP defaults for columns omitted from the row. */
@@ -76,6 +79,17 @@ abstract class Model
     public static function useDb(Db $db): void
     {
         DefaultDatabase::set($db);
+    }
+
+    /** Assign a database to this model class and its descendants, or pass null to clear this class's assignment. */
+    public static function useConnection(?Db $db): void
+    {
+        if ($db === null) {
+            unset(self::$connections[static::class]);
+            return;
+        }
+
+        self::$connections[static::class] = $db;
     }
 
     /** @return DbSelect<static> */
@@ -241,6 +255,12 @@ abstract class Model
 
     protected static function db(): Db
     {
+        for ($class = static::class; $class !== false; $class = get_parent_class($class)) {
+            if (isset(self::$connections[$class])) {
+                return self::$connections[$class];
+            }
+        }
+
         return DefaultDatabase::get();
     }
 

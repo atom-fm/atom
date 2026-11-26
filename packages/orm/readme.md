@@ -41,6 +41,8 @@ foreach ($page as $article) {
 
 Use `$db->select(Article::class)` and `$db->save($article)` to choose the database explicitly. Use `Model::useDb()` when calling the model's convenience methods through a shared default database.
 
+Use `Article::useConnection($archiveDb)` to route model convenience methods to another database. Set the connection on a base model to share it with its descendants. Each model uses its own assignment first, then the nearest configured ancestor, then the shared default. Pass `null` to clear a class's assignment. Explicit `Db` operations and the relationships they load use the selected `Db`. Save a record through that same `Db` when you deliberately load it from a different connection.
+
 When executing a query builder or a compiled `Command`, pass execution parameters to override bindings by placeholder name. For example, `["id" => 2]` and `[":id" => 2]` both override `:id`. Other bindings keep their compiled values.
 
 On PostgreSQL, entity inserts read generated primary keys directly from the inserted row using `RETURNING`.

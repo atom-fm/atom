@@ -661,6 +661,67 @@ final class DbTest extends TestCase
         $this->assertNull(DbModelUser::find(1));
     }
 
+    public function testModelsRouteReadsSavesAndDeletesToTheirConfiguredDatabase(): void
+    {
+        $main = new Db(self::memory());
+        $archive = new Db(self::memory());
+        foreach ([$main, $archive] as $database) {
+            $database->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
+        }
+        $main->execute("INSERT INTO users VALUES (1, 'Main')");
+        $archive->execute("INSERT INTO users VALUES (1, 'Archive')");
+        Model::useDb($main);
+        DbModelUser::useConnection($archive);
+
+        try {
+            $user = DbModelUser::find(1);
+            self::assertInstanceOf(DbModelUser::class, $user);
+            self::assertSame("Archive", $user->name);
+            self::assertSame("Main", DbDefaultConnectionUser::find(1)?->name);
+            self::assertSame("Main", $main->select(DbModelUser::class)->find(1)?->name);
+
+            $user->name = "Updated archive";
+            self::assertSame(1, $user->save());
+            self::assertSame("Updated archive", $archive->scalar("SELECT name FROM users WHERE id = 1"));
+            self::assertSame(1, $user->delete());
+            self::assertNull(DbModelUser::find(1));
+            self::assertSame("Main", DbDefaultConnectionUser::find(1)?->name);
+        } finally {
+            DbModelUser::useConnection(null);
+        }
+
+        self::assertSame("Main", DbModelUser::find(1)?->name);
+    }
+
+    public function testModelsInheritConnectionsAndCanOverrideThem(): void
+    {
+        $main = new Db(self::memory());
+        $archive = new Db(self::memory());
+        $main->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
+        $archive->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
+        $main->execute("INSERT INTO users VALUES (1, 'Main')");
+        $archive->execute("INSERT INTO users VALUES (1, 'Archive')");
+
+        Model::useDb($main);
+        DbConnectionBaseUser::useConnection($archive);
+
+        try {
+            self::assertSame("Archive", DbDefaultConnectionUser::find(1)?->name);
+            self::assertSame("Main", DbModelUser::find(1)?->name);
+
+            DbDefaultConnectionUser::useConnection($main);
+            self::assertSame("Main", DbDefaultConnectionUser::find(1)?->name);
+
+            DbDefaultConnectionUser::useConnection(null);
+            self::assertSame("Archive", DbDefaultConnectionUser::find(1)?->name);
+        } finally {
+            DbDefaultConnectionUser::useConnection(null);
+            DbConnectionBaseUser::useConnection(null);
+        }
+
+        self::assertSame("Main", DbDefaultConnectionUser::find(1)?->name);
+    }
+
     public function testFacadeTransactionsFollowTheModelDatabaseAndRollBackModelWrites(): void
     {
         $first = new Db(self::memory());
@@ -1621,6 +1682,20 @@ final class DbModelUser extends Model
     public int $id;
 
     #[Column("name")]
+    public string $name;
+}
+
+abstract class DbConnectionBaseUser extends Model
+{
+}
+
+#[Table("users")]
+final class DbDefaultConnectionUser extends DbConnectionBaseUser
+{
+    #[PrimaryKey]
+    public int $id;
+
+    #[Column]
     public string $name;
 }
 
