@@ -1,0 +1,8 @@
+<form method="post">
+    <input type="hidden" name="_action" value="order.save" />
+    <input name="reference" value="{{ $this->order->reference }}" />
+    <p id="reference-error">{{ $this->order->errors()->first("reference") }}</p>
+    <input name="note" value="{{ $this->order->note }}" />
+    <button type="submit">Save order</button>
+</form>
+<p>{{ $this->order->result }}</p>
