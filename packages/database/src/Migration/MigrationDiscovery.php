@@ -23,7 +23,11 @@ final class MigrationDiscovery
 
         foreach ($this->files($directory) as $file) {
             $name = pathinfo($file, PATHINFO_FILENAME);
-            $migration = require $file;
+            $className = $this->className($directory, $namespace, $file);
+            // Named migrations can be instantiated again from their loaded class.
+            $migration = $className !== null && class_exists($className, false)
+                ? null
+                : require $file;
 
             if ($migration instanceof Migration) {
                 $definitions[] = new MigrationDefinition($name, static function () use ($file, $name): Migration {
@@ -38,7 +42,6 @@ final class MigrationDiscovery
                 continue;
             }
 
-            $className = $this->className($directory, $namespace, $file);
             if ($className !== null && class_exists($className) && is_subclass_of($className, Migration::class)) {
                 $definitions[] = new MigrationDefinition($name, static fn(): Migration => new $className());
             }
