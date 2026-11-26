@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Atom\View;
+namespace Atom\Integration\View;
 
 use Atom\Di\Bindings;
 use Atom\Di\InjectionContext;
@@ -11,12 +11,12 @@ use Atom\Di\ServiceProviderInterface;
 use Atom\View\Component\ComponentFactoryInterface;
 use Atom\View\Component\ComponentHydrator;
 use Atom\View\Component\ComponentRegistry;
-use Atom\View\Component\InjectorComponentFactory;
 use Atom\View\Parser\ViewParser;
 use Atom\View\Render\ExpressionEvaluatorInterface;
 use Atom\View\Render\PhpExpressionEvaluator;
 use Atom\View\Render\ViewRenderer;
 use Atom\View\Style\ComponentStyleScanner;
+use Atom\View\TemplateCache;
 
 final readonly class ViewServices implements ServiceProviderInterface
 {

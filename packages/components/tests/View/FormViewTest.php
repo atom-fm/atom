@@ -14,7 +14,7 @@ use Atom\Session\ArraySession;
 use Atom\Tests\View\FormViewFixtures\CustomForm;
 use Atom\Tests\View\FormViewFixtures\RenderedForm;
 use Atom\View\Component\ComponentRegistry;
-use Atom\View\Component\InjectorComponentFactory;
+use Atom\Integration\View\InjectorComponentFactory;
 use Atom\View\Parser\ViewParser;
 use Atom\View\Render\ViewRenderer;
 use Atom\View\Render\ViewRenderException;

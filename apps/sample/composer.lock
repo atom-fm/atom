@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "92b35b4b09af013f61e2533287c4073b",
+    "content-hash": "8e72acde0f4bc73c9e120bbfeeda5510",
     "packages": [
         {
             "name": "atom-fm/components",
@@ -64,10 +64,11 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/framework",
-                "reference": "ed7fe8281cb58142df455185166f0ac0bf5ac58c"
+                "reference": "8a87d99335a59cee5937fef1b4bb75b34b5b3f3a"
             },
             "require": {
                 "atom-fm/validation": "^0.1",
+                "atom-fm/view": "^0.1",
                 "dragonmantank/cron-expression": "^3.6",
                 "php": "^8.4",
                 "symfony/mailer": "^8.0.12"
@@ -263,6 +264,57 @@
                 "MIT"
             ],
             "description": "Attribute and schema validation for PHP",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
+        },
+        {
+            "name": "atom-fm/view",
+            "version": "0.1.x-dev",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/view"
+            },
+            "require": {
+                "php": "^8.4"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.2",
+                "phpunit/phpunit": "^11.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Atom\\View\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Atom\\Tests\\View\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ],
+                "analyse": [
+                    "phpstan analyse --memory-limit=512M"
+                ],
+                "check": [
+                    "@analyse",
+                    "@test"
+                ]
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "Template parsing and component rendering for PHP",
             "transport-options": {
                 "symlink": true,
                 "relative": true

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Atom\View\Component;
 
-use Atom\Profiler\Profile;
 use Atom\View\Templates;
 use Atom\View\Parser\ViewParser;
 use Atom\View\Ast\TemplateNode;
@@ -27,13 +26,10 @@ abstract class TemplateComponent implements ComponentInterface
             throw new ViewRenderException("Cannot find component template '{$template}'.");
         }
 
-        return Templates::remember(
+        return Templates::rememberComponent(
             $template,
-            fn(): TemplateNode => Profile::measure(
-                "view.parse",
-                fn(): TemplateNode => (new ViewParser())->parseFile($template),
-                ["component" => $reflection->getName(), "template" => $template]
-            )
+            $reflection->getName(),
+            static fn(): TemplateNode => (new ViewParser())->parseFile($template)
         );
     }
 }

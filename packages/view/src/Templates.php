@@ -15,6 +15,18 @@ final class Templates
     /** @var (Closure(): ?TemplateCache)|null */
     private static ?Closure $resolver = null;
 
+    /** @var (Closure(string, string, Closure(): TemplateNode): TemplateNode)|null */
+    private static ?Closure $componentParser = null;
+
+    /**
+     * @internal
+     * @param Closure(string, string, Closure(): TemplateNode): TemplateNode $parser
+     */
+    public static function instrumentComponentParsingUsing(Closure $parser): void
+    {
+        self::$componentParser = $parser;
+    }
+
     /**
      * @internal
      * @param (Closure(): ?TemplateCache)|null $resolver
@@ -30,6 +42,14 @@ final class Templates
     public static function remember(string $path, callable $factory): TemplateNode
     {
         return self::cache()->remember($path, $factory);
+    }
+
+    /** @param Closure(): TemplateNode $parse */
+    public static function rememberComponent(string $path, string $component, Closure $parse): TemplateNode
+    {
+        return self::remember($path, static function () use ($path, $component, $parse): TemplateNode {
+            return self::$componentParser?->__invoke($path, $component, $parse) ?? $parse();
+        });
     }
 
     public static function cache(): TemplateCache

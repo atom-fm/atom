@@ -63,9 +63,11 @@ use Atom\Scheduler\Schedule;
 use Atom\Scheduler\ScheduleServices;
 use Atom\Support\ClockServices;
 use Atom\Support\Paths;
+use Atom\View\Ast\TemplateNode;
 use Atom\View\Component\ComponentRegistry;
 use Atom\View\TemplateCache;
 use Atom\View\Templates;
+use Closure;
 use RuntimeException;
 use Throwable;
 
@@ -104,6 +106,13 @@ abstract class Application
 
             return $injector?->has(TemplateCache::class) ? $injector->get(TemplateCache::class) : null;
         });
+        Templates::instrumentComponentParsingUsing(
+            static fn(string $path, string $component, Closure $parse): TemplateNode => Profile::measure(
+                "view.parse",
+                $parse,
+                ["component" => $component, "template" => $path]
+            )
+        );
     }
 
     final public function getProviders(): ServiceProviderRegistry

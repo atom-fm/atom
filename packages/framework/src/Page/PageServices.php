@@ -6,7 +6,7 @@ namespace Atom\Page;
 
 use Atom\Di\Bindings;
 use Atom\Di\ServiceProviderInterface;
-use Atom\View\ViewServices;
+use Atom\Integration\View\ViewServices;
 
 final readonly class PageServices implements ServiceProviderInterface
 {

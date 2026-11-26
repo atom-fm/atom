@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Atom\Tests\View;
 
-use Atom\Application;
-use Atom\Profiler\Profile;
 use Atom\View\Ast\TextNode;
 use Atom\View\Component\TemplateComponent;
 use Atom\View\Component\Fragment;
@@ -19,8 +17,6 @@ final class TemplateComponentTest extends TestCase
 {
     protected function tearDown(): void
     {
-        Application::$app = null;
-        Profile::reset();
         Templates::reset();
     }
 
@@ -78,25 +74,7 @@ final class TemplateComponentTest extends TestCase
     public function testTemplateComponentCachesParsedTemplate(): void
     {
         $component = new TestTemplateComponent();
-        $component->title = "Hello";
-        $renderer = new ViewRenderer();
-
-        $first = $renderer->render($component->render(), [
-            "this" => $component,
-            "context" => new ComponentTemplateContext(),
-        ]);
-        $second = $renderer->render($component->render(), [
-            "this" => $component,
-            "context" => new ComponentTemplateContext(),
-        ]);
-
-        $parseSpans = array_filter(
-            Profile::profiler()->spans(),
-            static fn($span): bool => $span->name === "view.parse"
-        );
-
-        $this->assertSame($first, $second);
-        $this->assertCount(1, $parseSpans);
+        $this->assertSame($component->render(), $component->render());
     }
 }
 

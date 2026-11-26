@@ -57,6 +57,17 @@
                 },
                 "reference": "none"
             }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/view",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/view": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
         }
     ],
     "require": {

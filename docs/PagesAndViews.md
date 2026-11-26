@@ -77,7 +77,7 @@ $html = (new ViewRenderer())->renderFile(__DIR__ . "/Views/Layout.atom.html", [
 
 For a module's private components, construct the renderer with `new ViewRenderer(components: $components)`, where `$components` is its `ComponentRegistry`.
 
-For dependency injection in a standalone renderer, register `Atom\View\ViewServices` in a service provider registry. It supplies the renderer, component registry, parser, and template cache. `PageServices` registers these bindings for Page applications.
+The `atom-fm/view` package provides the renderer, component registry, parser, and template cache. For Framework dependency injection in a standalone renderer, register `Atom\Integration\View\ViewServices` in a service provider registry. `PageServices` registers these bindings for Page applications.
 
 ## Page Class
 

@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Atom\View\Component;
+namespace Atom\Integration\View;
 
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
+use Atom\View\Component\ComponentFactoryInterface;
+use Atom\View\Component\ComponentInterface;
 
 final readonly class InjectorComponentFactory implements ComponentFactoryInterface
 {

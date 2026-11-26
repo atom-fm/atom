@@ -87,7 +87,7 @@ use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\ComponentRegistry;
 use Atom\View\Component\ComponentView;
 use Atom\View\Component\Fragment;
-use Atom\View\Component\InjectorComponentFactory;
+use Atom\Integration\View\InjectorComponentFactory;
 use Atom\View\Parser\ViewParser;
 use Atom\View\Render\ViewRenderer;
 use PHPUnit\Framework\TestCase;

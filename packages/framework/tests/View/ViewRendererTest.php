@@ -24,7 +24,7 @@ use Atom\View\Render\HtmlString;
 use Atom\View\Render\ViewContext;
 use Atom\View\Render\ViewRenderException;
 use Atom\View\Render\ViewRenderer;
-use Atom\View\ViewServices;
+use Atom\Integration\View\ViewServices;
 use PHPUnit\Framework\TestCase;
 
 final class ViewRendererTest extends TestCase

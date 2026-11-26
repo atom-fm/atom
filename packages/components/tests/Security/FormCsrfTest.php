@@ -15,7 +15,7 @@ use Atom\Session\ArraySession;
 use Atom\Session\SessionInterface;
 use Atom\View\Component\AttributeBag;
 use Atom\View\Component\Fragment;
-use Atom\View\Component\InjectorComponentFactory;
+use Atom\Integration\View\InjectorComponentFactory;
 use PHPUnit\Framework\TestCase;
 
 final class FormCsrfTest extends TestCase
