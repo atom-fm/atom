@@ -70,6 +70,19 @@ final class DbTest extends TestCase
         $this->assertSame(1, (int) $db->scalar(Query::select("users")->count()));
     }
 
+    public function testEmptyInListMatchesNoRowsAndPreservesOtherPredicates(): void
+    {
+        $db = new Db(self::memory());
+        $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY)");
+        $db->execute("INSERT INTO users (id) VALUES (1), (2)");
+
+        self::assertSame([], $db->all(Query::select("users")->where("id", [])));
+        self::assertSame([["id" => 2]], $db->all(Query::select("users")->where("id", [])->orWhere("id", 2)));
+
+        $db->execute(Query::delete("users")->where("id", []));
+        self::assertSame(2, (int) $db->scalar(Query::select("users")->count()));
+    }
+
     public function testDbServiceExecutesRawSqlWithParameters(): void
     {
         $db = new Db(self::memory());

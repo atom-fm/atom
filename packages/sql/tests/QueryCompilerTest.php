@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Atom\Tests\Database\Sql;
 
 use Atom\Database\Sql\Compiler\MySqlCompiler;
+use Atom\Database\Sql\Compiler\PostgresCompiler;
 use Atom\Database\Sql\Compiler\SqliteCompiler;
 use Atom\Database\Sql\Op;
 use Atom\Database\Sql\Query;
@@ -50,6 +51,19 @@ final class QueryCompilerTest extends TestCase
             $command->sql
         );
         $this->assertSame([":p1" => "active", ":p2" => 1, ":p3" => 2, ":p4" => 3], $command->parameters);
+    }
+
+    public function testEmptyInListCompilesToFalseAcrossDialects(): void
+    {
+        foreach ([new SqliteCompiler(), new MySqlCompiler(), new PostgresCompiler()] as $compiler) {
+            $table = $compiler instanceof MySqlCompiler ? '`users`' : '"users"';
+            foreach ([[], Op::in([])] as $emptyList) {
+                $command = $compiler->compile(Query::select("users")->where("id", $emptyList));
+
+                self::assertSame("SELECT * FROM {$table} WHERE 1 = 0", $command->sql);
+                self::assertSame([], $command->parameters);
+            }
+        }
     }
 
     public function testCompilesOffsetWithoutLimitForSqliteAndMySql(): void

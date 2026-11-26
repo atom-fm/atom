@@ -307,7 +307,7 @@ abstract class AbstractSqlCompiler implements QueryCompilerInterface
 
         return match ($op->operator) {
             "IS NULL", "IS NOT NULL" => "{$column} {$op->operator}",
-            "IN" => "{$column} IN " . $this->compileValueList($op->value),
+            "IN" => $op->value === [] ? "1 = 0" : "{$column} IN " . $this->compileValueList($op->value),
             "BETWEEN" => "{$column} BETWEEN {$this->bind($op->value)} AND {$this->bind($op->maxValue)}",
             "LIKE" => "{$column} LIKE {$this->bind($op->value)}" .
                 ($op->escape === null ? "" : " ESCAPE {$this->bind($op->escape)}"),
