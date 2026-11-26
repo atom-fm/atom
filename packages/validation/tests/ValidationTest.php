@@ -117,6 +117,32 @@ final class ValidationTest extends TestCase
         self::assertTrue($validator->validate($data)->passed());
     }
 
+    public function testAttributeValidationOnlyUsesPublicInstanceProperties(): void
+    {
+        $model = new class {
+            #[Required]
+            public string $label = "";
+
+            #[Required]
+            private string $internalCode = "configured";
+
+            #[ValidateNested]
+            protected NestedValidationNode $internalChild;
+
+            #[Required]
+            public static string $configuration = "";
+        };
+
+        $validator = Validator::for($model::class);
+        self::assertSame(["label"], array_keys($validator->validate($model)->messages()));
+        self::assertTrue($validator->validate([
+            "label" => "Public value",
+            "internalCode" => "",
+            "internalChild" => ["label" => ""],
+            "configuration" => "",
+        ])->passed());
+    }
+
     public function testLegacyValidationBuilderStillWorksForSimpleRules(): void
     {
         $validation = Validation::create(function (Validation $rules): void {

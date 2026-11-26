@@ -40,3 +40,5 @@ echo $validator->validate($order)->passed() ? "Order valid" : "Order invalid", P
 From the monorepo root, run `composer install:validation` and `composer validation:check` to develop the package.
 
 To validate arrays against model attributes, use `Validator::for(Order::class)`. A child array under a `#[ValidateNested]` property uses that property's declared class to look up its rules. Child objects use their runtime class. Both report dotted paths such as `address.postalCode`.
+
+Rule attributes and `#[ValidateNested]` apply to public instance properties. The validator skips private, protected, and static properties for both objects and arrays validated against a model class.

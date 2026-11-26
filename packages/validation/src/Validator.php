@@ -89,7 +89,11 @@ final class Validator
         $schema = new Schema();
         $nested = [];
 
-        foreach ($reflection->getProperties() as $property) {
+        foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
+            if ($property->isStatic()) {
+                continue;
+            }
+
             $field = $property->getName();
             foreach ($this->rulesFromProperty($property) as $rule) {
                 $schema->field($field)->rule($rule);
