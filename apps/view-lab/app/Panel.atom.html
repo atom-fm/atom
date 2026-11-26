@@ -1,0 +1,5 @@
+<section {{ $attributes->all() }}>
+    <h2>{{ $title }}</h2>
+    <FragmentOutlet :fragment="$content" />
+    <footer :if="$footer !== null"><FragmentOutlet :fragment="$footer" /></footer>
+</section>

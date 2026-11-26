@@ -5,5 +5,6 @@ Runnable applications used to develop and exercise Atom live here.
 - `sample/` demonstrates application and API development.
 - [`pokedex/`](pokedex/readme.md) walks through SQLite migrations, seeders, models, and REST controllers.
 - `showcase/` is the interactive framework component catalogue.
+- [`view-lab/`](view-lab/readme.md) previews and checks components using View on its own.
 
-Applications consume `packages/framework` through Composer path repositories and are not published as framework packages.
+The applications use local Composer path repositories for the Atom packages they depend on.
