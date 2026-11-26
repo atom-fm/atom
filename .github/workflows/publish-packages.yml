@@ -39,11 +39,11 @@ jobs:
                   git config --global user.name "atom-fm package publisher"
                   git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-            - name: Publish SQL, ORM, Framework, and Components
+            - name: Sync library package repositories
               env:
                   PACKAGE_SPLIT_TOKEN: ${{ secrets.PACKAGE_SPLIT_TOKEN }}
               run: |
-                  for package in sql orm framework components; do
+                  for package in sql orm validation view di profiler mail console database framework components; do
                       target="$RUNNER_TEMP/$package"
                       git clone "https://x-access-token:${PACKAGE_SPLIT_TOKEN}@github.com/atom-fm/$package.git" "$target"
                       rsync -a --delete \
@@ -57,22 +57,14 @@ jobs:
                       (
                           cd "$target"
                           rm -f composer.lock
-                          if [ "$package" != sql ]; then
-                              composer config --unset repositories
-                          fi
-                          if [ "$package" = orm ] || [ "$package" = framework ]; then
-                              composer config repositories.sql vcs https://github.com/atom-fm/sql
-                          fi
-                          if [ "$package" = framework ]; then
-                              composer config repositories.orm vcs https://github.com/atom-fm/orm
-                          fi
+                          composer config --unset repositories
                           composer validate --strict
                           git add --all
                           if ! git diff --cached --quiet; then
                               git commit -m "Sync $package from atom-fm/atom@${GITHUB_SHA::7}"
                               git push origin HEAD:master
                           fi
-                          if [ "$GITHUB_REF_TYPE" = "tag" ] && ! git show-ref --verify --quiet "refs/tags/$GITHUB_REF_NAME"; then
+                          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$package" = framework ] && ! git show-ref --verify --quiet "refs/tags/$GITHUB_REF_NAME"; then
                               git tag "$GITHUB_REF_NAME"
                               git push origin "refs/tags/$GITHUB_REF_NAME"
                           fi
@@ -87,6 +79,7 @@ jobs:
                   git clone "https://x-access-token:${PACKAGE_SPLIT_TOKEN}@github.com/atom-fm/starter.git" "$target"
                   rsync -a --delete \
                       --exclude='.git/' \
+                      --exclude='.env' \
                       --exclude='vendor/' \
                       --exclude='storage/cache/' \
                       --exclude='storage/*.sqlite' \
