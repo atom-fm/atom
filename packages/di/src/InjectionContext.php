@@ -5,15 +5,40 @@ declare(strict_types=1);
 namespace Atom\Di;
 
 use Atom\Di\Exception\ScopedDependencyException;
+use WeakMap;
 
 final class InjectionContext
 {
     /** @var array<string, mixed> */
     private array $instances = [];
+    /** @var WeakMap<Injector, array<string, array{revision: int, instance: mixed}>> */
+    private WeakMap $scopedInstances;
     /** @var string[] */
     private array $resolving = [];
     /** @var array<string, true> */
     private array $resolvingSingletons = [];
+
+    public function __construct()
+    {
+        $this->scopedInstances = new WeakMap();
+    }
+
+    /**
+     * @internal
+     * @return array{revision: int, instance: mixed}|null
+     */
+    public function scoped(Injector $owner, string $token): ?array
+    {
+        return $this->scopedInstances[$owner][$token] ?? null;
+    }
+
+    /** @internal */
+    public function setScoped(Injector $owner, string $token, int $revision, mixed $instance): void
+    {
+        $instances = $this->scopedInstances[$owner] ?? [];
+        $instances[$token] = ["revision" => $revision, "instance" => $instance];
+        $this->scopedInstances[$owner] = $instances;
+    }
 
     public function has(string $token): bool
     {

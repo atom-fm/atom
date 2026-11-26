@@ -182,4 +182,22 @@ verify($owner->get("catalog") === $replacement, "The child and parent did not sh
 $replacementBindings->factory("catalog", static fn(): object => new stdClass())->transient();
 verify($owner->get("catalog") !== $consumer->get("catalog"), "The replacement ignored its transient lifetime.");
 
+$childBindings = Bindings::create();
+$childBindings->factory("order.scope", static fn(): object => new stdClass())->scoped();
+$scopedChild = $injector->createChild($childBindings);
+$childScope = $scopedChild->get("order.scope", $order);
+verify($childScope !== $scope, "A child override reused the parent's cached scoped instance.");
+verify($scopedChild->get("order.scope", $order) === $childScope, "The child did not reuse its own scoped instance.");
+verify($injector->get("order.scope", $order) === $scope, "The child replaced the parent's scoped instance.");
+verify($injector->createChild()->get("order.scope", $order) === $scope, "An inherited binding did not share its scoped instance.");
+
+set_error_handler(static function (int $severity, string $message): never {
+    throw new ErrorException($message, severity: $severity);
+}, E_DEPRECATED);
+try {
+    verify($injector->invoke(Bindings::class . "::create") instanceof Bindings, "Static method string invocation failed.");
+} finally {
+    restore_error_handler();
+}
+
 echo "DI Lab checks passed.\n";

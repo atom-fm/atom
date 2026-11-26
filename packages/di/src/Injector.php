@@ -119,6 +119,10 @@ final class Injector
 
         if ($provider->lifetime === ProviderLifetime::Scoped) {
             $context->assertCanResolveScoped($token);
+            $scoped = $context->scoped($owner, $token);
+            if ($scoped !== null && $scoped["revision"] === $revision) {
+                return $scoped["instance"];
+            }
         }
 
         $instance = $this->resolveToken(
@@ -132,8 +136,8 @@ final class Injector
             $owner->singletons[$token] = ["revision" => $revision, "instance" => $instance];
         }
 
-        if ($provider->lifetime === ProviderLifetime::Scoped) {
-            $context->set($provider->token, $instance);
+        if ($provider->lifetime === ProviderLifetime::Scoped && $revision === ($owner->bindings?->revision($token) ?? 0)) {
+            $context->setScoped($owner, $token, $revision, $instance);
         }
 
         return $instance;
@@ -355,7 +359,7 @@ final class Injector
         }
 
         if (is_string($callback) && str_contains($callback, "::")) {
-            return new ReflectionMethod($callback);
+            return ReflectionMethod::createFromMethodName($callback);
         }
 
         return new ReflectionFunction($callback);
