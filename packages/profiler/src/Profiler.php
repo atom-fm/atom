@@ -12,7 +12,7 @@ final class Profiler
 
     public function __construct()
     {
-        $this->startedAt = microtime(true);
+        $this->startedAt = hrtime(true) / 1_000_000_000;
     }
 
     /**
@@ -20,7 +20,7 @@ final class Profiler
      */
     public function begin(string $name, array $metadata = []): ProfileSpan
     {
-        return new ProfileSpan($this, $name, microtime(true), $metadata);
+        return new ProfileSpan($this, $name, hrtime(true) / 1_000_000_000, $metadata);
     }
 
     /**
@@ -92,6 +92,6 @@ final class Profiler
 
     public function totalMs(): float
     {
-        return (microtime(true) - $this->startedAt) * 1000;
+        return (hrtime(true) / 1_000_000_000 - $this->startedAt) * 1000;
     }
 }

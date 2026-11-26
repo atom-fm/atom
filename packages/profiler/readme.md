@@ -12,3 +12,5 @@ echo Profile::profiler()->total("report.totals"), " ms\n";
 ```
 
 Standalone scripts use a default profiler. Framework supplies the active profiler during application bootstrap and request handling.
+
+Durations and totals are in milliseconds. Span start and end values are seconds relative to the monotonic clock's reference point.

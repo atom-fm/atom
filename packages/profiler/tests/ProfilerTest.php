@@ -7,6 +7,7 @@ namespace Atom\Tests\Profiler;
 use Atom\Profiler\Profile;
 use Atom\Profiler\Profiler;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class ProfilerTest extends TestCase
 {
@@ -39,6 +40,30 @@ final class ProfilerTest extends TestCase
         $this->assertSame("done", $result);
         $this->assertCount(1, $profiler->spans());
         $this->assertSame("work", $profiler->spans()[0]->name);
+    }
+
+    public function testMeasureRecordsACompletedMonotonicSpanWhenCallbackThrows(): void
+    {
+        $profiler = new Profiler();
+        $error = new RuntimeException("Work failed.");
+        $before = hrtime(true) / 1_000_000_000;
+
+        try {
+            $profiler->measure("failed.work", static fn(): never => throw $error);
+            self::fail("Expected the callback exception to propagate.");
+        } catch (RuntimeException $exception) {
+            self::assertSame($error, $exception);
+        }
+
+        $after = hrtime(true) / 1_000_000_000;
+        self::assertCount(1, $profiler->spans());
+        $span = $profiler->spans()[0];
+        self::assertSame("failed.work", $span->name);
+        self::assertGreaterThanOrEqual($before, $span->startedAt);
+        self::assertNotNull($span->endedAt());
+        self::assertLessThanOrEqual($after, $span->endedAt());
+        self::assertGreaterThanOrEqual(0.0, $span->durationMs());
+        self::assertGreaterThanOrEqual($span->durationMs(), $profiler->totalMs());
     }
 
     public function testSummarizesRepeatedSpans(): void

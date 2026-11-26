@@ -25,7 +25,7 @@ final class ProfileSpan
             return $this;
         }
 
-        $this->endedAt = microtime(true);
+        $this->endedAt = hrtime(true) / 1_000_000_000;
         $this->profiler->record($this);
 
         return $this;
@@ -38,7 +38,7 @@ final class ProfileSpan
 
     public function durationMs(): float
     {
-        $endedAt = $this->endedAt ?? microtime(true);
+        $endedAt = $this->endedAt ?? hrtime(true) / 1_000_000_000;
 
         return ($endedAt - $this->startedAt) * 1000;
     }
