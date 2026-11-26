@@ -360,3 +360,5 @@ final class Application extends \Atom\Application
 
 The injector throws `DependencyResolutionException` when it cannot resolve a dependency, and `CircularDependencyException` when it detects a cycle.
 
+A missing provider for a nullable typed dependency can resolve to `null`. When a provider needs the caller to handle a specific resolution failure, its exception can extend `Atom\Di\Exception\UnrecoverableDependencyException`. The injector rethrows the same exception for required and nullable parameters.
+

@@ -53,6 +53,10 @@ final class DtoRequestInputTest extends TestCase
         $response = (new DtoRequestInputApplication())->handle($this->request("/optional-dto", '{"quantity":[]}'));
 
         self::assertSame(422, $response->getStatus());
+        self::assertSame(
+            ["error" => "Invalid or missing body field: quantity"],
+            json_decode($response->getContent(), true, flags: JSON_THROW_ON_ERROR)
+        );
     }
 
     public function testNestedDtoRuleReturns422WithADottedPropertyPath(): void

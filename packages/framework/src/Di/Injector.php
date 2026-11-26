@@ -8,7 +8,7 @@ use Atom\Di\Attributes\Inject;
 use Atom\Di\Exception\CircularDependencyException;
 use Atom\Di\Exception\DependencyResolutionException;
 use Atom\Di\Exception\ScopedDependencyException;
-use Atom\Hydrator\Exception\InvalidDtoBodyException;
+use Atom\Di\Exception\UnrecoverableDependencyException;
 use Closure;
 use Fiber;
 use ReflectionClass;
@@ -286,7 +286,7 @@ final class Injector
         foreach ($function->getParameters() as $parameter) {
             try {
                 $arguments[$parameter->getPosition()] = $this->resolveParameter($parameter, $parameters, $context);
-            } catch (CircularDependencyException|ScopedDependencyException|InvalidDtoBodyException $exception) {
+            } catch (CircularDependencyException|ScopedDependencyException|UnrecoverableDependencyException $exception) {
                 throw $exception;
             } catch (DependencyResolutionException $exception) {
                 throw new DependencyResolutionException(
@@ -317,7 +317,7 @@ final class Injector
         if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
             try {
                 return $this->get($type->getName(), $context);
-            } catch (ScopedDependencyException|InvalidDtoBodyException $exception) {
+            } catch (ScopedDependencyException|UnrecoverableDependencyException $exception) {
                 throw $exception;
             } catch (DependencyResolutionException $exception) {
                 if ($type->allowsNull()) {

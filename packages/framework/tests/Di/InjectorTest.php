@@ -9,12 +9,14 @@ use Atom\Di\Bindings;
 use Atom\Di\Exception\CircularDependencyException;
 use Atom\Di\Exception\DependencyResolutionException;
 use Atom\Di\Exception\ScopedDependencyException;
+use Atom\Di\Exception\UnrecoverableDependencyException;
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
 use Atom\Di\Provider;
 use Atom\Di\ProviderLifetime;
 use Atom\Di\TypeFactory;
 use Atom\Di\TypeInfo;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class InjectorTest extends TestCase
@@ -338,6 +340,23 @@ final class InjectorTest extends TestCase
         $service = $injector->get(DiOptionalService::class);
 
         $this->assertNull($service->database);
+    }
+
+    #[TestWith([DiRepository::class], "required dependency")]
+    #[TestWith([DiOptionalService::class], "nullable dependency")]
+    public function testUnrecoverableDependencyFailurePropagatesUnchanged(string $consumer): void
+    {
+        $failure = new class("The provider rejected its input.") extends UnrecoverableDependencyException {};
+        $injector = Injector::create([
+            Provider::factory(DiDatabaseInterface::class, static fn(): never => throw $failure),
+        ]);
+
+        try {
+            $injector->get($consumer);
+            self::fail("Expected the factory failure to propagate.");
+        } catch (UnrecoverableDependencyException $exception) {
+            self::assertSame($failure, $exception);
+        }
     }
 }
 
