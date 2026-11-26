@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Atom\Modules\Icons;
+namespace Atom\View\Icons;
 
 interface IconResolverInterface
 {

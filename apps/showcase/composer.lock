@@ -182,10 +182,11 @@
             "dist": {
                 "type": "path",
                 "url": "../../packages/lucide",
-                "reference": "0a458527c0e5255004830a7e13f88590308dd933"
+                "reference": "de6fcee47045e7ce3a7ce2f7b7fd3b46b89148aa"
             },
             "require": {
-                "atom-fm/framework": "^0.2",
+                "atom-fm/di": "^0.1",
+                "atom-fm/view": "^0.1",
                 "php": "^8.4"
             },
             "require-dev": {
@@ -211,7 +212,7 @@
                 "MIT",
                 "ISC"
             ],
-            "description": "Lucide icon resolver for Atom Framework",
+            "description": "Lucide icon resolver and SVG catalogue for Atom View",
             "transport-options": {
                 "symlink": true,
                 "relative": true

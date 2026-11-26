@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Atom\Tests\Modules\Icons;
+namespace Atom\Tests\View\Icons;
 
-use Atom\Modules\Icons\IconRegistry;
-use Atom\Modules\Icons\IconResolverInterface;
+use Atom\View\Icons\IconRegistry;
+use Atom\View\Icons\IconResolverInterface;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

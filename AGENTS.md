@@ -39,7 +39,7 @@ Important module locations:
 ```text
 packages/framework/src/Modules/Client/       Atom browser runtime and MorphDOM adapter
 packages/components/src/                   UI components and their CSS and JavaScript
-packages/framework/src/Modules/Icons/       Shared icon resolution contracts
+packages/view/src/Icons/                    Shared icon resolution contracts
 packages/lucide/                             Optional Lucide icon package and SVG catalogue
 packages/framework/src/Modules/Accounts/     Account and identity feature module
 packages/framework/src/Modules/ApiExplorer/  API Explorer feature module

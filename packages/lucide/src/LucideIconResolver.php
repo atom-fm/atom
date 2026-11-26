@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Lucide;
 
-use Atom\Modules\Icons\IconResolverInterface;
+use Atom\View\Icons\IconResolverInterface;
 use RuntimeException;
 
 final readonly class LucideIconResolver implements IconResolverInterface

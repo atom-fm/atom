@@ -1,14 +1,15 @@
 {
     "name": "atom-fm/lucide",
     "type": "library",
-    "description": "Lucide icon resolver for Atom Framework",
+    "description": "Lucide icon resolver and SVG catalogue for Atom View",
     "license": [
         "MIT",
         "ISC"
     ],
     "require": {
         "php": "^8.4",
-        "atom-fm/framework": "^0.2"
+        "atom-fm/di": "^0.1",
+        "atom-fm/view": "^0.1"
     },
     "autoload": {
         "psr-4": {

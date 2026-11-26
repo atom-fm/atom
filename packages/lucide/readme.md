@@ -1,12 +1,27 @@
 # Atom Lucide Icons
 
-Lucide icon integration for Atom Framework. The package owns the `lucide:` icon prefix and keeps the icon catalogue out of the core framework package. Lucide 0.2 requires Atom Framework 0.2. Use Lucide 0.1 with Atom Framework 0.1.
+Lucide provides the SVG catalogue for the `lucide:` icon prefix. The monorepo version uses `atom-fm/view` for icon resolution and `atom-fm/di` for its service provider. Published Lucide 0.2 releases require Atom Framework 0.2. Use Lucide 0.1 with Atom Framework 0.1.
 
 ```powershell
 composer require atom-fm/lucide
 ```
 
-Register the provider from the application:
+### Standalone use in the monorepo
+
+Configure Composer path repositories for Lucide, View, and DI, with development versions enabled. Register the Lucide provider with a View icon registry:
+
+```php
+use Atom\Lucide\LucideServiceProvider;
+use Atom\View\Icons\IconRegistry;
+
+$icons = new IconRegistry();
+(new LucideServiceProvider())->icons($icons);
+echo $icons->resolve("lucide", "search");
+```
+
+### Framework applications
+
+Framework registers the icon catalogue automatically when you add the provider to your application:
 
 ```php
 use Atom\Di\ServiceProviderRegistry;

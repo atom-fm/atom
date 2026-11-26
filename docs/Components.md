@@ -171,7 +171,7 @@ enhanced navigation. The `href` template and `action` modes remain available.
 
 `Icon` supports child text or markup, public SVG URLs, local SVG paths resolved through `Paths`, data URIs, and font-icon class names. Named icon catalogues are optional packages registered by prefix.
 
-Custom catalogues implement `IconProviderInterface` and register an `IconResolverInterface` with `IconRegistry`. Framework provides these types under `Atom\Modules\Icons`.
+Custom catalogues implement `IconProviderInterface` and register an `IconResolverInterface` with `IconRegistry`. View provides these types under `Atom\View\Icons`. Framework registers icon providers added to the application's service provider registry.
 
 Install Lucide separately when an application wants the `lucide:` catalogue:
 

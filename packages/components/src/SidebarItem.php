@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Atom\Components;
 
 use Atom\Support\Paths;
-use Atom\Modules\Icons\IconRegistry;
+use Atom\View\Icons\IconRegistry;
 use Atom\View\Component\AttributeBag;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\Fragment;

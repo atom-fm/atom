@@ -6,8 +6,8 @@ namespace Atom\Lucide;
 
 use Atom\Di\Bindings;
 use Atom\Di\ServiceProviderInterface;
-use Atom\Modules\Icons\IconProviderInterface;
-use Atom\Modules\Icons\IconRegistry;
+use Atom\View\Icons\IconProviderInterface;
+use Atom\View\Icons\IconRegistry;
 
 final readonly class LucideServiceProvider implements ServiceProviderInterface, IconProviderInterface
 {

@@ -9,7 +9,7 @@ use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\Fragment;
 use Atom\View\Html;
 use Atom\Support\Paths;
-use Atom\Modules\Icons\IconRegistry;
+use Atom\View\Icons\IconRegistry;
 
 final class Stats implements ComponentInterface
 {
