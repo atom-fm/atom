@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Database\Orm;
 
+use Atom\Database\Db;
 use Atom\Database\Sql\Op;
 use Atom\Database\Sql\Query;
 use Atom\Database\Sql\SelectQuery;
@@ -12,7 +13,7 @@ use Atom\Database\Sql\WhereGroup;
 use Closure;
 use InvalidArgumentException;
 
-/** A child query correlated to the parent through its mapped HasMany keys. */
+/** @internal A child query correlated to the parent through its mapped HasMany keys. */
 final readonly class HasManyQuery
 {
     public EntityMetadata $parent;
@@ -25,7 +26,7 @@ final readonly class HasManyQuery
      * @param string|non-empty-list<string> $relation
      * @param (callable(WhereGroup): mixed)|null $constraint
      */
-    public function __construct(?string $sourceClass, ?Table $from, string|array $relation, ?callable $constraint = null)
+    public function __construct(Db $db, ?string $sourceClass, ?Table $from, string|array $relation, ?callable $constraint = null)
     {
         if ($sourceClass === null || $from === null) {
             throw new InvalidArgumentException("HasMany queries require a mapped source.");
@@ -42,6 +43,7 @@ final readonly class HasManyQuery
             if ($mapping === null || $mapping->type !== RelationMetadata::HAS_MANY) {
                 throw new InvalidArgumentException("Relationship '{$name}' must be a mapped HasMany relation.");
             }
+            $mapping->assertConnection($db, $name);
             $related = $metadata->for($mapping->relatedClass);
             $localKey = $parent->column($mapping->localKey);
             $foreignKey = $related->column($mapping->foreignKey);
@@ -68,7 +70,7 @@ final readonly class HasManyQuery
         $this->alias = $alias;
         $this->query = $query;
         if ($constraint !== null) {
-            $this->query->getWhere()->group($constraint, self::predicateBuilder($this->related->className, $this->query->getFrom()));
+            $this->query->getWhere()->group($constraint, self::predicateBuilder($db, $this->related->className, $this->query->getFrom()));
         }
     }
 
@@ -76,9 +78,9 @@ final readonly class HasManyQuery
      * @param class-string|null $sourceClass
      * @return Closure(string, ?callable): SelectQuery
      */
-    public static function predicateBuilder(?string $sourceClass, ?Table $from): Closure
+    public static function predicateBuilder(Db $db, ?string $sourceClass, ?Table $from): Closure
     {
         return static fn (string $relation, ?callable $constraint): SelectQuery =>
-            (new self($sourceClass, $from, $relation, $constraint))->query;
+            (new self($db, $sourceClass, $from, $relation, $constraint))->query;
     }
 }

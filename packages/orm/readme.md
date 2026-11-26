@@ -41,7 +41,23 @@ foreach ($page as $article) {
 
 Use `$db->select(Article::class)` and `$db->save($article)` to choose the database explicitly. Use `Model::useDb()` when calling the model's convenience methods through a shared default database.
 
-Use `Article::useConnection($archiveDb)` to route model convenience methods to another database. Set the connection on a base model to share it with its descendants. Each model uses its own assignment first, then the nearest configured ancestor, then the shared default. Pass `null` to clear a class's assignment. Explicit `Db` operations and the relationships they load use the selected `Db`. Save a record through that same `Db` when you deliberately load it from a different connection.
+## Model connection routing
+
+Set `Model::useDb($mainDb)` for the shared default. To route a family of models, register a connection on their common base class. Individual subclasses can override it.
+
+```php
+Model::useDb($mainDb);
+ArchiveModel::useConnection($archiveDb);
+ArchivedArticle::useConnection($reportingDb);
+```
+
+Each model uses its own assignment first, then the nearest configured ancestor, then the shared default. Pass `null` to clear a class's assignment and resume fallback. Explicit `Db` operations and relationship queries use the selected `Db`. A model returned by an explicit query still resolves its convenience methods by class, so reuse that `Db` if you want to save it back to the connection you queried.
+
+ORM rejects relationship loads, joins, filters, and aggregates when the related model has a class-level or inherited assignment to a different connection. Models without such an assignment are resolved on the query's connection.
+
+Transactions cover writes through the connection that opened them. The facade opens transactions on the shared default. For a routed model, use its configured `Db` explicitly, for example `$archiveDb->transaction(fn (Db $db) => $db->save($article))`.
+
+## Query execution and results
 
 When executing a query builder or a compiled `Command`, pass execution parameters to override bindings by placeholder name. For example, `["id" => 2]` and `[":id" => 2]` both override `:id`. Other bindings keep their compiled values.
 
@@ -53,10 +69,12 @@ When an entity has a generated primary key and no insertable columns, `save()` l
 
 ## Supported API
 
+ORM is in maintenance mode. Routine changes focus on fixes, compatibility, and documentation for the APIs below.
+
 | Area | Contract |
 | --- | --- |
 | Connection and execution | Construct `PdoConnection` with a PDO instance or a connection factory and the SQL compiler for that dialect. Use `Db` to execute SQL strings, query builders, and compiled commands. |
-| Persistence | Use explicit `Db` operations or the `Model` convenience methods after `Model::useDb()`. Use table, column, primary-key, and relation attributes to map entities. `Model` tracks changes, and column value providers supply values for writes. |
+| Persistence | Use explicit `Db` operations or `Model` convenience methods with `useDb()` and `useConnection()`. Use table, column, primary-key, and relation attributes to map entities. `Model` tracks changes, and column value providers supply values for writes. |
 | Reads | Use `Db::select()` and `DbSelect` to return models, rows, or typed projections. Supported operations include filters, ordering, aggregates, eager loading, relation filters, and pagination. `PageResult` supports iteration and JSON serialization. |
 | Transactions and errors | `transaction()` commits a successful callback and rolls back a callback that throws. `UniqueViolationException` exposes the original PDO exception. Affected row counts follow the database driver. |
 

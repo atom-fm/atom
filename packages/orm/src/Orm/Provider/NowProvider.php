@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Atom\Database\Orm\Provider;
 
 use Atom\Database\Orm\ColumnMetadata;
-use Atom\Database\Orm\DirectUpdateValueProviderInterface;
+use Atom\Database\Orm\UpdateValueProviderInterface;
 use DateTimeImmutable;
 
-final class NowProvider implements DirectUpdateValueProviderInterface
+final class NowProvider implements UpdateValueProviderInterface
 {
     public function value(?object $entity, ColumnMetadata $column): DateTimeImmutable
     {

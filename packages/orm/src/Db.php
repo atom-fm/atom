@@ -241,6 +241,7 @@ final readonly class Db
                 throw new RuntimeException("Relation '{$relationName}' is not defined on {$className}.");
             }
 
+            $relation->assertConnection($this, (string) $relationName);
             $relation->createRelation($factory)->load($this, $entities);
             if ($nested !== []) {
                 $this->loadRelationPaths($relation->relatedClass, $relation->relatedModels($entities), $nested);

@@ -100,7 +100,7 @@ final class DbSelect
     {
         $path = explode(".", $relation);
         $alias ??= implode("_", $path) . "_count";
-        $child = new HasManyQuery($this->sourceClass, $this->query->getFrom(), $path, $constraint);
+        $child = new HasManyQuery($this->db, $this->sourceClass, $this->query->getFrom(), $path, $constraint);
         if ($this->resultClass === $this->sourceClass) {
             $destination = $child->parent->column($alias);
             if ($destination === null || $destination->columnName !== $alias || $destination->propertyType !== "int"
@@ -115,7 +115,7 @@ final class DbSelect
 
     public function withSum(string $relation, string $column, ?string $alias = null, int|float|null $default = null): self
     {
-        $child = new HasManyQuery($this->sourceClass, $this->query->getFrom(), $relation);
+        $child = new HasManyQuery($this->db, $this->sourceClass, $this->query->getFrom(), $relation);
         $field = $child->related->column($column);
         if ($field === null || !$field->select) {
             throw new InvalidArgumentException("Relationship sum '{$column}' must be a mapped selectable column.");
@@ -240,7 +240,7 @@ final class DbSelect
     /** @param callable(WhereGroup): mixed $builder */
     public function group(callable $builder): self
     {
-        $this->query->getWhere()->group($builder, HasManyQuery::predicateBuilder($this->sourceClass, $this->query->getFrom()));
+        $this->query->getWhere()->group($builder, HasManyQuery::predicateBuilder($this->db, $this->sourceClass, $this->query->getFrom()));
         return $this;
     }
 
@@ -299,6 +299,7 @@ final class DbSelect
             if ($mapping === null || $mapping->type !== RelationMetadata::BELONGS_TO) {
                 throw new InvalidArgumentException("Relationship '{$path}' must be a mapped BelongsTo relation.");
             }
+            $mapping->assertConnection($this->db, $path);
             $target = $metadata->for($mapping->relatedClass);
             $requestedAlias = $path === $relation ? $alias : null;
             $existing = array_find($joined[$path] ?? [], static fn (Join $join): bool =>

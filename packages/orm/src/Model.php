@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Atom\Database;
 
 use Atom\Database\Orm\ColumnMetadata;
-use Atom\Database\Orm\DirectUpdateValueProviderInterface;
 use Atom\Database\Orm\EntityMetadata;
 use Atom\Database\Orm\EntityMetadataFactory;
+use Atom\Database\Orm\UpdateValueProviderInterface;
 use Atom\Database\Sql\Query;
 use Atom\Database\Sql\UpsertQuery;
 use DateTimeInterface;
@@ -205,9 +205,9 @@ abstract class Model
             if ($provider === null) {
                 continue;
             }
-            if (!is_subclass_of($provider, DirectUpdateValueProviderInterface::class)) {
+            if (!is_subclass_of($provider, UpdateValueProviderInterface::class)) {
                 throw new RuntimeException(
-                    "{$provider} must implement DirectUpdateValueProviderInterface to update {$column->columnName} by ID. "
+                    "{$provider} must implement UpdateValueProviderInterface to update {$column->columnName} by ID. "
                     . "Use save() on a loaded model."
                 );
             }
@@ -255,13 +255,19 @@ abstract class Model
 
     protected static function db(): Db
     {
+        return self::configuredDatabase() ?? DefaultDatabase::get();
+    }
+
+    /** @internal */
+    final public static function configuredDatabase(): ?Db
+    {
         for ($class = static::class; $class !== false; $class = get_parent_class($class)) {
             if (isset(self::$connections[$class])) {
                 return self::$connections[$class];
             }
         }
 
-        return DefaultDatabase::get();
+        return null;
     }
 
     private static function metadata(): EntityMetadata

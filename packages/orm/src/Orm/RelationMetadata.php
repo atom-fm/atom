@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Atom\Database\Orm;
 
+use Atom\Database\Db;
+use Atom\Database\Model;
 use Atom\Database\Orm\Attributes\BelongsTo;
 use Atom\Database\Orm\Attributes\HasMany;
 use Atom\Database\Orm\Attributes\HasOne;
@@ -13,6 +15,7 @@ use Atom\Database\Orm\Relation\HasOneRelation;
 use Atom\Database\Orm\Relation\Relation;
 use LogicException;
 use ReflectionProperty;
+use RuntimeException;
 
 final readonly class RelationMetadata
 {
@@ -74,6 +77,16 @@ final readonly class RelationMetadata
             property: $property,
             orderBy: $relation->orderBy,
         );
+    }
+
+    /** @internal */
+    public function assertConnection(Db $db, string $path): void
+    {
+        $related = $this->relatedClass;
+        $configured = is_subclass_of($related, Model::class) ? $related::configuredDatabase() : null;
+        if ($configured !== null && $configured->connection() !== $db->connection()) {
+            throw new RuntimeException("Relationship '{$path}' targets {$related} on a different database connection.");
+        }
     }
 
     public function setValue(object $entity, mixed $value): void

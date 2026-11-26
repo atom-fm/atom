@@ -722,6 +722,52 @@ final class DbTest extends TestCase
         self::assertSame("Main", DbDefaultConnectionUser::find(1)?->name);
     }
 
+    public function testRelationshipsRejectRoutedModelsOnAnotherConnection(): void
+    {
+        $main = new Db(self::memory());
+        $archive = new Db(self::memory());
+        foreach ([$main, $archive] as $db) {
+            $db->execute("CREATE TABLE invoices (invoice_no TEXT PRIMARY KEY)");
+            $db->execute("CREATE TABLE invoice_lines (invoice_ref TEXT, line_amount REAL)");
+            $db->execute("INSERT INTO invoices VALUES ('same-id')");
+        }
+        $main->execute("INSERT INTO invoice_lines VALUES ('same-id', 10)");
+        $archive->execute("INSERT INTO invoice_lines VALUES ('same-id', 20)");
+        Model::useDb($main);
+        DbInvoice::useConnection($archive);
+        DbInvoiceLine::useConnection($archive);
+
+        try {
+            self::assertSame(20.0, DbInvoice::find("same-id", "lines")?->lines[0]->amount);
+
+            foreach ([
+                "invoice" => [
+                    fn() => $main->select(DbInvoiceLine::class)->with("invoice")->first(),
+                    fn() => $main->select(DbInvoiceLine::class)->joinRelation("invoice"),
+                ],
+                "lines" => [
+                    fn() => $main->select(DbInvoice::class)->whereHas("lines"),
+                    fn() => $main->select(DbInvoice::class)->withCount("lines"),
+                    fn() => $main->select(DbInvoice::class)->withSum("lines", "amount"),
+                ],
+            ] as $relation => $operations) {
+                foreach ($operations as $operation) {
+                    try {
+                        $operation();
+                    } catch (\RuntimeException $exception) {
+                        self::assertStringContainsString("Relationship '{$relation}'", $exception->getMessage());
+                        self::assertStringContainsString("different database connection", $exception->getMessage());
+                        continue;
+                    }
+                    self::fail("Expected relationship '{$relation}' to reject the other connection.");
+                }
+            }
+        } finally {
+            DbInvoice::useConnection(null);
+            DbInvoiceLine::useConnection(null);
+        }
+    }
+
     public function testFacadeTransactionsFollowTheModelDatabaseAndRollBackModelWrites(): void
     {
         $first = new Db(self::memory());

@@ -204,7 +204,7 @@ use predictable paths without additional configuration.
 
 `DatabaseServices` configures the `Model` base class during application startup, so model classes can use `query()`, `find()`, `save()`, and `delete()` without manual bootstrap code.
 
-Use `Atom\Database\Facades\Db::transaction()` to commit model writes together on the configured model database. In standalone scripts and tests, `Model::useDb($db)` configures the same instance for both models and the facade.
+Use `Atom\Database\Facades\Db::transaction()` to commit model writes together on the shared default database. In standalone scripts and tests, `Model::useDb($db)` sets that default for models and the facade.
 
 ```php
 use Atom\Database\Facades\Db;
@@ -217,6 +217,12 @@ Db::transaction(function () use ($order, $item): void {
 ```
 
 The callback can accept the configured `Atom\Database\Db` instance as its argument. Its return value is returned after commit. An exception rolls back the transaction and propagates to the caller.
+
+To route a model or model family to a different database, call `ArchiveModel::useConnection($archiveDb)` at startup. A subclass can register its own connection. The lookup falls back to the nearest configured ancestor and then the shared default. Pass `null` to clear a class's assignment.
+
+Relationship queries run on one connection. ORM rejects a relationship if the related model has an explicit or inherited assignment to a different connection.
+
+For writes to a routed database, open the transaction on that database and use the callback's `Db` for the writes. An ordinary model call still follows its class routing inside a facade transaction, so it can write outside the facade's transaction.
 
 ### Count several queries in one statement
 
@@ -837,9 +843,9 @@ provider values, for example to refresh an update timestamp. An empty update
 requires at least one such provider.
 
 For updates by ID, each `onUpdate` provider must implement
-`Atom\Database\Orm\DirectUpdateValueProviderInterface`. Its
-`databaseValue(ColumnMetadata $column)` method returns a bindable scalar or
-`null` without loading the entity. The provider controls the stored format,
+`Atom\Database\Orm\UpdateValueProviderInterface`. Its
+`databaseValue(ColumnMetadata $column): mixed` method supplies the value to
+bind without loading the entity. The provider controls the stored format,
 including timestamp precision. Use instance `save()` for providers that read
 entity state or for application validation and optimistic concurrency checks.
 
