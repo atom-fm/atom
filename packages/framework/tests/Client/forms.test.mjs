@@ -6,17 +6,21 @@ const { chromium } = await import(process.env.ATOM_PLAYWRIGHT_MODULE || "playwri
 const assets = new Map(await Promise.all(["atom.js", "morphdom.js", "atom-morphdom.js"].map(async name => [
     `/${name}`, await readFile(new URL(`../../src/Modules/Client/Resources/${name}`, import.meta.url)),
 ])));
-const markup = (message = "", title = "") => `<!doctype html>
+const markup = (message = "", title = "", fieldError = "") => `<!doctype html>
     <main atom:update-root>
         <p id="result">${message}</p>
         <form method="post" action="/" atom:submit="save">
             <input type="hidden" name="_action" value="save">
-            <input type="text" name="title" value="${title}" required>
+            <input type="text" name="title" value="${title}" required${fieldError ? ' aria-invalid="true" aria-describedby="title-error"' : ""}>
+            ${fieldError ? `<p id="title-error">${fieldError}</p>` : ""}
             <button id="save" type="submit" name="source" value="primary">Save</button>
             <button id="alternate" atom:action="saveDraft" formnovalidate name="source" value="draft">Save draft</button>
         </form>
     </main>
     <script src="/atom.js"></script>`;
+const errorPage = (title, message) => `<!doctype html>
+    <title>${title}</title>
+    <main class="atom-error"><h1>${title}</h1><p>${message}</p></main>`;
 
 let responseGate;
 let responseStatus = 200;
@@ -37,7 +41,19 @@ const server = createServer(async (request, response) => {
             responseHeld();
             await responseGate;
         }
-        response.writeHead(responseStatus, { "Content-Type": "text/html" }).end(markup(body.get("_action"), "Saved title"));
+        const action = body.get("_action");
+        if (responseStatus === 500) {
+            response.writeHead(500, { "Content-Type": "text/html" })
+                .end(errorPage("Something went wrong", "An unexpected error occurred."));
+        } else if (action === "save(") {
+            response.writeHead(400, { "Content-Type": "text/html" })
+                .end(errorPage("Bad request", "The request could not be understood."));
+        } else if (body.get("title") === "Duplicate title") {
+            response.writeHead(200, { "Content-Type": "text/html" })
+                .end(markup("", "Duplicate title", "Choose a different title."));
+        } else {
+            response.writeHead(200, { "Content-Type": "text/html" }).end(markup(action, "Saved title"));
+        }
         return;
     }
     response.writeHead(200, { "Content-Type": "text/html" }).end(markup());
@@ -101,13 +117,19 @@ try {
     await title.fill("Retry this");
     const failed = nextPost();
     await save.click();
-    assert.equal((await failed).status(), 500);
+    const failedResponse = await failed;
+    assert.equal(failedResponse.status(), 500);
+    assert.equal(failedResponse.request().headers()["x-requested-with"], "Atom");
     await page.waitForFunction(() => !document.querySelector("#save").disabled);
+    assert.equal(await title.isVisible(), true);
+    assert.equal(await title.inputValue(), "Retry this");
     responseStatus = 200;
     const retried = nextPost();
     await save.click();
     assert.equal((await retried).status(), 200);
+    await page.waitForFunction(() => document.querySelector("[name=title]").value === "Saved title");
     assert.equal(submissions.length, 4);
+    assert.equal(submissions.at(-1).title, "Retry this");
     assert.deepEqual(errors, []);
     console.log("PASS: native form validation, submitter actions, duplicate prevention, and retry after failure.");
 
@@ -124,9 +146,30 @@ try {
         assert.equal(submissions.at(-1).title, "Unnormalized title", engine);
         assert.equal(await title.inputValue(), "Saved title", engine);
         assert.equal(await title.evaluate(field => field === document.activeElement), true, engine);
+
+        await title.fill("Duplicate title");
+        const invalid = nextPost();
+        await title.press("Enter");
+        const invalidResponse = await invalid;
+        assert.equal(invalidResponse.status(), 200, engine);
+        assert.equal(invalidResponse.request().headers()["x-requested-with"], "Atom", engine);
+        await page.getByText("Choose a different title.", { exact: true }).waitFor();
+        assert.equal(await title.inputValue(), "Duplicate title", engine);
+        assert.equal(await title.getAttribute("aria-invalid"), "true", engine);
+        assert.equal(await title.getAttribute("aria-describedby"), "title-error", engine);
+        assert.equal(await save.isEnabled(), true, engine);
+
+        await page.locator("[name=_action]").evaluate(input => { input.value = "save("; });
+        const malformed = nextPost();
+        await save.click();
+        const malformedResponse = await malformed;
+        assert.equal(malformedResponse.status(), 400, engine);
+        assert.equal(malformedResponse.request().headers()["x-requested-with"], "Atom", engine);
+        await page.getByRole("heading", { name: "Bad request" }).waitFor();
+        assert.equal(await page.getByText("The request could not be understood.").isVisible(), true, engine);
     }
     assert.deepEqual(errors, []);
-    console.log("PASS: the focused field shows the saved value with both update engines.");
+    console.log("PASS: saved values, visible field errors, and malformed-action feedback with both update engines.");
 } finally {
     releaseResponse?.();
     await browser?.close();
