@@ -173,8 +173,13 @@ The optional components module registers the shared PHP component tags and serve
 
 ```php
 use Atom\Components\Components;
+use Atom\Integration\View\ComponentModule;
 
-$modules->add(Components::module());
+$modules->add(new ComponentModule(
+    Components::definitions(),
+    Components::resourceDirectory(),
+    Components::DEFAULT_RESOURCE_PATH
+));
 ```
 
 Its resources are exposed at:

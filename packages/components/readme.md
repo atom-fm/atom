@@ -12,8 +12,13 @@ Enable it by adding its module to the application's module registry.
 
 ```php
 use Atom\Components\Components;
+use Atom\Integration\View\ComponentModule;
 
-$modules->add(Components::module());
+$modules->add(new ComponentModule(
+    Components::definitions(),
+    Components::resourceDirectory(),
+    Components::DEFAULT_RESOURCE_PATH
+));
 ```
 
 Load the supplied stylesheet in the layout. Load the component scripts after the framework's browser runtime for password reveal and the Lookup and DatePicker controls.

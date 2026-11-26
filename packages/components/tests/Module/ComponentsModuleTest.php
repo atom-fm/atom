@@ -6,6 +6,7 @@ namespace Atom\Tests\Module;
 
 use Atom\Application;
 use Atom\Components\Components;
+use Atom\Integration\View\ComponentModule;
 use Atom\Components\ComponentsScripts;
 use Atom\Components\ComponentsStyles;
 use Atom\Components\FieldError;
@@ -20,8 +21,9 @@ use Atom\Components\Skeleton;
 use Atom\Components\Spinner;
 use Atom\Components\SwitchField;
 use Atom\Components\ValidationSummary;
-use Atom\Router\RouteMatcher;
+use Atom\Http\Request;
 use Atom\View\Component\ComponentRegistry;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class ComponentsModuleTest extends TestCase
@@ -36,12 +38,18 @@ final class ComponentsModuleTest extends TestCase
         Application::$app = null;
     }
 
-    public function testComponentsModuleRegistersSharedComponentsAndResources(): void
+    #[TestWith([Components::DEFAULT_RESOURCE_PATH], "default asset path")]
+    #[TestWith(["/widgets/assets"], "custom asset path")]
+    public function testComponentModuleRegistersSharedComponentsAndResources(string $resourcePath): void
     {
         $app = new class extends Application {};
         $app->initialize();
 
-        $app->registerModule(Components::module());
+        $app->registerModule(new ComponentModule(
+            Components::definitions(),
+            Components::resourceDirectory(),
+            $resourcePath
+        ));
 
         $components = $app->getInjector()->get(ComponentRegistry::class);
 
@@ -59,11 +67,15 @@ final class ComponentsModuleTest extends TestCase
         $this->assertSame(Progress::class, $components->get("Progress"));
         $this->assertSame(Spinner::class, $components->get("Spinner"));
         $this->assertSame(Skeleton::class, $components->get("Skeleton"));
-        $this->assertTrue(
-            (new RouteMatcher($app->getRouter()))->match("GET", "/atom/components/resources/atom.css")->isFound()
-        );
-        $this->assertTrue(
-            (new RouteMatcher($app->getRouter()))->match("GET", "/atom/components/resources/atom-controls.js")->isFound()
-        );
+        foreach ([
+            "atom.css" => "text/css; charset=utf-8",
+            "atom-controls.js" => "application/javascript; charset=utf-8",
+        ] as $asset => $contentType) {
+            $response = $app->handle(new Request("GET", "{$resourcePath}/{$asset}"));
+
+            $this->assertSame(200, $response->getStatus());
+            $this->assertSame($contentType, $response->headers()->get("Content-Type"));
+            $this->assertSame(file_get_contents(Components::resourceDirectory() . "/{$asset}"), $response->getContent());
+        }
     }
 }

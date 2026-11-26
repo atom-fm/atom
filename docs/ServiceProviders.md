@@ -31,6 +31,7 @@ use Atom\Di\ServiceProviderRegistry;
 use Atom\Module\ModuleRegistry;
 use Atom\Modules\Client\Client;
 use Atom\Components\Components;
+use Atom\Integration\View\ComponentModule;
 use Atom\Page\PageRegistry;
 use Atom\Router\Route;
 use Atom\View\Component\ComponentRegistry;
@@ -50,7 +51,11 @@ final class Application extends \Atom\Application
     protected function modules(ModuleRegistry $modules): void
     {
         $modules->add(Client::module());
-        $modules->add(Components::module());
+        $modules->add(new ComponentModule(
+            Components::definitions(),
+            Components::resourceDirectory(),
+            Components::DEFAULT_RESOURCE_PATH
+        ));
     }
 
     protected function pages(PageRegistry $pages): void

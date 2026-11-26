@@ -10,6 +10,7 @@ use Atom\Http\Request;
 use Atom\Http\Response;
 use Atom\Module\ModuleRegistry;
 use Atom\Components\Components;
+use Atom\Integration\View\ComponentModule;
 use Atom\Page\Form;
 use Atom\Page\FormModel;
 use Atom\Page\JsonPageStateSerializer;
@@ -160,7 +161,11 @@ final class PageFormHydrationTest extends TestCase
         $app = new class extends Application {
             protected function modules(ModuleRegistry $modules): void
             {
-                $modules->add(Components::module());
+                $modules->add(new ComponentModule(
+                    Components::definitions(),
+                    Components::resourceDirectory(),
+                    Components::DEFAULT_RESOURCE_PATH
+                ));
             }
 
             protected function bootstrap(Injector $injector): void

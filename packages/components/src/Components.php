@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Atom\Components;
 
-use Atom\Module\ModuleContext;
 use Atom\Components\Alert;
 use Atom\Components\AppShell;
 use Atom\Components\Avatar;
@@ -65,7 +64,6 @@ use Atom\Components\TextInput;
 use Atom\Components\Toast;
 use Atom\Components\Toolbar;
 use Atom\Components\ValidationSummary;
-use Atom\Router\RouteEntry;
 use Atom\View\Component\ComponentSet;
 
 final readonly class Components
@@ -73,11 +71,6 @@ final readonly class Components
     public const DEFAULT_RESOURCE_PATH = "/atom/components/resources";
     public const STYLES_VERSION = "12";
     public const SCRIPTS_VERSION = "2";
-
-    public static function module(string $resourcePath = self::DEFAULT_RESOURCE_PATH): ComponentsModule
-    {
-        return new ComponentsModule($resourcePath);
-    }
 
     public static function definitions(): ComponentSet
     {
@@ -149,11 +142,8 @@ final readonly class Components
         ]);
     }
 
-    /**
-     * @return RouteEntry[]
-     */
-    public static function resources(ModuleContext $context, string $path = self::DEFAULT_RESOURCE_PATH): array
+    public static function resourceDirectory(): string
     {
-        return $context->resources($path, __DIR__ . "/Resources");
+        return __DIR__ . "/Resources";
     }
 }
