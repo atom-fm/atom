@@ -195,6 +195,22 @@ final class QueryCompilerTest extends TestCase
         $this->assertSame([":id" => 2], $command->parameters);
     }
 
+    public function testFragmentsCanReusePlaceholderNames(): void
+    {
+        $query = Query::select("users")
+            ->whereExp("id > :bound", ["bound" => 10])
+            ->whereExp("id < :bound AND marker != ':bound'", [":bound" => 20])
+            ->whereExp("id != :p1", ["p1" => 15]);
+
+        $command = (new SqliteCompiler())->compile($query);
+
+        self::assertSame(
+            'SELECT * FROM "users" WHERE "id" > :bound AND "id" < :p2 AND "marker" != \':bound\' AND "id" != :p1',
+            $command->sql
+        );
+        self::assertSame([":bound" => 10, ":p2" => 20, ":p1" => 15], $command->parameters);
+    }
+
     public function testGeneratedBindingBeforeCallerBindingPreservesBothValues(): void
     {
         $query = Query::select("users")

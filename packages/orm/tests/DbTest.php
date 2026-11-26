@@ -99,6 +99,11 @@ final class DbTest extends TestCase
         $query->getWhere()->whereInSubquery("id", $members);
 
         $this->assertSame([["id" => 1, "other_member" => 3]], $db->all($query));
+
+        $membersWithReusedName = Query::select("users")->columns("id")->whereExp("id <= :p1", ["p1" => 2]);
+        $queryWithReusedName = Query::select("users")->columns("id")->whereExp("id = :p1", ["p1" => 1]);
+        $queryWithReusedName->getWhere()->whereInSubquery("id", $membersWithReusedName);
+        $this->assertSame([["id" => 1]], $db->all($queryWithReusedName));
     }
 
     public function testUpdatePreservesGeneratedAssignmentAndCallerFilter(): void

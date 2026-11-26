@@ -30,6 +30,15 @@ final readonly class Command
             $parameters[$renamed] = $value;
         }
 
+        return new self(self::renamePlaceholders($this->sql, $names), $parameters);
+    }
+
+    /**
+     * @internal
+     * @param array<string, string> $names
+     */
+    public static function renamePlaceholders(string $sql, array $names): string
+    {
         // Skip SQL literals, quoted identifiers, comments and PostgreSQL casts.
         $tokens = <<<'REGEX'
             ~(?:
@@ -38,7 +47,7 @@ final readonly class Command
                 | --[^\r\n]* | /\*.*?\*/ | ::
             )(*SKIP)(*F) | :[a-z_][a-z_0-9]*~isx
             REGEX;
-        $sql = preg_replace_callback($tokens, static fn (array $match): string => $names[$match[0]] ?? $match[0], $this->sql);
-        return new self($sql ?? throw new \RuntimeException("Could not scope query parameters."), $parameters);
+        return preg_replace_callback($tokens, static fn (array $match): string => $names[$match[0]] ?? $match[0], $sql)
+            ?? throw new \RuntimeException("Could not scope query parameters.");
     }
 }
