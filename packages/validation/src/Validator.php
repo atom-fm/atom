@@ -6,11 +6,13 @@ namespace Atom\Validation;
 
 use ReflectionAttribute;
 use ReflectionClass;
+use ReflectionNamedType;
 use ReflectionProperty;
+use ReflectionReference;
 
 final class Validator
 {
-    /** @var array<class-string, array{schema: Schema, nested: list<string>}> */
+    /** @var array<class-string, array{schema: Schema, nested: array<string, class-string|null>}> */
     private static array $attributePlans = [];
 
     private function __construct(private readonly Schema|string|null $source = null)
@@ -44,7 +46,7 @@ final class Validator
 
     /**
      * @param class-string $className
-     * @param list<object> $ancestors
+     * @param list<object|string> $ancestors
      */
     private function validateAttributes(array|object $target, string $className, array $ancestors = []): ValidationResult
     {
@@ -54,13 +56,22 @@ final class Validator
             $ancestors[] = $target;
         }
 
-        foreach ($plan["nested"] as $field) {
+        foreach ($plan["nested"] as $field => $declaredClass) {
             $value = is_array($target) ? ($target[$field] ?? null) : ($target->{$field} ?? null);
-            if (!is_object($value) || in_array($value, $ancestors, true)) {
+            $childClass = is_object($value) ? $value::class : $declaredClass;
+            if ($childClass === null || (!is_object($value) && !is_array($value))) {
                 continue;
             }
 
-            foreach ($this->validateAttributes($value, $value::class, $ancestors)->all() as $error) {
+            $identity = is_object($value)
+                ? $value
+                : (is_array($target) ? ReflectionReference::fromArrayElement($target, $field)?->getId() : null);
+            if ($identity !== null && in_array($identity, $ancestors, true)) {
+                continue;
+            }
+            $childAncestors = $identity === null || is_object($identity) ? $ancestors : [...$ancestors, $identity];
+
+            foreach ($this->validateAttributes($value, $childClass, $childAncestors)->all() as $error) {
                 $result->add($error->forField("{$field}.{$error->field}"));
             }
         }
@@ -70,7 +81,7 @@ final class Validator
 
     /**
      * @param class-string $className
-     * @return array{schema: Schema, nested: list<string>}
+     * @return array{schema: Schema, nested: array<string, class-string|null>}
      */
     private function buildAttributePlan(string $className): array
     {
@@ -85,11 +96,28 @@ final class Validator
             }
 
             if ($property->getAttributes(ValidateNested::class) !== []) {
-                $nested[] = $field;
+                $nested[$field] = $this->nestedClass($property);
             }
         }
 
         return ["schema" => $schema, "nested" => $nested];
+    }
+
+    /** @return class-string|null */
+    private function nestedClass(ReflectionProperty $property): ?string
+    {
+        $type = $property->getType();
+        if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            return null;
+        }
+
+        $name = match ($type->getName()) {
+            "self" => $property->getDeclaringClass()->getName(),
+            "parent" => get_parent_class($property->getDeclaringClass()->getName()),
+            default => $type->getName(),
+        };
+
+        return $name !== false && class_exists($name) ? $name : null;
     }
 
     /**

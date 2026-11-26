@@ -95,6 +95,28 @@ final class ValidationTest extends TestCase
         self::assertSame(["requiredChild.label"], array_keys($validator->validate($parent)->messages()));
     }
 
+    public function testNestedArrayValidationReportsDottedPaths(): void
+    {
+        $validator = Validator::for(NestedValidationParent::class);
+        $data = [
+            "requiredChild" => [
+                "label" => "",
+                "child" => ["label" => ""],
+                "unmarked" => ["label" => ""],
+            ],
+        ];
+
+        self::assertSame(
+            ["requiredChild.label", "requiredChild.child.label"],
+            array_keys($validator->validate($data)->messages())
+        );
+
+        $data["requiredChild"]["label"] = "Parent";
+        $data["requiredChild"]["child"]["label"] = "Child";
+        $data["requiredChild"]["child"]["child"] = &$data["requiredChild"];
+        self::assertTrue($validator->validate($data)->passed());
+    }
+
     public function testLegacyValidationBuilderStillWorksForSimpleRules(): void
     {
         $validation = Validation::create(function (Validation $rules): void {
