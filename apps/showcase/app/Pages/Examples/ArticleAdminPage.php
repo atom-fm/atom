@@ -6,8 +6,8 @@ namespace Showcase\Pages\Examples;
 
 use Atom\Collections\PagedCollection;
 use Atom\Hydrator\Attributes\FromBody;
-use Atom\Modules\Components\DialogModel;
-use Atom\Modules\Components\SidePanelModel;
+use Atom\Components\DialogModel;
+use Atom\Components\SidePanelModel;
 use Atom\Page\PageAction;
 use Atom\Page\PageRoute;
 use Atom\Page\State;

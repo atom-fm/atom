@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Showcase\Pages\Components;
 
-use Atom\Modules\Components\DrawerModel;
+use Atom\Components\DrawerModel;
 use Atom\Page\PageRoute;
 use Atom\Page\State;
 use Showcase\Pages\AppPage;

@@ -113,12 +113,14 @@ jobs:
                       --exclude='.git/' \
                       --exclude='vendor/' \
                       --exclude='.phpunit.cache/' \
+                      --exclude='composer.lock' \
                       packages/lucide/ "$target/"
                   cd "$target"
                   git rm -r --ignore-unmatch vendor
                   rm -rf vendor
                   mv composer.dist.json composer.json
-                  composer update --no-install --no-interaction --no-progress
+                  rm -f composer.lock
+                  composer validate --strict
                   git add --all
                   if ! git diff --cached --quiet; then
                       git commit -m "Sync Lucide from atom-fm/atom@${GITHUB_SHA::7}"

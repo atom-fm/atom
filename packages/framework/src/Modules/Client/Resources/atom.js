@@ -527,26 +527,6 @@
         }, inputDebounceMs);
     }
 
-    function togglePassword(button) {
-        var fieldId = button.getAttribute("aria-controls") || "";
-        var field = fieldId === "" ? null : document.getElementById(fieldId);
-
-        if (field === null || !field.hasAttribute("data-atom-password-input")) {
-            return;
-        }
-
-        var reveal = field.type === "password";
-        var label = button.getAttribute(reveal ? "data-hide-label" : "data-show-label") || "";
-
-        field.type = reveal ? "text" : "password";
-        button.setAttribute("aria-pressed", reveal ? "true" : "false");
-
-        if (label !== "") {
-            button.textContent = label;
-            button.setAttribute("aria-label", label);
-        }
-    }
-
     function updateNavigation(html, url, options) {
         // Filter fields reflect the destination URL, including on Back or Forward.
         var active = document.activeElement;
@@ -703,14 +683,6 @@
 
     document.addEventListener("click", function (event) {
         if (event.__atomHandled) {
-            return;
-        }
-
-        var passwordToggle = event.target.closest ? event.target.closest("[data-atom-password-toggle]") : null;
-
-        if (passwordToggle !== null) {
-            event.preventDefault();
-            togglePassword(passwordToggle);
             return;
         }
 

@@ -38,6 +38,7 @@ The repository contains the framework, a minimal starter application, a sample A
 .
 ├── packages/
 │   ├── framework/  Core Composer package and tests
+│   ├── components/ Server-rendered UI widgets and assets
 │   ├── sql/        Standalone query builder and dialect compilers
 │   ├── orm/        Standalone models, relations, and PDO persistence
 │   └── starter/    Minimal SQLite application with Accounts login
@@ -62,7 +63,7 @@ composer setup
 composer check
 ```
 
-Run checks individually with `composer sql:check`, `composer orm:check`, or `composer framework:check`.
+Run checks individually with `composer sql:check`, `composer orm:check`, `composer framework:check`, or `composer components:check`.
 
 ## Run the sample API
 

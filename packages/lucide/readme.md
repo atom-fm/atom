@@ -1,6 +1,6 @@
 # Atom Lucide Icons
 
-Lucide icon integration for Atom Framework. The package owns the `lucide:` icon prefix and keeps the icon catalogue out of the core framework package. Version 0.1 requires Atom Framework 0.1.
+Lucide icon integration for Atom Framework. The package owns the `lucide:` icon prefix and keeps the icon catalogue out of the core framework package. Lucide 0.2 requires Atom Framework 0.2. Use Lucide 0.1 with Atom Framework 0.1.
 
 ```powershell
 composer require atom-fm/lucide

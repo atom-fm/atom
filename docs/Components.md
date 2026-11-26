@@ -13,6 +13,8 @@ They are intentionally simple PHP objects:
 - declared child tags can be collected into typed arrays with `#[Children]`
 - child fragments are lazy, so the parent decides if and when they render
 
+The optional [Atom Components package](../packages/components/readme.md) provides ready-made widgets, styles, and browser controls.
+
 ## Register Components
 
 Register a component when you want a short tag name:
@@ -168,6 +170,8 @@ enhanced navigation. The `href` template and `action` modes remain available.
 ## Icons
 
 `Icon` supports child text or markup, public SVG URLs, local SVG paths resolved through `Paths`, data URIs, and font-icon class names. Named icon catalogues are optional packages registered by prefix.
+
+Custom catalogues implement `IconProviderInterface` and register an `IconResolverInterface` with `IconRegistry`. Framework provides these types under `Atom\Modules\Icons`.
 
 Install Lucide separately when an application wants the `lucide:` catalogue:
 

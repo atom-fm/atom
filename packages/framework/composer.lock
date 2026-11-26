@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4e12c176e2796c26554e9766755f1fd6",
+    "content-hash": "f97bf9da2bb79605ee290ea3913e7f5f",
     "packages": [
         {
             "name": "atom-fm/orm",

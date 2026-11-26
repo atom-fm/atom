@@ -12,7 +12,7 @@
             "options": {
                 "symlink": true,
                 "versions": {
-                    "atom-fm/framework": "0.1.x-dev"
+                    "atom-fm/framework": "0.2.x-dev"
                 }
             }
         },
@@ -47,12 +47,24 @@
                 },
                 "reference": "none"
             }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/components",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/components": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
         }
     ],
     "require": {
         "php": "^8.4",
-        "atom-fm/framework": "^0.1",
-        "atom-fm/lucide": "dev-master"
+        "atom-fm/framework": "^0.2",
+        "atom-fm/lucide": "dev-master",
+        "atom-fm/components": "^0.1"
     },
     "autoload": {
         "psr-4": {

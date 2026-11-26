@@ -6,7 +6,7 @@ namespace Atom\Lucide\Tests;
 
 use Atom\Lucide\LucideIconResolver;
 use Atom\Lucide\LucideServiceProvider;
-use Atom\Modules\Components\Icons\IconRegistry;
+use Atom\Modules\Icons\IconRegistry;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

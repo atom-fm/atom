@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Atom\Tests\View;
 
-use Atom\Modules\Components\Button;
-use Atom\Modules\Components\Card;
 use Atom\View\Ast\ElementNode;
 use Atom\View\Ast\ExpressionNode;
 use Atom\View\Ast\TemplateNode;
@@ -142,16 +140,6 @@ final class ViewRendererTest extends TestCase
         $this->render('<Card>@if($show)<Fragment name="actions">Save</Fragment>@endif</Card>', ["show" => false]);
     }
 
-    public function testRendersConditionInsideNamedFragment(): void
-    {
-        $registry = new ComponentRegistry();
-        $registry->register("Card", Card::class);
-        $source = '<Card><Card.Actions><span :if="$show">Save</span></Card.Actions></Card>';
-
-        $this->assertStringContainsString('<footer class="atom-card__actions"><span>Save</span></footer>', $this->render($source, ["show" => true], $registry));
-        $this->assertStringNotContainsString("Save", $this->render($source, ["show" => false], $registry));
-    }
-
     public function testEncodesHtmlStringsInAttributesAndRendersThemAsMarkupInContent(): void
     {
         $html = $this->render('<div :title="$label">{{ $label }}</div>', [
@@ -174,27 +162,6 @@ final class ViewRendererTest extends TestCase
 
         $this->assertSame(
             '<span title="{{ $status }} &amp; &quot;review&quot;" aria-label="Status: Draft" data-label="Label: {{ $status }} &amp; &quot;review&quot;"></span>',
-            $html
-        );
-    }
-
-    public function testBoundAttributeStringsStayLiteralInNestedComponents(): void
-    {
-        $registry = new ComponentRegistry();
-        $registry->register("Card", Card::class);
-        $registry->register("Button", Button::class);
-
-        $html = $this->render(
-            '<Card :title="$label"><Card.Actions><Button :text="$label" :aria-label="$label" '
-                . 'data-status="Status: {{ $status }}" /></Card.Actions></Card>',
-            ["label" => '{{ $status }} & "review"', "status" => "Draft"],
-            $registry
-        );
-
-        $this->assertStringContainsString('<h3 class="atom-card__title">{{ $status }} &amp; &quot;review&quot;</h3>', $html);
-        $this->assertStringContainsString(
-            '<button type="button" class="atom-button" aria-label="{{ $status }} &amp; &quot;review&quot;" data-status="Status: Draft">'
-                . '{{ $status }} &amp; &quot;review&quot;</button>',
             $html
         );
     }

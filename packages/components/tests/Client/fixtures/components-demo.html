@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atom light DOM controls</title>
+<style>
+    * { box-sizing: border-box; }
+    body { max-width: 48rem; margin: 4rem auto; padding: 0 1.5rem; font: 16px/1.6 system-ui; color: #203245; background: #f5f7fa; }
+    form { display: grid; gap: 1rem; padding: 2rem; border: 1px solid #ccd5df; border-radius: 1rem; background: white; }
+    label { font-weight: 600; }
+    atom-lookup, atom-datepicker { display: block; position: relative; }
+    input:not([type=hidden]), button { font: inherit; padding: .55rem .8rem; border: 1px solid #a9b8c8; border-radius: .4rem; background: white; color: inherit; }
+    input:not([type=hidden]), [data-toggle] { width: 100%; text-align: left; }
+    button { cursor: pointer; }
+    button:disabled { opacity: .4; cursor: default; }
+    :focus-visible { outline: 3px solid #4678e8; outline-offset: 2px; }
+    .atom-control-panel { position: absolute; z-index: 1; inset-inline: 0; margin-top: .4rem; padding: .75rem; border: 1px solid #ccd5df; border-radius: .5rem; background: white; box-shadow: 0 .5rem 2rem #20324522; }
+    [role=listbox] { max-height: 14rem; overflow-y: auto; }
+    [role=option] { padding: .45rem .7rem; cursor: pointer; border-radius: .3rem; }
+    [role=option][aria-selected=true] { background: #e6efff; }
+    .atom-calendar-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+    .atom-calendar-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: .25rem; text-align: center; }
+    .atom-calendar-days button { padding: .4rem 0; }
+    [aria-pressed=true] { background: #e6efff; border-color: #4678e8; }
+    pre { white-space: pre-wrap; }
+</style>
+<h1>Small controls. Plain JavaScript.</h1>
+<p>Class-based custom elements, light DOM, and morphdom. No build step.</p>
+<form>
+    <label id="customer-label">Customer</label>
+    <atom-lookup name="customer" aria-label="Customer" aria-labelledby="customer-label" placeholder="Search customers…"></atom-lookup>
+    <label id="date-label">Appointment</label>
+    <atom-datepicker name="appointment" aria-label="Appointment" aria-labelledby="date-label"></atom-datepicker>
+    <div><button type="submit">Read form values</button> <button type="reset">Reset</button></div>
+</form>
+<pre role="status" id="output">Choose a customer and date.</pre>
+<script src="../../../vendor/atom-fm/framework/src/Modules/Client/Resources/morphdom.js"></script>
+<script type="module">
+    import "../../../src/Resources/atom-controls.js";
+    document.querySelector("atom-lookup").options = [
+        { value: "1", label: "Aster Studio" },
+        { value: "2", label: "Birch & Co." },
+        { value: "3", label: "Cedar Works" },
+        { value: "4", label: "Maple Design" },
+    ];
+    document.querySelector("form").addEventListener("submit", event => {
+        event.preventDefault();
+        document.querySelector("#output").textContent = JSON.stringify(Object.fromEntries(new FormData(event.target)), null, 2);
+    });
+</script>
+</html>

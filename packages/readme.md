@@ -5,6 +5,7 @@ This directory contains independently installable Composer package sources.
 - `sql/` is the standalone `atom-fm/sql` query builder and dialect compilers.
 - `orm/` is the standalone `atom-fm/orm` mapping and persistence library built on SQL and PDO.
 - `framework/` is the core `atom-fm/framework` library.
+- `components/` is the optional `atom-fm/components` widget library and its CSS and JavaScript.
 - `lucide/` is the optional `atom-fm/lucide` icon resolver and SVG catalogue.
 - `starter/` is the `atom-fm/starter` project template.
 

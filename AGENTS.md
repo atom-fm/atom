@@ -15,13 +15,14 @@ Keep these principles intact:
 - Optimize only when a measured problem exists. Do not introduce speculative template or application caching.
 - Add framework primitives only when they solve recurring application needs.
 - Treat modules as cohesive features such as Accounts, API Explorer, Error Pages, or development tooling.
-- Keep browser runtime support in `Modules/Client` and reusable UI primitives in `Modules/Components`.
+- Keep browser runtime support in `Modules/Client` and reusable UI primitives in `packages/components`.
 - Current work should favor component polish, coherent examples, CSS consistency, tests, and documentation over large new subsystems.
 
 ## Repository Layout
 
 ```text
 packages/framework/  Core Composer package, source, and framework tests
+packages/components/ Server-rendered widgets, component assets, and component tests
 packages/sql/        Standalone SQL query builder and dialect compilers
 packages/orm/        Standalone PDO persistence, mapping, and model APIs
 packages/starter/    Composer-installable starter application source
@@ -34,7 +35,8 @@ Important module locations:
 
 ```text
 packages/framework/src/Modules/Client/       Atom browser runtime and MorphDOM adapter
-packages/framework/src/Modules/Components/   UI components, generic icon resolution, and component CSS
+packages/components/src/                   UI components and their CSS and JavaScript
+packages/framework/src/Modules/Icons/       Shared icon resolution contracts
 packages/lucide/                             Optional Lucide icon package and SVG catalogue
 packages/framework/src/Modules/Accounts/     Account and identity feature module
 packages/framework/src/Modules/ApiExplorer/  API Explorer feature module
@@ -75,7 +77,7 @@ packages/framework/src/Modules/ErrorPages/   Default error rendering
 - Larger markup-oriented components may extend `TemplateComponent` and use an adjacent `.atom.html` file.
 - Forward arbitrary HTML attributes through `AttributeBag`.
 - Use named fragments such as `Component.Actions` for structured composition.
-- Register framework components in `Components::definitions()`.
+- Register bundled components in `Components::definitions()` in `packages/components`.
 - Keep application and module-local components local unless they are intentionally exported.
 - Preserve component registry scoping: module registries are private, parent-aware, and sealed after registration.
 - Use the optional `atom-fm/lucide` package in the showcase. Keep application-specific icons local to their application.
@@ -99,6 +101,7 @@ When changing component CSS:
 When changing client assets:
 
 - Update the relevant version constant in `Atom\Modules\Client\Client`.
+- Use `Components::SCRIPTS_VERSION` for JavaScript owned by the Components package.
 - Update asset-version tests.
 - Run `node --check` on edited JavaScript.
 

@@ -28,7 +28,7 @@ use Atom\Di\Injector;
 use Atom\Di\ServiceProviderRegistry;
 use Atom\Module\ModuleRegistry;
 use Atom\Modules\Client\Client;
-use Atom\Modules\Components\Components;
+use Atom\Components\Components;
 use Atom\Page\PageRegistry;
 use Atom\Router\Route;
 use Atom\View\Component\ComponentRegistry;

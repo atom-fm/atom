@@ -172,7 +172,7 @@ Its default URLs are:
 The optional components module registers the shared PHP component tags and serves their CSS and icons:
 
 ```php
-use Atom\Modules\Components\Components;
+use Atom\Components\Components;
 
 $modules->add(Components::module());
 ```

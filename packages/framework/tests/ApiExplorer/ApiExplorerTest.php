@@ -109,7 +109,7 @@ final class ApiExplorerTest extends TestCase
         );
         $this->assertStringContainsString("<!doctype html>", $html);
         $this->assertStringContainsString('/dev/api/resources/api-explorer.css', $html);
-        $this->assertStringContainsString('/atom/client/resources/atom.js?v=16', $html);
+        $this->assertStringContainsString('/atom/client/resources/atom.js?v=17', $html);
         $this->assertStringContainsString('<header class="topbar">', $html);
         $this->assertStringContainsString("/api/articles/{id}", $html);
         $this->assertStringContainsString('class="request-url-field"', $html);

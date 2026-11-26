@@ -1,7 +1,7 @@
 {
     "name": "atom/pokedex",
     "type": "project",
-    "description": "Pokédex and team builder example for Atom",
+    "description": "Pok\u00e9dex and team builder example for Atom",
     "license": "MIT",
     "repositories": [
         {
@@ -10,7 +10,7 @@
             "options": {
                 "symlink": true,
                 "versions": {
-                    "atom-fm/framework": "dev-master"
+                    "atom-fm/framework": "0.2.x-dev"
                 }
             }
         },
@@ -35,11 +35,23 @@
                 },
                 "reference": "none"
             }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/components",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/components": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
         }
     ],
     "require": {
         "php": "^8.4",
-        "atom-fm/framework": "dev-master"
+        "atom-fm/framework": "^0.2",
+        "atom-fm/components": "^0.1"
     },
     "autoload": {
         "psr-4": {

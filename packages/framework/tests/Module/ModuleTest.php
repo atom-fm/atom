@@ -13,20 +13,6 @@ use Atom\Module\ModuleRegistry;
 use Atom\Module\ModuleScope;
 use Atom\Modules\Client\Client;
 use Atom\Modules\Client\ClientScripts;
-use Atom\Modules\Components\Components;
-use Atom\Modules\Components\ComponentsStyles;
-use Atom\Modules\Components\FieldError;
-use Atom\Modules\Components\FileField;
-use Atom\Modules\Components\InputGroup;
-use Atom\Modules\Components\PasswordField;
-use Atom\Modules\Components\TextArea;
-use Atom\Modules\Components\TextInput;
-use Atom\Modules\Components\Progress;
-use Atom\Modules\Components\RadioField;
-use Atom\Modules\Components\Skeleton;
-use Atom\Modules\Components\Spinner;
-use Atom\Modules\Components\SwitchField;
-use Atom\Modules\Components\ValidationSummary;
 use Atom\Modules\DevReload\DevReloadModule;
 use Atom\Modules\DevReload\DevReloadWatcher;
 use Atom\Modules\ErrorPages\ErrorPagesModule;
@@ -133,33 +119,6 @@ final class ModuleTest extends TestCase
         $this->assertSame("/tools/blog/assets/app.css", $context->resourcePath("/assets", "app.css"));
         $this->assertSame("/", $context->root()->mountedPath());
         $this->assertSame("/resources/app.css", $context->root()->resourcePath("/resources", "app.css"));
-    }
-
-    public function testComponentsModuleRegistersSharedComponentsAndResources(): void
-    {
-        $app = new ModuleTestApplication();
-        $app->initialize();
-
-        $app->registerModule(Components::module());
-
-        $components = $app->getInjector()->get(ComponentRegistry::class);
-
-        $this->assertSame(FieldError::class, $components->get("FieldError"));
-        $this->assertSame(FileField::class, $components->get("FileField"));
-        $this->assertSame(ComponentsStyles::class, $components->get("ComponentsStyles"));
-        $this->assertSame(TextArea::class, $components->get("TextArea"));
-        $this->assertSame(TextInput::class, $components->get("TextInput"));
-        $this->assertSame(ValidationSummary::class, $components->get("ValidationSummary"));
-        $this->assertSame(RadioField::class, $components->get("RadioField"));
-        $this->assertSame(SwitchField::class, $components->get("SwitchField"));
-        $this->assertSame(InputGroup::class, $components->get("InputGroup"));
-        $this->assertSame(PasswordField::class, $components->get("PasswordField"));
-        $this->assertSame(Progress::class, $components->get("Progress"));
-        $this->assertSame(Spinner::class, $components->get("Spinner"));
-        $this->assertSame(Skeleton::class, $components->get("Skeleton"));
-        $this->assertTrue(
-            (new RouteMatcher($app->getRouter()))->match("GET", "/atom/components/resources/atom.css")->isFound()
-        );
     }
 
     public function testClientModuleRegistersOnlyBrowserResources(): void

@@ -1,25 +1,26 @@
 # Light DOM components
 
-Active standalone development now lives in [the sibling WebComponents project](../../WebComponents/README.md), a self-contained npm package with its own Node demo server and browser tests. The framework prototype described below is retained during evaluation; it is not automatically synchronized with that package. Framework adoption will follow once the standalone API is validated.
+Active standalone development now lives in [the sibling WebComponents project](../../WebComponents/README.md), a self-contained npm package with its own Node demo server and browser tests. The PHP Components package contains the earlier browser controls described below. Framework adoption will follow once the standalone API is validated.
 
-Atom's optional browser component library uses native JavaScript classes and the bundled morphdom. There is no compiler, bundler, Shadow DOM, or virtual DOM. Local state is for control interaction; application business state remains on the server.
+The browser controls in `atom-fm/components` use native JavaScript classes and the framework's morphdom runtime. There is no compiler, bundler, Shadow DOM, or virtual DOM. Local state is for control interaction; application business state remains on the server.
 
-In an Atom template, `<ClientScripts components />` registers `atom-lookup` and `atom-datepicker` and enables morphdom page updates. The page adapter updates component attributes while preserving their owned children. Resources use the Client module's configured resource path.
+Register the Client and Components modules in the application. In the layout, load `<ClientScripts morphdom />` followed by `<ComponentsScripts />`. The Components script registers `atom-lookup` and `atom-datepicker`. The page adapter updates component attributes while preserving their owned children. Component resources use the Components module's configured path.
 
-For standalone use, serve `packages/framework/src/Modules/Client/Resources` over HTTP and open `components-demo.html`. The demo includes example CSS; the library adds no styles automatically. Use prefixed classes and application CSS to style controls.
+The local demo includes example CSS. Use prefixed classes and application CSS to style controls.
 
 From the repository root:
 
 ```powershell
-php -S 127.0.0.1:8023 -t packages/framework/src/Modules/Client/Resources
+composer --working-dir=packages/components install
+php -S 127.0.0.1:8023 -t packages/components
 ```
 
-Open `http://127.0.0.1:8023/components-demo.html`.
+Open `http://127.0.0.1:8023/tests/Client/fixtures/components-demo.html`.
 
 ## Author a component
 
 ```js
-import { Component, html } from "/atom/client/resources/atom-component.js";
+import { Component, html } from "/atom/components/resources/atom-component.js";
 
 class Counter extends Component {
     state = { count: 0 };
@@ -57,7 +58,7 @@ The component owns all its rendered children: initial child content is replaced.
 ```
 
 ```js
-import "/atom/client/resources/atom-controls.js";
+import "/atom/components/resources/atom-controls.js";
 const lookup = document.querySelector("atom-lookup");
 lookup.options = [{ value: "42", label: "Aster Studio" }];
 // Alternatively, a provider returning the same shape:
@@ -84,7 +85,7 @@ Both controls support `name`, `value`, and `disabled`, submit through native hid
 
 ## Verification
 
-Run `composer check` in `packages/framework`. Browser tests live in `packages/framework/tests/Client`: run `npm install`, `npx playwright install chromium`, then `npm test` there. To use an installed browser instead, set `ATOM_BROWSER_PATH` to its executable. Browser dependencies are test-only; shipping the library requires no npm installation.
+Run `composer components:check` from the monorepo root. In `packages/components/tests/Client`, run `npm install`, `npx playwright install chromium`, then `npm test`. To use an installed browser instead, set `ATOM_BROWSER_PATH` to its executable. Browser dependencies are test-only; shipping the library requires no npm installation.
 
 Standalone classes declare their default tag in `static name`. Register explicitly with `Component.register(Calendar, DateNavigation, Panel)` (passing one or more classes); repeated calls for the same class are safe and conflicting definitions throw. The Vue catalogue and composed controls use the same helper.
 

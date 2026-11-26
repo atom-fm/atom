@@ -12,7 +12,7 @@
             "options": {
                 "symlink": true,
                 "versions": {
-                    "atom-fm/framework": "0.1.x-dev"
+                    "atom-fm/framework": "0.2.x-dev"
                 }
             }
         },
@@ -41,7 +41,7 @@
     ],
     "require": {
         "php": "^8.4",
-        "atom-fm/framework": "^0.1",
+        "atom-fm/framework": "^0.2",
         "league/commonmark": "^2.9",
         "symfony/yaml": "^7.3 || ^8.0",
         "phiki/phiki": "^2.2"

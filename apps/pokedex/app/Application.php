@@ -13,7 +13,7 @@ use Atom\Http\Response;
 use Atom\Module\ModuleRegistry;
 use Atom\Modules\ApiExplorer\ApiExplorer;
 use Atom\Modules\Client\Client;
-use Atom\Modules\Components\Components;
+use Atom\Components\Components;
 use Atom\Router\Route;
 
 final class Application extends \Atom\Application

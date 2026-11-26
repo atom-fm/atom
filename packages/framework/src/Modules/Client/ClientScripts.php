@@ -14,7 +14,6 @@ final class ClientScripts implements ComponentInterface
     public string $morphdomVersion = Client::MORPHDOM_VERSION;
     public string $adapterVersion = Client::MORPHDOM_ADAPTER_VERSION;
     public bool $morphdom = false;
-    public bool $components = false;
 
     public function render(): string
     {
@@ -22,16 +21,9 @@ final class ClientScripts implements ComponentInterface
             Html::tag("script", ["src" => $this->asset("atom.js", $this->atomVersion)]),
         ];
 
-        if ($this->morphdom || $this->components) {
+        if ($this->morphdom) {
             $scripts[] = Html::tag("script", ["src" => $this->asset("morphdom.js", $this->morphdomVersion)]);
             $scripts[] = Html::tag("script", ["src" => $this->asset("atom-morphdom.js", $this->adapterVersion)]);
-        }
-
-        if ($this->components) {
-            $scripts[] = Html::tag("script", [
-                "type" => "module",
-                "src" => $this->asset("atom-controls.js", Client::COMPONENTS_VERSION),
-            ]);
         }
 
         return implode("\n", $scripts);

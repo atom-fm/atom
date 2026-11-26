@@ -4,15 +4,10 @@ declare(strict_types=1);
 
 namespace Atom\Tests\Page;
 
-use Atom\Di\Bindings;
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
 use Atom\Application;
 use Atom\Http\Request;
-use Atom\Modules\Components\DialogModel;
-use Atom\Modules\Components\DrawerModel;
-use Atom\Modules\Components\SidePanelModel;
-use Atom\Modules\Components\TabsModel;
 use Atom\Hydrator\Attributes\FromBody;
 use Atom\Hydrator\Attributes\FromQuery;
 use Atom\Hydrator\Attributes\FromRoute;
@@ -23,7 +18,6 @@ use Atom\Page\PageAction;
 use Atom\Page\PageActionException;
 use Atom\Page\PageActionHandler;
 use Atom\Page\PageRenderer;
-use Atom\Page\PageRoute;
 use Atom\Page\PageRouteHandler;
 use Atom\Page\PageRouteMetadata;
 use Atom\Page\PageRouteRegistrar;
@@ -193,102 +187,6 @@ final class PageRendererTest extends TestCase
         );
 
         $this->assertSame("<h1>closed</h1>\n", $html);
-    }
-
-    public function testPageActionHandlerCanInvokeDialogModelActions(): void
-    {
-        $opened = $this->handlePageAction(
-            DialogModelRenderedTestPage::class,
-            "/dialog-model-page",
-            "dialog.open(12)"
-        );
-
-        $this->assertStringContainsString("<h1>open|12</h1>\n", $opened);
-
-        $page = new DialogModelRenderedTestPage();
-        $page->dialog->open(12);
-        $state = (new \Atom\Page\JsonPageStateSerializer())->serialize($page);
-
-        $closed = $this->handlePageAction(
-            DialogModelRenderedTestPage::class,
-            "/dialog-model-page",
-            "dialog.close()",
-            ["_state" => $state]
-        );
-
-        $this->assertStringContainsString("<h1>closed|12</h1>\n", $closed);
-    }
-
-    public function testPageActionHandlerCanInvokeSidePanelModelActions(): void
-    {
-        $opened = $this->handlePageAction(
-            SidePanelModelRenderedTestPage::class,
-            "/side-panel-model-page",
-            "editor.open(12)"
-        );
-
-        $this->assertStringContainsString("<h1>open|12</h1>\n", $opened);
-
-        $page = new SidePanelModelRenderedTestPage();
-        $page->editor->open(12);
-        $state = (new \Atom\Page\JsonPageStateSerializer())->serialize($page);
-
-        $closed = $this->handlePageAction(
-            SidePanelModelRenderedTestPage::class,
-            "/side-panel-model-page",
-            "editor.close()",
-            ["_state" => $state]
-        );
-
-        $this->assertStringContainsString("<h1>closed|12</h1>\n", $closed);
-    }
-
-    public function testPageActionHandlerCanInvokeDrawerModelActions(): void
-    {
-        $opened = $this->handlePageAction(
-            DrawerModelRenderedTestPage::class,
-            "/drawer-model-page",
-            "drawer.open(12)"
-        );
-
-        $this->assertStringContainsString("<h1>open|12</h1>\n", $opened);
-
-        $page = new DrawerModelRenderedTestPage();
-        $page->drawer->open(12);
-        $state = (new \Atom\Page\JsonPageStateSerializer())->serialize($page);
-
-        $closed = $this->handlePageAction(
-            DrawerModelRenderedTestPage::class,
-            "/drawer-model-page",
-            "drawer.close()",
-            ["_state" => $state]
-        );
-
-        $this->assertStringContainsString("<h1>closed|12</h1>\n", $closed);
-    }
-
-    public function testPageActionHandlerCanInvokeTabsModelAction(): void
-    {
-        $html = $this->handlePageAction(
-            TabsModelRenderedTestPage::class,
-            "/tabs-model-page",
-            "tabs.select('source')"
-        );
-
-        $this->assertStringContainsString("<h1>source</h1>\n", $html);
-    }
-
-    public function testPageRouteRegistrarRegistersActionsFromTypedPageModels(): void
-    {
-        $router = new Router();
-        (new PageRouteRegistrar())->register($router, [
-            new \Atom\Page\PageDescriptor("/tabs-model-page", TabsModelRenderedTestPage::class),
-        ]);
-
-        $match = (new RouteMatcher($router))->match("POST", "/tabs-model-page");
-
-        $this->assertTrue($match->isFound());
-        $this->assertSame(PageActionHandler::class, $match->matchedRoute->getRouteAction()->controllerType);
     }
 
     public function testPageRouteRegistrarRegistersActionsFromNestedTypedPageModels(): void
@@ -1018,70 +916,6 @@ final class NestedActionToastModel
     }
 }
 
-final class DialogModelRenderedTestPage extends Page
-{
-    #[State]
-    public DialogModel $dialog;
-
-    public function __construct()
-    {
-        $this->dialog = new DialogModel();
-    }
-
-    public function template(): ?string
-    {
-        return "DialogModelRenderedTestPage.atom.html";
-    }
-}
-
-final class SidePanelModelRenderedTestPage extends Page
-{
-    #[State]
-    public SidePanelModel $editor;
-
-    public function __construct()
-    {
-        $this->editor = new SidePanelModel();
-    }
-
-    public function template(): ?string
-    {
-        return "SidePanelModelRenderedTestPage.atom.html";
-    }
-}
-
-final class DrawerModelRenderedTestPage extends Page
-{
-    #[State]
-    public DrawerModel $drawer;
-
-    public function __construct()
-    {
-        $this->drawer = new DrawerModel();
-    }
-
-    public function template(): ?string
-    {
-        return "DrawerModelRenderedTestPage.atom.html";
-    }
-}
-
-final class TabsModelRenderedTestPage extends Page
-{
-    #[State]
-    public TabsModel $tabs;
-
-    public function __construct()
-    {
-        $this->tabs = new TabsModel("preview");
-    }
-
-    public function template(): ?string
-    {
-        return "TabsModelRenderedTestPage.atom.html";
-    }
-}
-
 final class NestedStateRenderedTestPage extends Page
 {
     #[State]
@@ -1100,11 +934,24 @@ final class NestedStateRenderedTestPage extends Page
 
 final class NestedAdminState
 {
-    public SidePanelModel $editor;
+    public NestedEditorState $editor;
 
     public function __construct()
     {
-        $this->editor = new SidePanelModel();
+        $this->editor = new NestedEditorState();
+    }
+}
+
+final class NestedEditorState
+{
+    public bool $show = false;
+    public int $value = 0;
+
+    #[PageAction]
+    public function open(int $value): void
+    {
+        $this->show = true;
+        $this->value = $value;
     }
 }
 

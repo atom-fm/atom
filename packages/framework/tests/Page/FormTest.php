@@ -8,7 +8,6 @@ use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
 use Atom\Http\Request;
 use Atom\Http\Response;
-use Atom\Modules\Components\TextField;
 use Atom\Page\Form;
 use Atom\Page\FormModel;
 use Atom\Page\FormResult;
@@ -23,26 +22,17 @@ use Atom\Router\RouteEntry;
 use Atom\Session\ArraySession;
 use Atom\Session\SessionInterface;
 use Atom\Validation\Rules\Required;
-use Atom\View\Component\AttributeBag;
 use PHPUnit\Framework\TestCase;
 
 final class FormTest extends TestCase
 {
-    public function testFormsRetainErrorsAndFieldsUseTheirOwnModel(): void
+    public function testFormsRetainErrorsUntilValidationPasses(): void
     {
         $page = new FormOwnerPage();
         self::assertFalse($page->first->validate());
         self::assertTrue($page->errors()->has('name'));
         self::assertCount(1, $page->errors());
         self::assertCount(1, $page->errors());
-        $field = new TextField();
-        $field->page = $page;
-        $field->name = 'name';
-        $field->attributes = new AttributeBag();
-        $field->model = $page->first;
-        self::assertStringContainsString('aria-invalid="true"', $field->render());
-        $field->model = $page->second;
-        self::assertStringNotContainsString('aria-invalid="true"', $field->render());
         $page->first->name = 'Updated';
         self::assertTrue($page->first->validate());
         self::assertTrue($page->errors()->passed());

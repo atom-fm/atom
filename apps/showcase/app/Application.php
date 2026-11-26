@@ -8,7 +8,7 @@ use Atom\Di\ServiceProviderRegistry;
 use Atom\Lucide\LucideServiceProvider;
 use Atom\Module\ModuleRegistry;
 use Atom\Modules\Client\Client;
-use Atom\Modules\Components\Components;
+use Atom\Components\Components;
 use Atom\Modules\DevReload\DevReloadModule;
 use Atom\Page\PageRegistry;
 use Atom\View\Component\ComponentRegistry;
@@ -36,6 +36,7 @@ final class Application extends \Atom\Application
             "@root/app",
             "@root/public",
             "@root/../../packages/framework/src",
+            "@root/../../packages/components/src",
         ]), "/atom/dev");
     }
 
