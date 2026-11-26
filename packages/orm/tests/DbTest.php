@@ -99,6 +99,24 @@ final class DbTest extends TestCase
         ));
     }
 
+    public function testExecutionParametersOverrideQueryAndCommandBindings(): void
+    {
+        $db = new Db(self::memory());
+        $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, team INTEGER)");
+        $db->execute("INSERT INTO users (id, team) VALUES (1, 7), (2, 7), (3, 8)");
+
+        $query = Query::select("users")->columns("id")
+            ->whereExp("id = :id", ["id" => 1])->where("team", 7);
+
+        foreach ([$query, $db->compile($query)] as $input) {
+            self::assertSame(2, $db->scalar($input, [":id" => 2]));
+            self::assertSame(2, $db->scalar($input, ["id" => 2]));
+            self::assertNull($db->first($input, ["id" => 3]));
+            self::assertNull($db->first($input, ["id" => null]));
+            self::assertSame(1, $db->scalar($input));
+        }
+    }
+
     public function testNestedQueriesPreserveCallerAndGeneratedBindingsAcrossScopes(): void
     {
         $db = new Db(self::memory());

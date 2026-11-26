@@ -148,15 +148,21 @@ class PdoConnection
     private function prepare(string|SqlQueryInterface|Command $query, array $parameters): PDOStatement
     {
         $command = match (true) {
-            is_string($query) => new Command($query, $parameters),
-            $query instanceof Command => $parameters === []
-                ? $query
-                : new Command($query->sql, array_replace($query->parameters, $parameters)),
+            is_string($query) => new Command($query),
+            $query instanceof Command => $query,
             default => $this->compile($query),
         };
         $statement = $this->pdo()->prepare($command->sql);
 
-        foreach ($command->parameters as $name => $value) {
+        $bindings = [];
+        foreach ([$command->parameters, $parameters] as $source) {
+            foreach ($source as $name => $value) {
+                $key = is_string($name) ? ":" . ltrim($name, ":") : $name;
+                $bindings[$key] = $value;
+            }
+        }
+
+        foreach ($bindings as $name => $value) {
             $statement->bindValue($name, $value, $this->parameterType($value));
         }
 

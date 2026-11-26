@@ -41,4 +41,6 @@ foreach ($page as $article) {
 
 Use `$db->select(Article::class)` and `$db->save($article)` to choose the database explicitly. Use `Model::useDb()` when calling the model's convenience methods through a shared default database.
 
+When executing a query builder or a compiled `Command`, pass execution parameters to override bindings by placeholder name. For example, `["id" => 2]` and `[":id" => 2]` both override `:id`. Other bindings keep their compiled values.
+
 `paginate()` returns a `PageResult` with the page items, page number, page size, and totals. It supports iteration and JSON serialization. For SQLite, enable `PDO::SQLITE_ATTR_EXTENDED_RESULT_CODES` on your connection to distinguish unique violations from other constraint errors.
