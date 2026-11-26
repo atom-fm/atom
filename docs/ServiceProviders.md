@@ -90,7 +90,19 @@ The base application registers framework services for:
 
 Application providers are added on top of those defaults.
 
-## Handling Requests
+## Request lifecycle
+
+`Application::handle($request)` dispatches a request and returns the finalized `Response` for the caller to inspect or emit. `Application::run($request)` also returns the response, after passing it to the response emitter. Use `run()` in an HTTP front controller and `handle()` in tests or when a host application owns emission. Both entry points accept an explicit `Request` or resolve one from PHP globals.
+
+```php
+(new App\Application())->run();
+```
+
+After initialization, each request has its own DI context and profiler. This scope covers middleware and dispatch, session saving, and the application of cookies and timing headers to the final response. For `run()`, it also covers response emission.
+
+Framework releases the request scope in a `finally` block, including when a handler or emitter throws. A nested request restores the outer request's context and profiler when it finishes. After a top-level request finishes, request-scoped accessors such as `getRequest()` and `getResponse()` resolve outside the completed request. Keep the original request or returned response if you need to inspect it later.
+
+During a request, `getCurrentRoute()` returns the `MatchedRoute` recorded for that request, including its route parameters. After a top-level request, it returns the route recorded for that request until the next top-level request finishes. It returns `null` if the request finished without recording a route, for example when no route matched or middleware returned a response before dispatch. A handler can fail after the route is recorded, so a last route can be available for an error response.
 
 ### Smoke-test the homepage from the command line
 
@@ -130,12 +142,6 @@ echo "Homepage rendered and missing route returned 404.", PHP_EOL;
 ```
 
 Run `php check-routes.php` from the project root. On success it prints `Homepage rendered and missing route returned 404.` A failed check prints the reason to standard error and exits with code `1`, so the same command can run in CI.
-
-Use `run()` in a front controller. It calls `handle()`, emits the response, and returns it:
-
-```php
-(new App\Application())->run();
-```
 
 ## Bootstrappers
 

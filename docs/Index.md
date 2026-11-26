@@ -6,6 +6,7 @@ The main concepts are:
 
 - [Deployment](Deployment.md)
 - [Application and Service Providers](ServiceProviders.md)
+- [Request lifecycle](ServiceProviders.md#request-lifecycle)
 - [Pages and View Engine](PagesAndViews.md)
 - [Page actions](PageActions.md)
 - [Components](Components.md)
