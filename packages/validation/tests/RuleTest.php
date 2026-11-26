@@ -99,6 +99,13 @@ final class RuleTest extends TestCase
         $this->assertRuleFails(new Between(2, 5), 6, "between");
     }
 
+    public function testDateRejectsNullBytes(): void
+    {
+        $this->assertRuleFails(new Date("Y-m-d"), "2026-06-25\0", "date");
+        $this->assertRuleFails(new Date(), "2026-06-25\0", "date");
+        $this->assertRuleFails(new Date(), "\0", "date");
+    }
+
     public function testOtherRules(): void
     {
         $this->assertRulePasses(new Boolean(), "false");

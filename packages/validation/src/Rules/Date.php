@@ -20,6 +20,10 @@ final readonly class Date extends AbstractRule
 
     public function validate(mixed $value, ValidationContext $context): ?ValidationError
     {
+        if (is_string($value) && str_contains($value, "\0")) {
+            return $this->error($context, "date", "The field must be a valid date.");
+        }
+
         if ($this->isEmpty($value) || $value instanceof DateTimeInterface) {
             return null;
         }
