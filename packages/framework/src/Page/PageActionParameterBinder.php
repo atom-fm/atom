@@ -96,7 +96,7 @@ final readonly class PageActionParameterBinder
         try {
             return $this->coercer->coerce($value, $target, $page::class);
         } catch (HydrationException $exception) {
-            throw new PageActionException(
+            throw new InvalidPageActionInputException(
                 "Unable to bind parameter '{$target->name}' for page action " .
                 $method->getDeclaringClass()->getName() . "::" . $method->getName() . "(). " .
                 $exception->getMessage(),
@@ -111,7 +111,7 @@ final readonly class PageActionParameterBinder
             return;
         }
 
-        throw new PageActionException(
+        throw new InvalidPageActionInputException(
             "Page action '{$call->fullName()}' was called with " . count($call->arguments) .
             " argument(s), but " . $method->getDeclaringClass()->getName() . "::" . $method->getName() .
             "() accepts " . $method->getNumberOfParameters() . "."

@@ -6,6 +6,6 @@ namespace Atom\Page;
 
 use RuntimeException;
 
-final class PageActionException extends RuntimeException
+class PageActionException extends RuntimeException
 {
 }

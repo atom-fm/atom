@@ -17,6 +17,7 @@ use Atom\Http\Response;
 use Atom\Http\MiddlewareInterface;
 use Atom\Http\RequestHandlerInterface;
 use Atom\Module\ModuleScope;
+use Atom\Page\InvalidPageActionInputException;
 use Atom\View\Component\ComponentRegistry;
 
 final class Dispatcher implements RequestHandlerInterface
@@ -98,7 +99,7 @@ final class Dispatcher implements RequestHandlerInterface
             return $this->resultConverter->toResponse($error, $context);
         } catch (InvalidDtoBodyException $error) {
             return $this->resultConverter->toResponse(new UnprocessableContent($error->getMessage()), $context);
-        } catch (InvalidRouteParameterException|InvalidQueryParameterException) {
+        } catch (InvalidRouteParameterException|InvalidQueryParameterException|InvalidPageActionInputException) {
             return $this->errors->forStatus(400, $request);
         }
     }

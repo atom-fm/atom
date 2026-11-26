@@ -31,26 +31,28 @@ final class PageActionRequestTest extends TestCase
     }
 
     #[DataProvider("failingActions")]
-    public function testPageActionFailuresRenderTheCurrentHttpErrorResponse(bool $enhanced, string $action): void
+    public function testPageActionFailuresReturnClientOrServerErrors(bool $enhanced, string|array $action, int $status): void
     {
         FailingPageActionDependency::$attempts = 0;
         $response = $this->submit($enhanced, ["_action" => $action]);
 
-        self::assertSame(500, $response->getStatus());
+        self::assertSame($status, $response->getStatus());
         self::assertStringStartsWith("text/html", (string) $response->headers()->get("Content-Type"));
-        self::assertStringContainsString("Something went wrong", $response->getContent());
+        self::assertStringContainsString($status === 400 ? "Bad request" : "Something went wrong", $response->getContent());
         self::assertStringNotContainsString("Private dependency failure.", $response->getContent());
         self::assertSame($action === "requiresDependency" ? 1 : 0, FailingPageActionDependency::$attempts);
     }
 
-    /** @return iterable<string, array{bool, string}> */
+    /** @return iterable<string, array{bool, string|array, int}> */
     public static function failingActions(): iterable
     {
         foreach (self::requestModes() as $mode => [$enhanced]) {
-            yield "{$mode} with malformed action" => [$enhanced, "setQuantity("];
-            yield "{$mode} with invalid argument type" => [$enhanced, 'setQuantity("many")'];
-            yield "{$mode} with too many arguments" => [$enhanced, "setQuantity(1, 2)"];
-            yield "{$mode} with a failing dependency" => [$enhanced, "requiresDependency"];
+            yield "{$mode} with malformed action" => [$enhanced, "setQuantity(", 400];
+            yield "{$mode} with non-string action" => [$enhanced, ["setQuantity"], 400];
+            yield "{$mode} with unknown action" => [$enhanced, "missingAction", 400];
+            yield "{$mode} with invalid argument type" => [$enhanced, 'setQuantity("many")', 400];
+            yield "{$mode} with too many arguments" => [$enhanced, "setQuantity(1, 2)", 400];
+            yield "{$mode} with a failing dependency" => [$enhanced, "requiresDependency", 500];
         }
     }
 
@@ -74,7 +76,7 @@ final class PageActionRequestTest extends TestCase
         yield "Atom-enhanced post" => [true];
     }
 
-    /** @param array<string, string> $fields */
+    /** @param array<string, string|array> $fields */
     private function submit(bool $enhanced, array $fields): Response
     {
         $app = new class extends Application {

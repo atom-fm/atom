@@ -36,6 +36,13 @@ final readonly class PageActionHandler
             throw new PageActionException("Page route metadata is missing.");
         }
 
+        $post = $request->post();
+        $expression = $post->has("_action") ? $post->get("_action") : "default";
+        if (!is_string($expression)) {
+            throw new InvalidPageActionInputException("Page action expression must be a string.");
+        }
+        $call = $this->parseAction($expression);
+
         $page = $this->injector->instantiate(
             $metadata->pageClass,
             $this->constructorParameters->bind($metadata->pageClass, $request, $route),
@@ -53,7 +60,6 @@ final readonly class PageActionHandler
             return $pages->renderPage($page, false);
         }
 
-        $call = $this->parseAction($request->post()->string("_action", "default"));
         $target = $this->resolveTarget($page, $call, $request);
         if ($target === null) {
             return $pages->renderPage($page, false);
@@ -135,7 +141,7 @@ final readonly class PageActionHandler
         foreach ($call->targetPath as $propertyName) {
             $reflection = new ReflectionObject($target);
             if (!$reflection->hasProperty($propertyName)) {
-                throw new PageActionException(
+                throw new InvalidPageActionInputException(
                     "Page action target '{$propertyName}' was not found while resolving '{$call->fullName()}' on " .
                     $reflection->getName() . "."
                 );
@@ -143,7 +149,7 @@ final readonly class PageActionHandler
 
             $property = $reflection->getProperty($propertyName);
             if (!$property->isPublic() || $property->isStatic() || !$property->isInitialized($target)) {
-                throw new PageActionException(
+                throw new InvalidPageActionInputException(
                     "Page action target '{$propertyName}' is not available while resolving '{$call->fullName()}' on " .
                     $reflection->getName() . "."
                 );
@@ -159,7 +165,7 @@ final readonly class PageActionHandler
                 return null;
             }
             if (!is_object($value)) {
-                throw new PageActionException(
+                throw new InvalidPageActionInputException(
                     "Page action target '{$propertyName}' must be an object while resolving '{$call->fullName()}' on " .
                     $reflection->getName() . "."
                 );
@@ -189,7 +195,7 @@ final readonly class PageActionHandler
 
         $methods = $this->availableHttpMethods($reflection, $call->name);
         if ($methods !== []) {
-            throw new PageActionException(
+            throw new InvalidPageActionInputException(
                 "Page action '{$call->fullName()}' on {$reflection->getName()} is not available for " .
                 strtoupper($request->getMethod()) . ". Available method" . (count($methods) === 1 ? "" : "s") .
                 ": " . implode(", ", $methods) . "."
@@ -198,7 +204,7 @@ final readonly class PageActionHandler
 
         $actions = $this->availableActionNames($reflection);
 
-        throw new PageActionException(
+        throw new InvalidPageActionInputException(
             "Page action '{$call->fullName()}' was not found on {$reflection->getName()}." .
             ($actions === [] ? "" : " Available actions: " . implode(", ", $actions) . ".")
         );
@@ -208,7 +214,7 @@ final readonly class PageActionHandler
     {
         $expression = trim($expression);
         if (!preg_match('/^([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)(?:\((.*)\))?$/', $expression, $matches)) {
-            throw new PageActionException(
+            throw new InvalidPageActionInputException(
                 "Page action expression '{$expression}' is invalid. Expected syntax like 'save', 'delete(12, \"hard\")', or 'toast.close()'."
             );
         }
@@ -234,7 +240,7 @@ final readonly class PageActionHandler
         foreach ($this->argumentTokens($source) as $token) {
             $token = trim($token);
             if ($token === "") {
-                throw new PageActionException("Page action arguments are invalid. Empty arguments are not supported.");
+                throw new InvalidPageActionInputException("Page action arguments are invalid. Empty arguments are not supported.");
             }
 
             $arguments[] = $this->parseArgument($token);
@@ -292,7 +298,7 @@ final readonly class PageActionHandler
         }
 
         if ($escaped || $quote !== null) {
-            throw new PageActionException("Page action arguments are invalid. Quotes or escapes are not closed.");
+            throw new InvalidPageActionInputException("Page action arguments are invalid. Quotes or escapes are not closed.");
         }
 
         $tokens[] = $token;
