@@ -29,7 +29,7 @@ packages/validation/ Standalone PHP validation rules, schemas, and results
 packages/view/       Standalone template parsing and component rendering
 packages/di/         Standalone constructor injection and service providers
 packages/profiler/   Standalone timing spans and summaries
-packages/starter/    Composer-installable starter application source
+apps/starter/    Composer-installable starter application source
 apps/sample/         Sample application and API
 apps/showcase/       Interactive component catalogue
 docs/                Repository-wide framework documentation

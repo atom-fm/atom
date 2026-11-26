@@ -8,7 +8,7 @@
     "repositories": [
         {
             "type": "path",
-            "url": "../framework",
+            "url": "../../packages/framework",
             "options": {
                 "symlink": true,
                 "versions": {
@@ -18,7 +18,7 @@
         },
         {
             "type": "path",
-            "url": "../sql",
+            "url": "../../packages/sql",
             "options": {
                 "symlink": true,
                 "versions": {
@@ -29,7 +29,7 @@
         },
         {
             "type": "path",
-            "url": "../orm",
+            "url": "../../packages/orm",
             "options": {
                 "symlink": true,
                 "versions": {
@@ -40,7 +40,7 @@
         },
         {
             "type": "path",
-            "url": "../database",
+            "url": "../../packages/database",
             "options": {
                 "symlink": true,
                 "versions": {
@@ -51,7 +51,7 @@
         },
         {
             "type": "path",
-            "url": "../validation",
+            "url": "../../packages/validation",
             "options": {
                 "symlink": true,
                 "versions": {
@@ -62,7 +62,7 @@
         },
         {
             "type": "path",
-            "url": "../view",
+            "url": "../../packages/view",
             "options": {
                 "symlink": true,
                 "versions": {
@@ -73,7 +73,7 @@
         },
         {
             "type": "path",
-            "url": "../di",
+            "url": "../../packages/di",
             "options": {
                 "symlink": true,
                 "versions": {
@@ -84,7 +84,7 @@
         },
         {
             "type": "path",
-            "url": "../profiler",
+            "url": "../../packages/profiler",
             "options": {
                 "symlink": true,
                 "versions": {
@@ -95,7 +95,7 @@
         },
         {
             "type": "path",
-            "url": "../mail",
+            "url": "../../packages/mail",
             "options": {
                 "symlink": true,
                 "versions": {
@@ -106,7 +106,7 @@
         },
         {
             "type": "path",
-            "url": "../console",
+            "url": "../../packages/console",
             "options": {
                 "symlink": true,
                 "versions": {

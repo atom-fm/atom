@@ -178,7 +178,7 @@ php atom docs:index
 php atom serve
 ```
 
-In the current framework workspace, Apache also serves the starter continuously at `http://atom.test`, with its document root set to `packages/starter/public` and an Apache front-controller fallback to `index.php`. Use that URL for browser testing when available; `php atom serve` remains the portable zero-configuration workflow.
+For an Apache virtual host such as `http://atom.test`, set the document root to `apps/starter/public` and route requests through `index.php`. The portable local workflow is `php atom serve`.
 
 Before handing off a change, run checks proportional to it:
 

@@ -4,14 +4,14 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "920bf250d501d6f252a0c5bc8e634845",
+    "content-hash": "e31df0073d022d524c98e7b4c7946921",
     "packages": [
         {
             "name": "atom-fm/console",
             "version": "0.1.x-dev",
             "dist": {
                 "type": "path",
-                "url": "../console"
+                "url": "../../packages/console"
             },
             "require": {
                 "php": "^8.4"
@@ -62,7 +62,7 @@
             "version": "0.1.x-dev",
             "dist": {
                 "type": "path",
-                "url": "../database"
+                "url": "../../packages/database"
             },
             "require": {
                 "atom-fm/orm": "^0.1",
@@ -116,7 +116,7 @@
             "version": "0.1.x-dev",
             "dist": {
                 "type": "path",
-                "url": "../di"
+                "url": "../../packages/di"
             },
             "require": {
                 "php": "^8.4"
@@ -167,7 +167,7 @@
             "version": "0.2.x-dev",
             "dist": {
                 "type": "path",
-                "url": "../framework",
+                "url": "../../packages/framework",
                 "reference": "da7242f211288e342737e4e7c8b5ba013e7367bc"
             },
             "require": {
@@ -237,7 +237,7 @@
             "version": "0.1.x-dev",
             "dist": {
                 "type": "path",
-                "url": "../mail"
+                "url": "../../packages/mail"
             },
             "require": {
                 "php": "^8.4",
@@ -289,7 +289,7 @@
             "version": "dev-master",
             "dist": {
                 "type": "path",
-                "url": "../orm"
+                "url": "../../packages/orm"
             },
             "require": {
                 "atom-fm/sql": "^0.1",
@@ -337,7 +337,7 @@
             "version": "0.1.x-dev",
             "dist": {
                 "type": "path",
-                "url": "../profiler"
+                "url": "../../packages/profiler"
             },
             "require": {
                 "php": "^8.4"
@@ -388,7 +388,7 @@
             "version": "dev-master",
             "dist": {
                 "type": "path",
-                "url": "../sql"
+                "url": "../../packages/sql"
             },
             "require": {
                 "php": "^8.4"
@@ -434,7 +434,7 @@
             "version": "0.1.x-dev",
             "dist": {
                 "type": "path",
-                "url": "../validation"
+                "url": "../../packages/validation"
             },
             "require": {
                 "php": "^8.4"
@@ -485,7 +485,7 @@
             "version": "0.1.x-dev",
             "dist": {
                 "type": "path",
-                "url": "../view"
+                "url": "../../packages/view"
             },
             "require": {
                 "php": "^8.4"

@@ -91,7 +91,7 @@ jobs:
                       --exclude='storage/cache/' \
                       --exclude='storage/*.sqlite' \
                       --exclude='storage/*.lock' \
-                      packages/starter/ "$target/"
+                      apps/starter/ "$target/"
                   cd "$target"
                   mv composer.dist.json composer.json
                   composer update --no-interaction --no-progress
