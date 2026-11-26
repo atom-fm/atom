@@ -352,6 +352,18 @@ final class ApplicationTest extends TestCase
         $this->assertStringContainsString("count=2", (string) $response->headers()->get("X-Atom-Time-Custom-Work"));
     }
 
+    public function testProfilerHeadersPreserveCollidingSpanSummaries(): void
+    {
+        $response = (new TestApplication())->handle(new Request("GET", "/profile/collisions"));
+        $headers = $response->headers();
+
+        self::assertStringContainsString("count=2", (string) $headers->get("X-Atom-Time-Cache-Read"));
+        self::assertStringContainsString("count=3", (string) $headers->get("X-Atom-Time-Cache-Read-2"));
+        self::assertMatchesRegularExpression('/^\d+\.\d{2}ms$/', (string) $headers->get("X-Atom-Time-Cache-Read-3"));
+        self::assertMatchesRegularExpression('/^\d+\.\d{2}ms$/', (string) $headers->get("X-Atom-Time-App-Initialize"));
+        self::assertStringContainsString("count=2", (string) $headers->get("X-Atom-Time-App-Initialize-2"));
+    }
+
     public function testApplicationProvidesConsoleWithFrameworkCommands(): void
     {
         $app = new TestApplication();
@@ -482,6 +494,13 @@ final class TestApplication extends Application
         Route::get("/profile/repeated", function (Profiler $profiler): string {
             $profiler->measure("custom.work", static fn(): null => null);
             Profile::measure("custom.work", static fn(): null => null);
+
+            return "ok";
+        });
+        Route::get("/profile/collisions", static function (Profiler $profiler): string {
+            foreach (["cache.read", "cache.read", "cache.read-2", "cache.read-2", "cache.read-2", "cache-read", "app.initialize", "app.initialize"] as $name) {
+                $profiler->begin($name)->end();
+            }
 
             return "ok";
         });

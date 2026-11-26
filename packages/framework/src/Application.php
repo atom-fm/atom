@@ -465,10 +465,10 @@ abstract class Application
         try {
             $response = $this->dispatchRequest($request, $profiler);
             $response = $this->applyCookies($response);
-            $this->addProfilerHeaders($response, $profiler);
             if ($initializing && $this->bootstrapProfiler !== null) {
                 $response->header("X-Atom-Time-App-Initialize", number_format($this->bootstrapProfiler->total("app.initialize"), 2, ".", "") . "ms");
             }
+            $this->addProfilerHeaders($response, $profiler);
             return $response;
         } finally {
             $this->requestProfiler = $previousProfiler;
@@ -537,7 +537,12 @@ abstract class Application
         $response->header("X-Atom-Time", number_format($profiler->totalMs(), 2, ".", "") . "ms");
 
         foreach ($profiler->summary() as $summary) {
-            $header = "X-Atom-Time-" . str_replace(".", "-", ucwords($summary->name, "."));
+            $baseHeader = "X-Atom-Time-" . str_replace(".", "-", ucwords($summary->name, "."));
+            $header = $baseHeader;
+            for ($suffix = 2; $response->headers()->has($header); $suffix++) {
+                $header = "{$baseHeader}-{$suffix}";
+            }
+
             $value = number_format($summary->totalMs, 2, ".", "") . "ms";
             if ($summary->count > 1) {
                 $value .= "; count=" . $summary->count;
