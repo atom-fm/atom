@@ -277,7 +277,7 @@ final class Injector
     {
         $type = new TypeInfo($className);
 
-        $typeFactories = $this->bindings?->typeFactories() ?? $this->typeFactories;
+        $typeFactories = [...($this->bindings?->typeFactories() ?? []), ...$this->typeFactories];
 
         foreach ($typeFactories as $typeFactory) {
             if ($typeFactory->matches($type)) {

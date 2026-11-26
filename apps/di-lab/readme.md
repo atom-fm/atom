@@ -11,6 +11,8 @@ The sample prices two orders using constructor injection, a service provider, an
 
 The optional dependency checks verify that an absent binding can resolve to `null` and that errors from a registered factory, alias, or matching type factory propagate.
 
+The type factory checks cover both registration paths, lookup order, and isolation when injectors share the same `Bindings`.
+
 ## API review
 
 | Area | API to retain |
@@ -24,5 +26,4 @@ The optional dependency checks verify that an absent binding can resolve to `nul
 
 ### Confirmed findings
 
-- `Injector::addTypeFactory()` registers a factory that lookup ignores when the injector uses a `Bindings` instance. The lab registers its factory with `Bindings::addTypeFactory()`. [Type factory lookup](../../packages/di/src/Injector.php#L276)
 - Replacing a binding after its singleton has resolved leaves the old value cached. The API needs a defined behavior for rebinding after first resolution. [Singleton lookup](../../packages/di/src/Injector.php#L86)

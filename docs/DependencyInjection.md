@@ -240,6 +240,8 @@ $bindings->addTypeFactory(TypeFactory::match(
 
 Explicit providers always win over type factories.
 
+Use `Injector::addTypeFactory()` to register a factory on one injector. Each injector checks the factories from its `Bindings` first, then the ones registered directly on it. The first match wins. When no local factory matches, lookup continues in the parent injector.
+
 Dispatcher registers Atom's request DTO factory. It reads the active request and matched route, then supplies that input to Hydrator.
 
 ## Child Injectors

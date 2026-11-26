@@ -9,6 +9,8 @@ use Atom\Di\Exception\ScopedDependencyException;
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
 use Atom\Di\ServiceProviderRegistry;
+use Atom\Di\TypeFactory;
+use Atom\Di\TypeInfo;
 use Composer\InstalledVersions;
 use DiLab\OrderInput;
 use DiLab\OrderQuote;
@@ -43,6 +45,23 @@ $nextOrder->set("order.quantity", 2);
 $total = static fn(OrderQuote $quote, OrderInput $input): int => $quote->totalInCents($input);
 verify($injector->invoke($total, context: $order) === 1200, "The type factory did not receive the order context.");
 verify($injector->invoke($total, context: $nextOrder) === 300, "Order inputs leaked between contexts.");
+
+$customInjector = Injector::create($bindings)
+    ->addTypeFactory(TypeFactory::match(
+        static fn(TypeInfo $type): bool => $type->name === OrderQuote::class,
+        static fn(string $className, Injector $injector, InjectionContext $context): OrderQuote => new OrderQuote(
+            $injector->get(PriceCatalog::class, $context),
+            "GBP",
+        ),
+    ))
+    ->addTypeFactory(TypeFactory::match(
+        static fn(TypeInfo $type): bool => $type->name === OrderInput::class,
+        static fn(): OrderInput => new OrderInput("pen", 1),
+    ));
+verify($customInjector->get(OrderQuote::class)->currency === "GBP", "A Bindings-backed injector ignored its own type factory.");
+verify($customInjector->invoke($total, context: $order) === 1200, "A directly registered type factory took precedence over Bindings.");
+verify($injector->get(OrderQuote::class)->currency === "EUR", "A directly registered type factory leaked into shared Bindings.");
+
 verify(
     $injector->invoke($total, ["input" => new OrderInput("pen", 1)], $order) === 150,
     "An explicit callable argument did not override injection."
