@@ -383,7 +383,7 @@ final class QueueTest extends TestCase
         $runner = new ScheduleRunner(
             $schedule,
             $clock,
-            new ConsoleApplication($injector),
+            new ConsoleApplication(),
             $injector->get(JobDispatcherInterface::class),
             new ScheduleMinuteClaims(new Paths($root)),
             $locks

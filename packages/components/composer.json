@@ -60,6 +60,28 @@
                 },
                 "reference": "none"
             }
+        },
+        {
+            "type": "path",
+            "url": "../mail",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/mail": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
+        },
+        {
+            "type": "path",
+            "url": "../console",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/console": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
         }
     ],
     "require": {

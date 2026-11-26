@@ -10,7 +10,6 @@ use Atom\Console\CommandInterface;
 use Atom\Console\ConsoleApplication;
 use Atom\Console\ConsoleInput;
 use Atom\Console\ConsoleOutput;
-use Atom\Di\Injector;
 use Atom\Di\ServiceProviderRegistry;
 use Atom\Queue\JobDispatcherInterface;
 use Atom\Queue\JobInterface;
@@ -67,7 +66,7 @@ final class SchedulerTest extends TestCase
         $schedule->command("test:record", ["later"])->daily()->at("09:00")->timezone("Europe/Sarajevo");
 
         $command = new RecordingCommand();
-        $console = (new ConsoleApplication(Injector::create()))->command("test:record", $command);
+        $console = (new ConsoleApplication())->command("test:record", $command);
         $jobs = new RecordingJobDispatcher();
         $clock = new FrozenClock(new DateTimeImmutable("2026-07-20 06:00:00 UTC"));
         $result = (new ScheduleRunner($schedule, $clock, $console, $jobs))->run();
@@ -85,7 +84,7 @@ final class SchedulerTest extends TestCase
         $schedule->command("test:fail");
         $schedule->command("test:record");
         $recording = new RecordingCommand();
-        $console = (new ConsoleApplication(Injector::create()))
+        $console = (new ConsoleApplication())
             ->command("test:fail", new FailingCommand())
             ->command("test:record", $recording);
         $runner = new ScheduleRunner(
@@ -117,7 +116,7 @@ final class SchedulerTest extends TestCase
         $runner = new ScheduleRunner(
             $schedule,
             new FrozenClock(new DateTimeImmutable("2026-07-20 12:00:00 UTC")),
-            new ConsoleApplication(Injector::create()),
+            new ConsoleApplication(),
             $dispatcher
         );
         $result = $runner->run();
@@ -131,7 +130,7 @@ final class SchedulerTest extends TestCase
         $schedule = new Schedule();
         $schedule->command("test:record")->daily()->at("08:00")->name("Daily record");
         $clock = new FrozenClock(new DateTimeImmutable("2026-07-20 08:00:00 UTC"));
-        $console = (new ConsoleApplication(Injector::create()))
+        $console = (new ConsoleApplication())
             ->command("test:record", new RecordingCommand());
         $runner = new ScheduleRunner($schedule, $clock, $console, new RecordingJobDispatcher());
 

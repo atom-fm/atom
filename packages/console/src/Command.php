@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Console;
 
-use Atom\Di\InjectionContext;
-use Atom\Di\Injector;
+use Closure;
 use ReflectionMethod;
 
 abstract class Command implements CommandInterface
@@ -27,20 +26,17 @@ abstract class Command implements CommandInterface
 
     final public function handle(ConsoleInput $input, ConsoleOutput $output): int
     {
-        return $this->run(Injector::create(), $input, $output, new InjectionContext());
+        return $this->run($input, $output);
     }
 
-    final public function run(
-        Injector $injector,
-        ConsoleInput $input,
-        ConsoleOutput $output,
-        InjectionContext $context
-    ): int {
+    /** @param (Closure(class-string): object)|null $resolver */
+    final public function run(ConsoleInput $input, ConsoleOutput $output, ?Closure $resolver = null): int
+    {
         $this->input = $input;
         $this->output = $output;
 
         $method = new ReflectionMethod($this, "execute");
-        $parameters = (new ConsoleParameterBinder($injector, $context, $input, $output))
+        $parameters = (new ConsoleParameterBinder($input, $output, $resolver))
             ->bindPositional($method);
         $result = $method->invokeArgs($this, $parameters);
 

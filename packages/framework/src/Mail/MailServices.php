@@ -25,7 +25,7 @@ final readonly class MailServices implements ServiceProviderInterface
                 return new SymfonyMailer(
                     new Mailer(Transport::fromDsn($options->dsn)),
                     $injector->get(MailTemplateRenderer::class),
-                    $options
+                    $options->fromAddress === "" ? null : new MailAddress($options->fromAddress, $options->fromName)
                 );
             })
             ->singleton();

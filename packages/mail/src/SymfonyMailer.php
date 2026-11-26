@@ -14,7 +14,7 @@ final readonly class SymfonyMailer implements MailerInterface
     public function __construct(
         private SymfonyMailerInterface $mailer,
         private MailTemplateRenderer $templates,
-        private MailOptions $options
+        private ?MailAddress $defaultFrom = null
     ) {
     }
 
@@ -33,8 +33,8 @@ final readonly class SymfonyMailer implements MailerInterface
         $from = $message->fromAddress();
         if ($from !== null) {
             $email->from($this->address($from));
-        } elseif ($this->options->fromAddress !== "") {
-            $email->from(new Address($this->options->fromAddress, $this->options->fromName));
+        } elseif ($this->defaultFrom !== null) {
+            $email->from($this->address($this->defaultFrom));
         }
 
         $email->to(...$this->addresses($message->recipients()));

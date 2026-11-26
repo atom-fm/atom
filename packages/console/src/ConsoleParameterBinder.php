@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Console;
 
-use Atom\Di\InjectionContext;
-use Atom\Di\Injector;
+use Closure;
 use ReflectionFunctionAbstract;
 use ReflectionNamedType;
 use ReflectionParameter;
@@ -15,28 +14,12 @@ final class ConsoleParameterBinder
 {
     private int $argumentIndex = 0;
 
+    /** @param (Closure(class-string): object)|null $resolver */
     public function __construct(
-        private readonly Injector $injector,
-        private readonly InjectionContext $context,
         private readonly ConsoleInput $input,
-        private readonly ConsoleOutput $output
+        private readonly ConsoleOutput $output,
+        private readonly ?Closure $resolver = null
     ) {
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function bindNamed(ReflectionFunctionAbstract $method): array
-    {
-        $parameters = [];
-
-        foreach ($method->getParameters() as $parameter) {
-            if ($this->canBind($parameter)) {
-                $parameters[$parameter->getName()] = $this->bind($parameter);
-            }
-        }
-
-        return $parameters;
     }
 
     /**
@@ -53,45 +36,31 @@ final class ConsoleParameterBinder
         return $parameters;
     }
 
-    private function canBind(ReflectionParameter $parameter): bool
-    {
-        if ($parameter->getName() === "input" || $parameter->getName() === "output") {
-            return true;
-        }
-
-        $type = $parameter->getType();
-
-        if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
-            return true;
-        }
-
-        if ($this->input->hasOption($parameter->getName())) {
-            return true;
-        }
-
-        if ($this->input->argument($this->argumentIndex) !== null) {
-            return true;
-        }
-
-        return $this->isBool($parameter) || $parameter->isDefaultValueAvailable() || $parameter->allowsNull();
-    }
-
     private function bind(ReflectionParameter $parameter): mixed
     {
         $name = $parameter->getName();
 
-        if ($name === "input") {
+        $type = $parameter->getType();
+        $typeName = $type instanceof ReflectionNamedType ? $type->getName() : null;
+
+        if ($name === "input" || $typeName === ConsoleInput::class) {
             return $this->input;
         }
 
-        if ($name === "output") {
+        if ($name === "output" || $typeName === ConsoleOutput::class) {
             return $this->output;
         }
 
-        $type = $parameter->getType();
-
         if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
-            return $this->injector->get($type->getName(), $this->context);
+            if ($this->resolver !== null) {
+                return ($this->resolver)($type->getName());
+            }
+
+            if ($parameter->isDefaultValueAvailable()) {
+                return $parameter->getDefaultValue();
+            }
+
+            throw new RuntimeException("No service resolver configured for console parameter '{$name}'.");
         }
 
         if ($this->input->hasOption($name)) {

@@ -80,6 +80,28 @@
                 },
                 "reference": "none"
             }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/mail",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/mail": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/console",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/console": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
         }
     ],
     "require": {

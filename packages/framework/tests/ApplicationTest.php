@@ -130,11 +130,11 @@ final class ApplicationTest extends TestCase
             protected function modules(ModuleRegistry $modules): void
             {
                 $this->earlyConsole = $this->getConsole();
-                $this->discoveredEarly = $this->earlyConsole->commands()->has("discovered:hello");
+                $this->discoveredEarly = $this->earlyConsole->commands()->has("module:hello");
                 $modules->add(new class implements ModuleInterface {
                     public function register(ModuleContext $context): void
                     {
-                        $context->commands(__DIR__ . "/Console/Fixtures/Commands", "Atom\\Tests\\Console\\Fixtures\\Commands");
+                        $context->commands(__DIR__ . "/Module/Fixtures/Commands", "Atom\\Tests\\Module\\Fixtures\\Commands");
                     }
                 });
             }
@@ -145,8 +145,8 @@ final class ApplicationTest extends TestCase
         $this->assertFalse($app->discoveredEarly);
         $this->assertSame($app->earlyConsole, $app->getConsole());
         $output = new BufferedConsoleOutput();
-        $this->assertSame(0, $app->earlyConsole->run(["atom", "discovered:hello", "Atom"], $output), $output->errors());
-        $this->assertSame("Hello, Atom!" . PHP_EOL, $output->output());
+        $this->assertSame(0, $app->earlyConsole->run(["atom", "module:hello", "Atom"], $output), $output->errors());
+        $this->assertSame("Hello Atom from module" . PHP_EOL, $output->output());
         $this->assertTrue($app->earlyConsole->commands()->has("atom:about"));
     }
 

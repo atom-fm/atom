@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Atom\Console\CommandInterface;
 use Atom\Console\ConsoleApplication;
+use Atom\Console\ConsoleInjector;
 use Atom\Console\ConsoleInput;
 use Atom\Console\ConsoleOutput;
 use Atom\Di\Bindings;
@@ -79,7 +80,7 @@ if ($mode === "job") {
         ->value(SchedulerProbeExecution::class, $execution);
 }
 $bindings->bind(ConsoleApplication::class)->toFactory(
-    static fn(Injector $injector): ConsoleApplication => new ConsoleApplication($injector)
+    static fn(Injector $injector): ConsoleApplication => new ConsoleApplication((new ConsoleInjector($injector))(...))
 )->singleton();
 $console = Injector::create($bindings)->get(ConsoleApplication::class);
 $console->attach(Atom\Scheduler\Commands\ScheduleCommands::class)

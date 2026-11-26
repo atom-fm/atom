@@ -3,6 +3,8 @@
 [Atom Framework](Index.md)
 
 Atom console commands are small classes resolved through the DI container.
+Framework installs [`atom-fm/console`](../packages/console/README.md) and
+registers its built-in and module commands automatically.
 
 ## Command Class
 

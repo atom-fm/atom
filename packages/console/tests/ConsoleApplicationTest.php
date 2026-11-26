@@ -6,19 +6,11 @@ namespace Atom\Tests\Console;
 
 use Atom\Console\BufferedConsoleOutput;
 use Atom\Console\Command;
-use Atom\Console\ConsoleCommandProviderInterface;
-use Atom\Console\ConsoleCommandSources;
 use Atom\Console\CommandInterface;
 use Atom\Console\ConsoleApplication;
 use Atom\Console\ConsoleInput;
 use Atom\Console\ConsoleOutput;
-use Atom\Console\ConsoleServices;
-use Atom\Console\Make\MakeOptions;
 use Atom\Console\Attributes\ConsoleCommand;
-use Atom\Di\Bindings;
-use Atom\Di\Injector;
-use Atom\Di\ServiceProviderInterface;
-use Atom\Di\ServiceProviderRegistry;
 use Atom\Tests\Console\Fixtures\Commands\DiscoveredHelloCommand;
 use PHPUnit\Framework\TestCase;
 
@@ -42,12 +34,9 @@ final class ConsoleApplicationTest extends TestCase
         $this->assertTrue($input->option("v"));
     }
 
-    public function testRunsCommandResolvedFromInjector(): void
+    public function testRunsCommandResolvedByCallback(): void
     {
-        $bindings = Bindings::create()
-            ->value(ConsoleGreetingService::class, new ConsoleGreetingService("Hello"));
-
-        $console = new ConsoleApplication(Injector::create($bindings));
+        $console = $this->consoleWithGreeting("Hello");
         $console->command("greet", ConsoleGreetingCommand::class, "Greets a user");
 
         $output = new BufferedConsoleOutput();
@@ -59,7 +48,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testCanRunCommandInstance(): void
     {
-        $console = new ConsoleApplication(Injector::create());
+        $console = new ConsoleApplication();
         $console->command("ping", new ConsolePingCommand());
 
         $output = new BufferedConsoleOutput();
@@ -71,7 +60,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testThrowsForDuplicateCommandRegistration(): void
     {
-        $console = new ConsoleApplication(Injector::create());
+        $console = new ConsoleApplication();
         $console->command("ping", new ConsolePingCommand());
 
         $this->expectException(\InvalidArgumentException::class);
@@ -82,10 +71,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testCanRunBaseCommandClass(): void
     {
-        $bindings = Bindings::create()
-            ->value(ConsoleGreetingService::class, new ConsoleGreetingService("Made"));
-
-        $console = new ConsoleApplication(Injector::create($bindings));
+        $console = $this->consoleWithGreeting("Made");
         $console->add(ConsoleMakeCommand::class);
 
         $output = new BufferedConsoleOutput();
@@ -97,7 +83,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testBaseCommandCanInjectOutputInConstructor(): void
     {
-        $console = new ConsoleApplication(Injector::create());
+        $console = $this->consoleWithGreeting("Hi");
         $console->add(ConsoleConstructorOutputCommand::class);
 
         $output = new BufferedConsoleOutput();
@@ -109,10 +95,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testCanAttachCommandMethodsAndBindParameters(): void
     {
-        $bindings = Bindings::create()
-            ->value(ConsoleGreetingService::class, new ConsoleGreetingService("Hello"));
-
-        $console = new ConsoleApplication(Injector::create($bindings));
+        $console = $this->consoleWithGreeting("Hello");
         $console->attach(ConsoleUserCommands::class);
 
         $output = new BufferedConsoleOutput();
@@ -124,10 +107,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testAttachedMethodCommandsCanUseTypedServices(): void
     {
-        $bindings = Bindings::create()
-            ->value(ConsoleGreetingService::class, new ConsoleGreetingService("Hi"));
-
-        $console = new ConsoleApplication(Injector::create($bindings));
+        $console = $this->consoleWithGreeting("Hi");
         $console->attach(ConsoleUserCommands::class);
 
         $output = new BufferedConsoleOutput();
@@ -139,10 +119,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testAttachedCommandGroupCanInjectOutputInConstructor(): void
     {
-        $bindings = Bindings::create()
-            ->value(ConsoleGreetingService::class, new ConsoleGreetingService("Hi"));
-
-        $console = new ConsoleApplication(Injector::create($bindings));
+        $console = $this->consoleWithGreeting("Hi");
         $console->attach(ConsoleOutputUserCommands::class);
 
         $output = new BufferedConsoleOutput();
@@ -154,7 +131,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testRendersHelp(): void
     {
-        $console = new ConsoleApplication(Injector::create());
+        $console = new ConsoleApplication();
         $console->command("ping", new ConsolePingCommand(), "Checks console wiring");
 
         $output = new BufferedConsoleOutput();
@@ -167,7 +144,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testRendersHelpWhenNoCommandIsProvided(): void
     {
-        $console = new ConsoleApplication(Injector::create());
+        $console = new ConsoleApplication();
         $console->command("ping", new ConsolePingCommand(), "Checks console wiring");
 
         $output = new BufferedConsoleOutput();
@@ -179,7 +156,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testUnknownCommandReturnsFailure(): void
     {
-        $console = new ConsoleApplication(Injector::create());
+        $console = new ConsoleApplication();
         $output = new BufferedConsoleOutput();
 
         $code = $console->run(["atom", "missing"], $output);
@@ -190,7 +167,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testCommandExceptionReturnsFailure(): void
     {
-        $console = new ConsoleApplication(Injector::create());
+        $console = new ConsoleApplication();
         $console->command("fail", new ConsoleFailingCommand());
 
         $output = new BufferedConsoleOutput();
@@ -202,7 +179,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testMissingRequiredParameterReturnsFailure(): void
     {
-        $console = new ConsoleApplication(Injector::create());
+        $console = new ConsoleApplication();
         $console->add(ConsoleRequiredArgumentCommand::class);
 
         $output = new BufferedConsoleOutput();
@@ -214,7 +191,7 @@ final class ConsoleApplicationTest extends TestCase
 
     public function testDiscoversCommandClassesAndCommandGroups(): void
     {
-        $console = new ConsoleApplication(Injector::create());
+        $console = new ConsoleApplication();
         $console->discover(__DIR__ . "/Fixtures/Commands", "Atom\\Tests\\Console\\Fixtures\\Commands");
 
         $output = new BufferedConsoleOutput();
@@ -231,59 +208,24 @@ final class ConsoleApplicationTest extends TestCase
         $this->assertTrue($console->commands()->has(DiscoveredHelloCommand::name()));
         $this->assertFalse($console->commands()->has("not:a-command"));
     }
-
-    public function testDiscoversCommandSourcesProvidedByServices(): void
+    private function consoleWithGreeting(string $prefix): ConsoleApplication
     {
-        $providers = ServiceProviderRegistry::create()
-            ->add(ConsoleServices::class)
-            ->add(new ConsoleFixtureCommandProvider());
-        $bindings = $providers->bindings()
-            ->value(ServiceProviderRegistry::class, $providers);
+        return new ConsoleApplication(
+            static function (ConsoleInput $input, ConsoleOutput $output) use ($prefix): \Closure {
+                $greeting = new ConsoleGreetingService($prefix);
 
-        $console = Injector::create($bindings)->get(ConsoleApplication::class);
-
-        $this->assertTrue($console->commands()->has("atom:about"));
-        $this->assertTrue($console->commands()->has("serve"));
-        $this->assertTrue($console->commands()->has(DiscoveredHelloCommand::name()));
-
-        $output = new BufferedConsoleOutput();
-        $code = $console->run(["atom", "discovered:hello", "Atom"], $output);
-
-        $this->assertSame(0, $code);
-        $this->assertSame("Hello, Atom!" . PHP_EOL, $output->output());
+                return static fn(string $class): object => match ($class) {
+                    ConsoleGreetingService::class => $greeting,
+                    ConsoleGreetingCommand::class => new ConsoleGreetingCommand($greeting),
+                    ConsoleUserCommands::class => new ConsoleUserCommands($greeting),
+                    ConsoleOutputUserCommands::class => new ConsoleOutputUserCommands($output, $greeting),
+                    ConsoleConstructorOutputCommand::class => new ConsoleConstructorOutputCommand($output),
+                    default => new $class(),
+                };
+            }
+        );
     }
 
-    public function testFrameworkMakePageCommandCreatesFiles(): void
-    {
-        $root = $this->tempDirectory();
-        $providers = ServiceProviderRegistry::create()
-            ->add(ConsoleServices::class);
-        $bindings = $providers->bindings()
-            ->value(ServiceProviderRegistry::class, $providers)
-            ->value(MakeOptions::class, new MakeOptions(root: $root));
-
-        $console = Injector::create($bindings)->get(ConsoleApplication::class);
-
-        $this->assertTrue($console->commands()->has("make:page"));
-        $this->assertTrue($console->commands()->has("make:component"));
-
-        $output = new BufferedConsoleOutput();
-        $code = $console->run(["atom", "make:page", "Reports"], $output);
-
-        $this->assertSame(0, $code);
-        $this->assertFileExists($root . "/app/Pages/ReportsPage.php");
-        $this->assertFileExists($root . "/app/Pages/ReportsPage.atom.html");
-        $this->assertStringContainsString("Created page: app/Pages/ReportsPage.php", $output->output());
-        $this->assertStringContainsString("Created view: app/Pages/ReportsPage.atom.html", $output->output());
-    }
-
-    private function tempDirectory(): string
-    {
-        $directory = sys_get_temp_dir() . DIRECTORY_SEPARATOR . "atom_console_" . uniqid();
-        mkdir($directory, 0777, true);
-
-        return $directory;
-    }
 }
 
 final readonly class ConsoleGreetingService
@@ -416,17 +358,5 @@ final readonly class ConsoleOutputUserCommands
         $this->output->line("42");
 
         return 0;
-    }
-}
-
-final class ConsoleFixtureCommandProvider implements ServiceProviderInterface, ConsoleCommandProviderInterface
-{
-    public function register(Bindings $bindings): void
-    {
-    }
-
-    public function consoleCommands(ConsoleCommandSources $commands): void
-    {
-        $commands->add(__DIR__ . "/Fixtures/Commands", "Atom\\Tests\\Console\\Fixtures\\Commands");
     }
 }

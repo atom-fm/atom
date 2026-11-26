@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace Atom\Console;
 
-use Atom\Di\InjectionContext;
-use Atom\Di\Injector;
-use Atom\Di\Provider;
 use Atom\Console\Attributes\ConsoleCommand;
+use Closure;
 use ReflectionMethod;
 use Throwable;
 
 final readonly class ConsoleApplication
 {
+    /** @param (Closure(ConsoleInput, ConsoleOutput): (Closure(class-string): object))|null $resolverFactory */
     public function __construct(
-        private Injector $injector,
+        private ?Closure $resolverFactory = null,
         private CommandRegistry $commands = new CommandRegistry()
     ) {
     }
@@ -57,7 +56,7 @@ final readonly class ConsoleApplication
             $command = $attribute->newInstance();
             $this->commands->add(
                 $command->name,
-                new MethodCommand($this->injector, $className, $method->getName()),
+                new MethodCommand($className, $method->getName()),
                 $command->description
             );
         }
@@ -121,45 +120,27 @@ final readonly class ConsoleApplication
             return 1;
         }
 
-        $commandInjector = $this->injector->createChild([
-            Provider::value(ConsoleInput::class, $input),
-            Provider::value(ConsoleOutput::class, $output),
-        ]);
-        $context = new InjectionContext();
-        $context->set(ConsoleInput::class, $input);
-        $context->set(ConsoleOutput::class, $output);
-
         try {
-            $command = $this->resolve($definition, $commandInjector, $context);
-            if ($command instanceof Command) {
-                return $command->run($commandInjector, $input, $output, $context);
+            $resolver = $this->resolverFactory === null ? null : ($this->resolverFactory)($input, $output);
+            $command = $definition->command;
+            if (is_string($command)) {
+                $command = $resolver === null ? new $command() : $resolver($command);
             }
 
-            $result = $commandInjector->invoke(
-                [$command, "handle"],
-                ["input" => $input, "output" => $output],
-                $context
-            );
+            if ($command instanceof Command || $command instanceof MethodCommand) {
+                return $command->run($input, $output, $resolver);
+            }
 
-            return is_int($result) ? $result : 0;
+            if (!$command instanceof CommandInterface) {
+                throw new \RuntimeException("Resolved console command must implement CommandInterface.");
+            }
+
+            return $command->handle($input, $output);
         } catch (Throwable $throwable) {
             $output->errorLine("Command '{$input->commandName()}' failed: " . $throwable->getMessage());
 
             return 1;
         }
-    }
-
-    private function resolve(
-        CommandDefinition $definition,
-        Injector $injector,
-        InjectionContext $context
-    ): CommandInterface
-    {
-        if ($definition->command instanceof CommandInterface) {
-            return $definition->command;
-        }
-
-        return $injector->get($definition->command, $context);
     }
 
     private function renderHelp(ConsoleOutput $output, bool $error = false): void

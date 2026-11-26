@@ -9,7 +9,8 @@
     "license": "MIT",
     "require": {
         "php": "^8.4",
-        "symfony/mailer": "^8.0.12",
+        "atom-fm/mail": "^0.1",
+        "atom-fm/console": "^0.1",
         "dragonmantank/cron-expression": "^3.6",
         "atom-fm/validation": "^0.1",
         "atom-fm/view": "^0.1",
@@ -111,6 +112,28 @@
                 "symlink": true,
                 "versions": {
                     "atom-fm/profiler": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
+        },
+        {
+            "type": "path",
+            "url": "../mail",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/mail": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
+        },
+        {
+            "type": "path",
+            "url": "../console",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/console": "0.1.x-dev"
                 },
                 "reference": "none"
             }
