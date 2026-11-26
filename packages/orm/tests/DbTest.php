@@ -488,6 +488,27 @@ final class DbTest extends TestCase
         $this->assertNull($db->select(DbHydratedUser::class)->where("id", 1)->first());
     }
 
+    public function testSaveUpdatesExistingRowsWithZeroPrimaryKeys(): void
+    {
+        $db = new Db(self::memory());
+        $db->execute("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
+        $db->execute("INSERT INTO users VALUES (0, 'Before')");
+        $user = $db->select(DbModelUser::class)->find(0);
+        self::assertInstanceOf(DbModelUser::class, $user);
+        $user->name = "After";
+
+        $db->execute("CREATE TABLE articles (article_key TEXT PRIMARY KEY, category_id INTEGER, fallback_id INTEGER)");
+        $db->execute("INSERT INTO articles VALUES ('0', 1, 2)");
+        $article = $db->select(DbCategorizedArticle::class)->find("0");
+        self::assertInstanceOf(DbCategorizedArticle::class, $article);
+        $article->categoryId = 3;
+
+        self::assertSame(1, $db->save($user));
+        self::assertSame(1, $db->save($article));
+        self::assertSame([["id" => 0, "name" => "After"]], $db->all("SELECT * FROM users"));
+        self::assertSame([["article_key" => "0", "category_id" => 3, "fallback_id" => 2]], $db->all("SELECT * FROM articles"));
+    }
+
     public function testModelSavePreservesUnselectedDefaultsAndConcurrentEdits(): void
     {
         $db = new Db(self::memory());

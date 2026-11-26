@@ -284,7 +284,7 @@ final readonly class Db
 
     private function isEmptyPrimaryKey(mixed $value): bool
     {
-        return $value === null || $value === "" || $value === 0 || $value === "0";
+        return $value === null || $value === "";
     }
 
     private function coercePrimaryKey(string $value, string $type): mixed
