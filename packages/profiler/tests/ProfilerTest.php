@@ -42,6 +42,39 @@ final class ProfilerTest extends TestCase
         $this->assertSame("work", $profiler->spans()[0]->name);
     }
 
+    public function testRecordIgnoresUnfinishedSpans(): void
+    {
+        $profiler = new Profiler();
+        $span = $profiler->begin("work");
+        $profiler->record($span);
+
+        self::assertSame([], $profiler->spans());
+        $span->end();
+        self::assertSame([$span], $profiler->spans());
+    }
+
+    public function testRecordCountsEachCompletedSpanOnce(): void
+    {
+        $profiler = new Profiler();
+        $first = $profiler->begin("work")->end();
+        $second = $profiler->begin("work")->end();
+        $profiler->record($first);
+
+        self::assertSame([$first, $second], $profiler->spans());
+        self::assertSame(2, $profiler->summary()["work"]->count);
+    }
+
+    public function testRecordIgnoresSpansOwnedByAnotherProfiler(): void
+    {
+        $owner = new Profiler();
+        $other = new Profiler();
+        $span = $owner->begin("work")->end();
+        $other->record($span);
+
+        self::assertSame([], $other->spans());
+        self::assertSame([$span], $owner->spans());
+    }
+
     public function testMeasureRecordsACompletedMonotonicSpanWhenCallbackThrows(): void
     {
         $profiler = new Profiler();

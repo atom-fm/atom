@@ -36,6 +36,12 @@ final class ProfileSpan
         return $this->endedAt;
     }
 
+    /** @internal */
+    public function belongsTo(Profiler $profiler): bool
+    {
+        return $this->profiler === $profiler;
+    }
+
     public function durationMs(): float
     {
         $endedAt = $this->endedAt ?? hrtime(true) / 1_000_000_000;

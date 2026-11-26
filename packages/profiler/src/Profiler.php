@@ -6,7 +6,7 @@ namespace Atom\Profiler;
 
 final class Profiler
 {
-    /** @var list<ProfileSpan> */
+    /** @var array<int, ProfileSpan> */
     private array $spans = [];
     private readonly float $startedAt;
 
@@ -40,9 +40,12 @@ final class Profiler
         }
     }
 
+    /** @internal Completed spans register themselves through ProfileSpan::end(). */
     public function record(ProfileSpan $span): void
     {
-        $this->spans[] = $span;
+        if ($span->endedAt() !== null && $span->belongsTo($this)) {
+            $this->spans[spl_object_id($span)] = $span;
+        }
     }
 
     /**
@@ -50,7 +53,7 @@ final class Profiler
      */
     public function spans(): array
     {
-        return $this->spans;
+        return array_values($this->spans);
     }
 
     public function count(string $name): int
