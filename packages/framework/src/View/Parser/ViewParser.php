@@ -33,6 +33,16 @@ final class ViewParser
         return $this->parseTokens($this->tokenizer->tokenize($source));
     }
 
+    public function parseFile(string $path): TemplateNode
+    {
+        $source = is_file($path) ? @file_get_contents($path) : false;
+        if ($source === false) {
+            throw new ViewParseException("Cannot read template '{$path}'.");
+        }
+
+        return $this->parse($source);
+    }
+
     /**
      * @param ViewToken[] $tokens
      */

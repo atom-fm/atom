@@ -1,0 +1,8 @@
+<header {{ $this->attributes->all() }}>
+    <p class="atom-error-status">HTTP {{ $this->page->status }}</p>
+    <h1>{{ $this->page->title }}</h1>
+    <p class="atom-error-message">{{ $this->page->message }}</p>
+    @if($this->page->id !== null)
+        <p class="atom-error-reference">Reference: {{ $this->page->id }}</p>
+    @endif
+</header>

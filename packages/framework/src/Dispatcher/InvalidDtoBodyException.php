@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Atom\Hydrator\Exception;
+namespace Atom\Dispatcher;
 
 use Atom\Di\Exception\UnrecoverableDependencyException;
+use Atom\Hydrator\Exception\HydrationException;
 
 final class InvalidDtoBodyException extends UnrecoverableDependencyException
 {

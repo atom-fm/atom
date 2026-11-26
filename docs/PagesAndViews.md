@@ -51,7 +51,33 @@ $context->pages(__DIR__ . "/Pages", [
 
 `Page::registerPages()` is still available for manual registration.
 
-Page templates and `TemplateComponent` `.atom.html` templates are parsed into an AST and cached in memory by template path and modified time. Rendering stays dynamic; only the parsed template structure is reused.
+Page templates and `TemplateComponent` `.atom.html` templates are parsed into an AST and cached in memory by template path and modified time. Pages and components share the application cache by default. Standalone components use an in-memory cache for the current PHP process. Each render evaluates the cached template with the current data.
+
+## Render by class
+
+For a `Page` class, resolve `PageRenderer` from the application's injector and call `render(HomePage::class)`. Atom finds the adjacent `HomePage.atom.html` template or uses the Page's custom template path. The renderer runs the Page lifecycle.
+
+For a standalone document backed by a `TemplateComponent`, use `ViewRenderer::renderComponent()`. This passes the supplied properties to the component and finds its adjacent template by class name.
+
+```php
+$html = $renderer->renderComponent(Layout::class, ["title" => "Service unavailable"]);
+```
+
+## Render a template file directly
+
+Use `ViewRenderer::renderFile()` when a handler needs HTML from a standalone template. Pass the template path and its variables. The renderer uses its configured component registry and escapes ordinary expressions such as `{{ $title }}`.
+
+```php
+use Atom\View\Render\ViewRenderer;
+
+$html = (new ViewRenderer())->renderFile(__DIR__ . "/Views/Layout.atom.html", [
+    "title" => "Service unavailable",
+]);
+```
+
+For a module's private components, construct the renderer with `new ViewRenderer(components: $components)`, where `$components` is its `ComponentRegistry`.
+
+For dependency injection in a standalone renderer, register `Atom\View\ViewServices` in a service provider registry. It supplies the renderer, component registry, parser, and template cache. `PageServices` registers these bindings for Page applications.
 
 ## Page Class
 
@@ -241,6 +267,9 @@ public ?Fragment $content = null;
 ```
 
 ## Components
+
+When rendering a Page, Atom supplies the current page to an uninitialized public
+`$page` property typed as `Page`. An explicit component attribute takes precedence.
 
 Components are documented separately:
 
@@ -704,7 +733,7 @@ public function init(): void
 }
 ```
 
-The helper returns `never`: it throws the existing ErrorPages `HttpException` with
+The helper returns `never` because it throws `Atom\Http\HttpException` with
 status 404 and immediately stops initialization/action processing. The configured
 error-page handler renders the response, including custom handlers. Atom's default
 handler produces an HTML error document, or JSON when requested by the Accept

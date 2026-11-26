@@ -33,7 +33,9 @@ use Atom\Validation\ValidationResult;
 use Atom\Validation\Rules\MinLength;
 use Atom\Validation\Rules\Required;
 use Atom\View\Component\ComponentInterface;
+use Atom\View\Component\ComponentRegistry;
 use Atom\View\Component\Fragment;
+use Atom\View\Render\ViewRenderer;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . "/DefaultRegistration/DefaultPageRegistration.php";
@@ -53,6 +55,16 @@ final class PageRendererTest extends TestCase
         $html = $renderer->render(RenderedTestPage::class);
 
         $this->assertSame("<h1>Hello Page</h1><p>Hello Page</p>\n", $html);
+    }
+
+    public function testSuppliesPageContextWithoutOverwritingAnExplicitComponentProperty(): void
+    {
+        $components = (new ComponentRegistry())->register("PageTitle", PageContextTitleComponent::class);
+        $renderer = new PageRenderer(new Injector(), new InjectionContext(), renderer: new ViewRenderer(components: $components));
+
+        $html = $renderer->renderPage(new ComponentContextTestPage());
+
+        $this->assertSame("<span>Current page</span><span>Hello Page</span>", trim($html));
     }
 
     public function testGetHydratesQueryAndRoutePropertiesBeforeInvokingGet(): void
@@ -1060,6 +1072,31 @@ final class CurrentPathRenderedTestPage extends Page
     public function template(): ?string
     {
         return "CurrentPathRenderedTestPage.atom.html";
+    }
+}
+
+final class ComponentContextTestPage extends Page
+{
+    public string $title = "Current page";
+
+    public function template(): ?string
+    {
+        return "ComponentContextTestPage.atom.html";
+    }
+
+    public function alternatePage(): Page
+    {
+        return new RenderedTestPage();
+    }
+}
+
+final class PageContextTitleComponent implements ComponentInterface
+{
+    public Page $page;
+
+    public function render(): string
+    {
+        return "<span>{$this->page->title}</span>";
     }
 }
 

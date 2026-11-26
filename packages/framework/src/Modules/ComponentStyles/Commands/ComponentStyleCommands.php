@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Atom\Console\Commands;
+namespace Atom\Modules\ComponentStyles\Commands;
 
 use Atom\Console\Attributes\ConsoleCommand;
+use Atom\Console\ConsoleInput;
 use Atom\Console\ConsoleOutput;
 use Atom\Support\Paths;
 use Atom\View\Style\StyleComposer;
@@ -16,9 +17,10 @@ final readonly class ComponentStyleCommands
     }
 
     #[ConsoleCommand("styles:build", "Build adjacent component styles into one stylesheet")]
-    public function build(string $output = "@public/assets/components.css"): int
+    public function build(ConsoleInput $input): int
     {
-        $destination = $this->paths->resolve($output);
+        $output = $input->option("output", $input->argument(0) ?? "@public/assets/components.css");
+        $destination = $this->paths->resolve((string) $output);
         $this->composer->build($destination);
         $this->output->line("Component styles written to {$destination}");
         return 0;

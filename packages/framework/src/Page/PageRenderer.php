@@ -7,6 +7,7 @@ namespace Atom\Page;
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
 use Atom\Http\Request;
+use Atom\Module\ModuleScope;
 use Atom\Profiler\Profile;
 use Atom\Router\MatchedRoute;
 use Atom\View\Ast\AttributeNode;
@@ -94,7 +95,7 @@ final readonly class PageRenderer
             $templatePath,
             fn(): TemplateNode => Profile::measure(
                 "view.parse",
-                fn(): TemplateNode => $this->parser->parse(file_get_contents($templatePath) ?: ""),
+                fn(): TemplateNode => $this->parser->parseFile($templatePath),
                 ["page" => $page::class, "template" => $templatePath]
             )
         );
@@ -224,10 +225,10 @@ final readonly class PageRenderer
             return $this->renderer;
         }
 
-        $scope = $route->moduleScope();
+        $scope = $route->getRouteEntry()->getMetadataOfType(ModuleScope::class);
 
-        return $scope === null
-            ? $this->renderer
-            : $this->renderer->withComponents($scope->components);
+        return $scope instanceof ModuleScope
+            ? $this->renderer->withComponents($scope->components)
+            : $this->renderer;
     }
 }

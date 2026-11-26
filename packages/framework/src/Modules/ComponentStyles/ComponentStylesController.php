@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Atom\View\Style;
+namespace Atom\Modules\ComponentStyles;
 
 use Atom\Http\Response;
+use Atom\View\Style\StyleComposer;
 
 final readonly class ComponentStylesController
 {

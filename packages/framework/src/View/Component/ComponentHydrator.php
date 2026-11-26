@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Atom\View\Component;
 
-use Atom\Page\Page;
 use Atom\View\Html;
 use Atom\View\Ast\AttributeNode;
 use Atom\View\Ast\AttributeSpreadNode;
@@ -41,7 +40,7 @@ final readonly class ComponentHydrator
     {
         $assignedProperties = $this->assignProperties($component, $node, $this->evaluateAttributes($node, $context));
         $this->assignContextAttributes($component, $context, $assignedProperties);
-        $this->assignContextProperties($component, $context);
+        $this->assignContextDefaults($component, $context);
         $remainingChildren = $this->assignChildren($component, $node, $context, $renderNodes);
         $this->assignFragments($component, $node, $remainingChildren, $context, $renderNodes);
         $this->initializeAttributeBags($component);
@@ -344,32 +343,29 @@ final readonly class ComponentHydrator
         return true;
     }
 
-    private function assignContextProperties(ComponentInterface $component, ViewContext $context): void
+    private function assignContextDefaults(ComponentInterface $component, ViewContext $context): void
     {
-        $page = $context->variables()["page"] ?? null;
-        if (!$page instanceof Page) {
-            return;
-        }
-
         $reflection = new ReflectionObject($component);
-        if (!$reflection->hasProperty("page")) {
-            return;
-        }
+        foreach ($context->variables() as $name => $value) {
+            if (!$value instanceof ComponentContextValueInterface || !$reflection->hasProperty($name)) {
+                continue;
+            }
 
-        $property = $reflection->getProperty("page");
-        if (
-            !$property->isPublic() ||
-            $property->isStatic() ||
-            $property->isInitialized($component) ||
-            !$this->acceptsPage($property->getType())
-        ) {
-            return;
-        }
+            $property = $reflection->getProperty($name);
+            if (
+                !$property->isPublic() ||
+                $property->isStatic() ||
+                $property->isInitialized($component) ||
+                !$value->supportsComponentProperty($name, $property->getType())
+            ) {
+                continue;
+            }
 
-        try {
-            $property->setValue($component, $page);
-        } catch (Throwable $exception) {
-            throw new ViewRenderException("Failed to assign component page context.", previous: $exception);
+            try {
+                $property->setValue($component, $value);
+            } catch (Throwable $exception) {
+                throw new ViewRenderException("Failed to assign component {$name} context.", previous: $exception);
+            }
         }
     }
 
@@ -472,15 +468,6 @@ final readonly class ComponentHydrator
         }
 
         return $type->getName() === AttributeBag::class;
-    }
-
-    private function acceptsPage(?ReflectionType $type): bool
-    {
-        if (!$type instanceof ReflectionNamedType) {
-            return false;
-        }
-
-        return is_a($type->getName(), Page::class, true);
     }
 
     private function acceptsNativeValue(?ReflectionType $type, mixed $value): bool

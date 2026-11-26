@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Atom\Tests\Page;
 
+use Atom\Http\HttpException;
 use Atom\Http\Request;
 use Atom\Modules\ErrorPages\DefaultErrorPageHandler;
 use Atom\Modules\ErrorPages\ErrorPagesOptions;
-use Atom\Modules\ErrorPages\HttpException;
 use Atom\Page\Page;
 use PHPUnit\Framework\TestCase;
 

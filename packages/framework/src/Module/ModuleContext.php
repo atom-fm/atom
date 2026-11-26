@@ -9,8 +9,6 @@ use Atom\Console\ConsoleCommandSources;
 use Atom\Di\BindingBuilder;
 use Atom\Di\Bindings;
 use Atom\Di\Injector;
-use Atom\Http\StaticFileHandler;
-use Atom\Http\StaticFileRouteMetadata;
 use Atom\Http\MiddlewareInterface;
 use Atom\Page\PageRouteRegistrar;
 use Atom\Queue\JobInterface;

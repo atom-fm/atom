@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Atom\Router;
+namespace Atom\Dispatcher;
 
 use RuntimeException;
 

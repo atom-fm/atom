@@ -16,6 +16,7 @@ use Atom\Identity\IdentityInterface;
 use Atom\Identity\IdentityProviderInterface;
 use Atom\Mail\ArrayMailer;
 use Atom\Module\ModuleRegistry;
+use Atom\Module\ModuleScope;
 use Atom\Modules\Accounts\AccountManagerInterface;
 use Atom\Modules\Accounts\Accounts;
 use Atom\Modules\Accounts\AccountsOptions;
@@ -111,12 +112,12 @@ final class AccountsModuleTest extends TestCase
         ]));
         $stylesheet = $app->handle(new Request("GET", "/account/resources/accounts.css"));
         $loginRoute = (new RouteMatcher($app->getRouter()))->match("GET", "/account/login");
-        $scope = $loginRoute->matchedRoute->moduleScope();
-        $this->assertNotNull($scope);
+        $scope = $loginRoute->matchedRoute?->getRouteEntry()->getMetadataOfType(ModuleScope::class);
+        $this->assertInstanceOf(ModuleScope::class, $scope);
         $components = $scope->components;
         foreach ($app->getRouter()->getAllRoutes() as $route) {
             if (str_starts_with($route->getFullPath(), "/account")) {
-                $this->assertSame($scope, (new \Atom\Router\MatchedRoute($route))->moduleScope());
+                $this->assertSame($scope, $route->getMetadataOfType(ModuleScope::class));
             }
         }
 

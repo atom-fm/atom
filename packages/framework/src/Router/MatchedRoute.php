@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Atom\Router;
 
 use Atom\Http\MiddlewareInterface;
-use Atom\Module\ModuleScope;
 
 final readonly class MatchedRoute
 {
@@ -60,12 +59,5 @@ final readonly class MatchedRoute
     public function getRouteAction(): RouteAction
     {
         return $this->route->getRouteAction();
-    }
-
-    public function moduleScope(): ?ModuleScope
-    {
-        $scope = $this->route->getMetadataOfType(ModuleScope::class);
-
-        return $scope instanceof ModuleScope ? $scope : null;
     }
 }

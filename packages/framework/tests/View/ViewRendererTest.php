@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Atom\Tests\View;
 
+use Atom\Di\InjectionContext;
+use Atom\Di\ServiceProviderRegistry;
+use Atom\Tests\View\PageFixtures\ArticleListPage;
 use Atom\View\Ast\ElementNode;
 use Atom\View\Ast\ExpressionNode;
 use Atom\View\Ast\TemplateNode;
@@ -18,12 +21,35 @@ use Atom\View\Component\TemplateFragment;
 use Atom\View\Parser\ViewParser;
 use Atom\View\Parser\ViewParseException;
 use Atom\View\Render\HtmlString;
+use Atom\View\Render\ViewContext;
 use Atom\View\Render\ViewRenderException;
 use Atom\View\Render\ViewRenderer;
+use Atom\View\ViewServices;
 use PHPUnit\Framework\TestCase;
 
 final class ViewRendererTest extends TestCase
 {
+    public function testRendersTemplateFileWithTheSuppliedContext(): void
+    {
+        $page = new ArticleListPage();
+        $page->title = "Articles & reviews";
+        $html = (new ViewRenderer())->renderFile(
+            __DIR__ . "/PageFixtures/ArticleListPage.atom.html",
+            new ViewContext(["this" => $page])
+        );
+
+        $this->assertSame("<h1>Articles &amp; reviews</h1>", trim($html));
+    }
+
+    public function testMissingTemplateFileReportsItsPath(): void
+    {
+        $path = __DIR__ . "/PageFixtures/MissingTemplatePage.atom.html";
+        $this->expectException(ViewParseException::class);
+        $this->expectExceptionMessage($path);
+
+        (new ViewRenderer())->renderFile($path);
+    }
+
     public function testRendersTextElementsAndEscapedExpressions(): void
     {
         $html = $this->render('<h1>Hello {{ $name }}</h1>', [
@@ -189,6 +215,22 @@ final class ViewRendererTest extends TestCase
         ))->render((new ViewParser())->parse('<FactoryComponent />'));
 
         $this->assertSame("factory", $html);
+    }
+
+    public function testViewServicesRenderComponentsWithScopedDependencies(): void
+    {
+        $injector = ServiceProviderRegistry::create()->add(ViewServices::class)->injector();
+        $injector->get(ComponentRegistry::class)->register("FactoryComponent", TestFactoryRenderedComponent::class);
+
+        $component = new TestFactoryRenderedComponent();
+        $component->value = "scoped component";
+        $context = new InjectionContext();
+        $context->set(TestFactoryRenderedComponent::class, $component);
+
+        $template = $injector->get(ViewParser::class)->parse("<FactoryComponent />");
+        $html = $injector->get(ViewRenderer::class, $context)->render($template);
+
+        $this->assertSame("scoped component", $html);
     }
 
     public function testAssignsOwnedFragmentsToDeclaredFragmentProperties(): void

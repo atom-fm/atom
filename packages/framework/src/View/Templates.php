@@ -4,13 +4,25 @@ declare(strict_types=1);
 
 namespace Atom\View;
 
-use Atom\Container;
 use Atom\View\Ast\TemplateNode;
+use Closure;
 use Throwable;
 
 final class Templates
 {
     private static ?TemplateCache $fallback = null;
+
+    /** @var (Closure(): ?TemplateCache)|null */
+    private static ?Closure $resolver = null;
+
+    /**
+     * @internal
+     * @param (Closure(): ?TemplateCache)|null $resolver
+     */
+    public static function resolveUsing(?Closure $resolver): void
+    {
+        self::$resolver = $resolver;
+    }
 
     /**
      * @param callable(): TemplateNode $factory
@@ -23,8 +35,9 @@ final class Templates
     public static function cache(): TemplateCache
     {
         try {
-            if (Container::has(TemplateCache::class)) {
-                return Container::get(TemplateCache::class);
+            $cache = self::$resolver?->__invoke();
+            if ($cache !== null) {
+                return $cache;
             }
         } catch (Throwable) {
         }

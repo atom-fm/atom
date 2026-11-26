@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Atom\View\Style;
+namespace Atom\Modules\ComponentStyles;
 
 use Atom\Module\ModuleContext;
 use Atom\Module\ModuleInterface;

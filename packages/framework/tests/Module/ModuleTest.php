@@ -8,17 +8,16 @@ use Atom\Api\ApiModelBuilder;
 use Atom\Application;
 use Atom\Console\BufferedConsoleOutput;
 use Atom\Di\Injector;
-use Atom\Http\Response;
 use Atom\Module\ModuleRegistry;
 use Atom\Module\ModuleScope;
 use Atom\Modules\Client\Client;
 use Atom\Modules\Client\ClientScripts;
+use Atom\Modules\ComponentStyles\ComponentStylesModule;
 use Atom\Modules\DevReload\DevReloadModule;
 use Atom\Modules\DevReload\DevReloadWatcher;
 use Atom\Modules\ErrorPages\ErrorPagesModule;
 use Atom\Module\ModuleContext;
 use Atom\Module\ModuleInterface;
-use Atom\Http\StaticFileHandler;
 use Atom\Router\RouteEntry;
 use Atom\Router\RouteMatcher;
 use Atom\Tests\Page\PageFixtures\HelloPage;
@@ -69,6 +68,14 @@ final class ModuleTest extends TestCase
         $response = $app->handle(new Request("GET", "/module"));
         $this->assertSame(200, $response->getStatus());
         $this->assertSame(TestComponent::class, $response->getContent());
+
+        $app->getRouter()->add(RouteEntry::get(
+            "/application",
+            static fn(ComponentRegistry $components): string => $components->get("TestComponent")
+        ));
+        $response = $app->handle(new Request("GET", "/application"));
+        $this->assertSame(200, $response->getStatus());
+        $this->assertSame(ApplicationTestComponent::class, $response->getContent());
     }
 
     public function testModuleContextRegistersResources(): void
@@ -95,10 +102,15 @@ final class ModuleTest extends TestCase
         $this->assertTrue($match->isFound());
         $this->assertSame(["path" => "module.css"], $match->matchedRoute->getRouteParams());
 
-        $response = (new StaticFileHandler())->serve($match->matchedRoute, new Response());
+        $response = $app->handle(new Request("GET", "/dev/resources/module.css"));
 
+        $this->assertSame(200, $response->getStatus());
         $this->assertSame("text/css; charset=utf-8", $response->headers()->get("Content-Type"));
         $this->assertSame("body { color: red; }", $response->getContent());
+
+        $missing = $app->handle(new Request("GET", "/dev/resources/missing.css"));
+        $this->assertSame(404, $missing->getStatus());
+        $this->assertSame("Not Found", $missing->getContent());
     }
 
     public function testModuleContextBuildsMountedPaths(): void
@@ -136,6 +148,41 @@ final class ModuleTest extends TestCase
             $app->getInjector()->get(ComponentRegistry::class)->get("ClientScripts")
         );
         $this->assertFalse($app->getInjector()->get(ComponentRegistry::class)->has("Button"));
+    }
+
+    public function testComponentStylesModuleServesTheSameStylesheetAsTheBuildCommand(): void
+    {
+        $app = new ModuleTestApplication();
+        $app->initialize();
+        $console = $app->getConsole();
+        $this->assertTrue($console->commands()->has("styles:build"));
+        $path = "/assets/components.css";
+
+        $app->registerModule(new ComponentStylesModule());
+        $this->assertSame(404, $app->handle(new Request("GET", $path))->getStatus());
+
+        $app->registerModule(new ComponentStylesModule(development: true));
+        $response = $app->handle(new Request("GET", $path));
+
+        $this->assertSame(200, $response->getStatus());
+        $this->assertSame("text/css; charset=utf-8", $response->headers()->get("Content-Type"));
+        $this->assertSame("no-cache", $response->headers()->get("Cache-Control"));
+
+        $directory = $this->tempDirectory();
+        $destination = $directory . "/components.css";
+        $output = new BufferedConsoleOutput();
+        try {
+            $code = $console->run(["atom", "styles:build", "--output={$destination}"], $output);
+
+            $this->assertSame(0, $code, $output->errors());
+            $this->assertFileExists($destination);
+            $this->assertSame($response->getContent(), file_get_contents($destination));
+        } finally {
+            if (is_file($destination)) {
+                unlink($destination);
+            }
+            rmdir($directory);
+        }
     }
 
     public function testDevReloadModuleRegistersVersionEndpointAndResources(): void
@@ -272,8 +319,13 @@ final class TestModule implements ModuleInterface
         $context->bind(TestModuleService::class)->toSelf()->singleton();
         $context->route(RouteEntry::get(
             "/module",
-            static fn(ModuleScope $scope, ComponentRegistry $components): string =>
-                $components->get("TestComponent")
+            static function (ModuleScope $scope, ComponentRegistry $components): string {
+                if ($scope->components !== $components) {
+                    throw new \LogicException("Expected the component registry from the route's module scope.");
+                }
+
+                return $components->get("TestComponent");
+            }
         ));
         $context->component("TestComponent", TestComponent::class);
     }

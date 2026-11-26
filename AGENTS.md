@@ -70,7 +70,7 @@ packages/framework/src/Modules/ErrorPages/   Default error rendering
 - Browser behavior belongs in the Page class; markup belongs in the adjacent template.
 - Use `#[PageRoute]`, `#[PageAction]`, and `#[State]` rather than custom routing or client state.
 - Keep templates declarative. Prefer components over conditional AST plumbing when a reusable component expresses the intent.
-- Use plain `.atom.php` templates only where native PHP templates are already the intended convention, such as framework error views.
+- Use plain `.atom.php` templates only where native PHP templates are already the intended convention. Framework error views use `.atom.html` and module-local components.
 
 ## Components
 

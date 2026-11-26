@@ -26,6 +26,7 @@ use Atom\Hydrator\Attributes\FromRoute;
 use Atom\Http\Response;
 use Atom\Http\HttpStatus;
 use Atom\Http\Request;
+use Atom\Module\ModuleScope;
 use Atom\Page\PageRenderer;
 use Atom\Page\PageRouteMetadata;
 use Atom\Router\MatchedRoute;
@@ -97,9 +98,10 @@ final class ApiExplorerTest extends TestCase
         $matchedRoute = new MatchedRoute($this->routeByPath($app->getRouter(), "/dev/api/explorer"));
         $context->set(MatchedRoute::class, $matchedRoute);
         $html = $app->getInjector()->get(PageRenderer::class, $context)->render(ApiExplorerPage::class);
-        $components = $matchedRoute->moduleScope()?->components;
+        $scope = $matchedRoute->getRouteEntry()->getMetadataOfType(ModuleScope::class);
 
-        $this->assertNotNull($components);
+        $this->assertInstanceOf(ModuleScope::class, $scope);
+        $components = $scope->components;
         $this->assertSame(AppShell::class, $components->get("ApiExplorer.AppShell"));
         $this->assertSame(EndpointList::class, $components->get("ApiExplorer.EndpointList"));
         $this->assertSame(EndpointDetails::class, $components->get("ApiExplorer.EndpointDetails"));

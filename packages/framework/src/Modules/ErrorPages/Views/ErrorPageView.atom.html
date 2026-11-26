@@ -1,0 +1,4 @@
+<ErrorPages.Summary :page="$this->error" />
+@if($this->diagnostics !== [])
+    <ErrorPages.Diagnostics :fields="$this->diagnostics" class="atom-error-diagnostics" />
+@endif

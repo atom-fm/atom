@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Atom\View\Render;
 
 use Atom\View\Ast\AttributeNode;
+use Atom\View\Ast\AttributeSpreadNode;
 use Atom\View\Ast\ElementNode;
 use Atom\View\Ast\ExpressionNode;
 use Atom\View\Ast\FragmentNode;
@@ -23,6 +24,7 @@ use Atom\View\Component\NewComponentFactory;
 use Atom\View\Component\StructuralComponentContext;
 use Atom\View\Component\StructuralComponentInterface;
 use Atom\View\Html;
+use Atom\View\Parser\ViewParser;
 use ReflectionObject;
 use ReflectionProperty;
 
@@ -45,6 +47,25 @@ final readonly class ViewRenderer
         $context = $variables instanceof ViewContext ? $variables : new ViewContext($variables);
 
         return $this->renderNodes($template->children, $context);
+    }
+
+    /**
+     * @param array<string, mixed>|ViewContext $variables
+     */
+    public function renderFile(string $path, array|ViewContext $variables = []): string
+    {
+        return $this->render((new ViewParser())->parseFile($path), $variables);
+    }
+
+    /**
+     * @param class-string<ComponentInterface> $className
+     * @param array<string, mixed> $properties
+     */
+    public function renderComponent(string $className, array $properties = []): string
+    {
+        $node = new ElementNode($className, [new AttributeSpreadNode('$properties')], selfClosing: true);
+
+        return $this->renderComponentElement($node, new ViewContext(["properties" => $properties]), $className);
     }
 
     public function withComponents(ComponentRegistry $components): self
@@ -89,7 +110,7 @@ final readonly class ViewRenderer
     {
         $componentClass = $this->resolveComponentClass($node);
         if ($componentClass !== null) {
-            return $this->renderComponent($node, $context, $componentClass);
+            return $this->renderComponentElement($node, $context, $componentClass);
         }
 
         if ($node->name === "Fragment") {
@@ -130,7 +151,7 @@ final readonly class ViewRenderer
     /**
      * @param class-string<ComponentInterface> $className
      */
-    private function renderComponent(ElementNode $node, ViewContext $context, string $className): string
+    private function renderComponentElement(ElementNode $node, ViewContext $context, string $className): string
     {
         $component = $this->componentFactory->create($className);
 

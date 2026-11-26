@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Atom\Http;
+namespace Atom\Module;
 
 final readonly class StaticFileRouteMetadata
 {

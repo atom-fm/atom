@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Modules\ErrorPages;
 
+use Atom\Http\ErrorPageHandlerInterface;
 use Atom\Module\ModuleContext;
 use Atom\Module\ModuleInterface;
 

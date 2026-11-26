@@ -1,0 +1,17 @@
+<section {{ $this->attributes->all() }}>
+    <h2>Diagnostics</h2>
+    <dl>
+        @foreach($this->fields as $name => $value)
+            @if($name !== "trace")
+                <dt>{{ ucfirst($name) }}</dt>
+                <dd>{{ $value }}</dd>
+            @endif
+        @endforeach
+    </dl>
+    @if(isset($this->fields["trace"]))
+        <details open>
+            <summary>Stack trace</summary>
+            <pre>{{ $this->fields["trace"] }}</pre>
+        </details>
+    @endif
+</section>

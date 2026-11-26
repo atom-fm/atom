@@ -774,7 +774,7 @@ Place `UserCard.css` beside `UserCard.php`. Registered application and module co
 Enable the development endpoint by registering this module in your application's `modules()` method:
 
 ```php
-$modules->add(new \Atom\View\Style\ComponentStylesModule(development: true));
+$modules->add(new \Atom\Modules\ComponentStyles\ComponentStylesModule(development: true));
 ```
 
 Include the bundle once in the layout:
@@ -792,4 +792,4 @@ php atom styles:build
 php atom styles:build --output=@public/assets/components.css
 ```
 
-The command uses the same scanner and composer and atomically writes `@public/assets/components.css`. Rebuild during deployment and update your asset version when the content changes. CSS must be UTF-8, use root-relative or absolute `url(...)` references, and contain no `@import` or `@charset` declarations; unsupported declarations or relative URLs produce build errors rather than broken asset references. Styles are concatenated without minification.
+Framework applications register the build command through `Atom\Modules\ComponentStyles\ComponentStylesServices`. The command uses the same scanner and composer and atomically writes `@public/assets/components.css`. Rebuild during deployment and update your asset version when the content changes. CSS must be UTF-8, use root-relative or absolute `url(...)` references, and contain no `@import` or `@charset` declarations; unsupported declarations or relative URLs produce build errors rather than broken asset references. Styles are concatenated without minification.

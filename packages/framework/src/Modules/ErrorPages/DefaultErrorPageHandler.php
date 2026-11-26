@@ -5,13 +5,24 @@ declare(strict_types=1);
 namespace Atom\Modules\ErrorPages;
 
 use Atom\Http\AccessFailure;
+use Atom\Http\ErrorPageHandlerInterface;
+use Atom\Http\HttpExceptionInterface;
 use Atom\Http\Request;
 use Atom\Http\Response;
 use Atom\Http\RequestIdOptions;
 use Atom\Di\InjectionContext;
+use Atom\Di\Injector;
 use Atom\Logging\LoggerInterface;
+use Atom\Modules\ErrorPages\Views\ErrorDiagnostics;
+use Atom\Modules\ErrorPages\Views\ErrorPageView;
+use Atom\Modules\ErrorPages\Views\ErrorStyles;
+use Atom\Modules\ErrorPages\Views\ErrorSummary;
+use Atom\Modules\ErrorPages\Views\Layout;
+use Atom\Page\PageRenderer;
 use Atom\Router\MatchedRoute;
-use RuntimeException;
+use Atom\View\Component\ComponentRegistry;
+use Atom\View\Render\ViewRenderException;
+use Atom\View\Render\ViewRenderer;
 use Throwable;
 use WeakMap;
 
@@ -141,11 +152,25 @@ final readonly class DefaultErrorPageHandler implements ErrorPageHandlerInterfac
 
     private function html(ErrorPage $page): string
     {
-        return $this->renderPhp(__DIR__ . "/Views/error.php", [
-            "page" => $page,
-            "debug" => $this->options->debug,
-            "diagnostics" => $this->options->debug ? $this->diagnostics($page) : [],
-        ]);
+        $components = (new ComponentRegistry())
+            ->register("ErrorPages.Layout", Layout::class)
+            ->register("ErrorPages.Styles", ErrorStyles::class)
+            ->register("ErrorPages.Summary", ErrorSummary::class)
+            ->register("ErrorPages.Diagnostics", ErrorDiagnostics::class)
+            ->seal();
+
+        $renderer = new PageRenderer(
+            Injector::create(),
+            new InjectionContext(),
+            renderer: new ViewRenderer(components: $components)
+        );
+        $view = new ErrorPageView($page, $this->options->debug ? $this->diagnostics($page) : []);
+        $html = $renderer->renderPage($view, invokeGet: false);
+        if (!is_string($html)) {
+            throw new ViewRenderException("The error page did not render HTML.");
+        }
+
+        return $html;
     }
 
     /**
@@ -230,30 +255,6 @@ final readonly class DefaultErrorPageHandler implements ErrorPageHandlerInterfac
             return "err_" . bin2hex(random_bytes(6));
         } catch (Throwable) {
             return "err_" . str_replace(".", "", uniqid("", true));
-        }
-    }
-
-    /**
-     * @param array<string, mixed> $variables
-     */
-    private function renderPhp(string $path, array $variables): string
-    {
-        if (!is_file($path)) {
-            throw new RuntimeException("Error page template '{$path}' was not found.");
-        }
-
-        ob_start();
-
-        try {
-            (static function (string $__path, array $__variables): void {
-                extract($__variables, EXTR_SKIP);
-                require $__path;
-            })($path, $variables);
-
-            return (string) ob_get_clean();
-        } catch (Throwable $exception) {
-            ob_end_clean();
-            throw $exception;
         }
     }
 }

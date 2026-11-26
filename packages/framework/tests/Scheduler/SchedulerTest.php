@@ -15,6 +15,7 @@ use Atom\Di\ServiceProviderRegistry;
 use Atom\Queue\JobDispatcherInterface;
 use Atom\Queue\JobInterface;
 use Atom\Queue\JobRegistry;
+use Atom\Queue\OverlapAwareJobDispatcherInterface;
 use Atom\Scheduler\Commands\ScheduleCommands;
 use Atom\Scheduler\Schedule;
 use Atom\Scheduler\ScheduleRunner;
@@ -99,6 +100,30 @@ final class SchedulerTest extends TestCase
         $this->assertSame(2, $result->count());
         $this->assertSame(1, $result->failed());
         $this->assertCount(1, $recording->arguments);
+    }
+
+    public function testRunnerPassesTheOverlapKeyToACapableDispatcher(): void
+    {
+        $job = new ScheduledFixtureJob("mail");
+        $schedule = new Schedule();
+        $schedule->job($job, delay: 30, queue: "mail")->withoutOverlapping("mail.poll");
+
+        $dispatcher = $this->createMock(OverlapAwareJobDispatcherInterface::class);
+        $dispatcher->expects($this->once())
+            ->method("dispatch")
+            ->with($job, 30, "mail", "mail.poll")
+            ->willReturn("scheduled-job");
+
+        $runner = new ScheduleRunner(
+            $schedule,
+            new FrozenClock(new DateTimeImmutable("2026-07-20 12:00:00 UTC")),
+            new ConsoleApplication(Injector::create()),
+            $dispatcher
+        );
+        $result = $runner->run();
+
+        $this->assertSame(1, $result->count());
+        $this->assertSame(0, $result->failed());
     }
 
     public function testScheduleCommandsRenderRunAndListDiagnostics(): void

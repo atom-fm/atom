@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Atom\Modules\ErrorPages;
+namespace Atom\Http;
 
-use Atom\Http\Request;
-use Atom\Http\Response;
 use Throwable;
 
 interface ErrorPageHandlerInterface

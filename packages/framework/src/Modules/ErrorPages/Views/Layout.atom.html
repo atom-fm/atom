@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>{{ $this->page->error->status }} · {{ $this->page->error->title }}</title>
+    <ErrorPages.Styles />
+</head>
+<body>
+    <main class="atom-error">
+        {{ $context->fragmentHtml($this->content) }}
+    </main>
+</body>
+</html>

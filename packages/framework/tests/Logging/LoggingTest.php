@@ -68,6 +68,11 @@ final class LoggingTest extends TestCase
         $this->assertIsString($contents);
         $this->assertStringContainsString("INFO: Injected", $contents);
         $this->assertStringContainsString("ERROR: Facade", $contents);
+
+        Application::$app = null;
+        Log::info("Standalone");
+
+        $this->assertSame($contents, file_get_contents($path));
     }
 
     public function testLoggingModuleReadsOptionsFromConfig(): void

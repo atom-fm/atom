@@ -23,11 +23,14 @@ use Atom\Console\ConsoleApplication;
 use Atom\Console\ConsoleServices;
 use Atom\Http\Request;
 use Atom\Http\CookieJar;
+use Atom\Http\ErrorPageHandlerInterface;
 use Atom\Http\Response;
 use Atom\Http\RequestHandlerInterface;
 use Atom\Http\MiddlewareInterface;
 use Atom\Http\MiddlewareRegistry;
 use Atom\Identity\IdentityServices;
+use Atom\Logging\Log;
+use Atom\Logging\LoggerInterface;
 use Atom\Mail\MailServices;
 use Atom\Identity\AuthenticatorInterface;
 use Atom\Dispatcher\MiddlewarePipeline;
@@ -36,7 +39,7 @@ use Atom\Module\ModuleContext;
 use Atom\Module\ModuleInterface;
 use Atom\Module\ModuleRegistry;
 use Atom\Module\ModuleScope;
-use Atom\Modules\ErrorPages\ErrorPageHandlerInterface;
+use Atom\Modules\ComponentStyles\ComponentStylesServices;
 use Atom\Modules\ErrorPages\ErrorPages;
 use Atom\Modules\Icons\IconProviderInterface;
 use Atom\Modules\Icons\IconRegistry;
@@ -61,6 +64,8 @@ use Atom\Scheduler\ScheduleServices;
 use Atom\Support\ClockServices;
 use Atom\Support\Paths;
 use Atom\View\Component\ComponentRegistry;
+use Atom\View\TemplateCache;
+use Atom\View\Templates;
 use RuntimeException;
 use Throwable;
 
@@ -88,7 +93,17 @@ abstract class Application
             throw new RuntimeException("Application was already initialized");
         }
         static::$app = $this;
+        Log::resolveUsing(static function (): ?LoggerInterface {
+            $injector = self::$app?->getInjector();
+
+            return $injector?->has(LoggerInterface::class) ? $injector->get(LoggerInterface::class) : null;
+        });
         Profile::resolveUsing(static fn(): ?Profiler => self::$app?->activeProfiler());
+        Templates::resolveUsing(static function (): ?TemplateCache {
+            $injector = self::$app?->injector;
+
+            return $injector?->has(TemplateCache::class) ? $injector->get(TemplateCache::class) : null;
+        });
     }
 
     final public function getProviders(): ServiceProviderRegistry
@@ -228,6 +243,7 @@ abstract class Application
             ->add(CacheServices::class)
             ->add(ClockServices::class)
             ->add(ConsoleServices::class)
+            ->add(ComponentStylesServices::class)
             ->add(DispatcherServices::class)
             ->add(IdentityServices::class)
             ->add(IconServices::class)

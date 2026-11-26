@@ -143,6 +143,6 @@ final class BrokenOrderService
 {
     public function __construct()
     {
-        throw new HydrationException("Cannot hydrate service configuration.");
+        throw new HydrationException("Cannot hydrate service configuration.", fieldPath: "quantity", source: "body");
     }
 }

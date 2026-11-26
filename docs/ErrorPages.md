@@ -1,10 +1,10 @@
 # Error Pages
 
-Atom registers a standalone error pages module by default. It renders framework-generated `404` and `405` responses and unhandled exceptions without using the page engine, component library, JavaScript, or external assets.
+Atom registers a standalone error pages module by default. It renders framework-generated `404` and `405` responses and unhandled exceptions using Atom's core template renderer and components private to ErrorPages.
 
 When the optional Logging module provides a `LoggerInterface`, unhandled exceptions are recorded automatically before the response is rendered. Log context includes the error reference, configured request ID, method, path, effective client IP, matched route metadata, exception, and previous exception when available. The same exception object is logged at most once per request, and logging failures never prevent error-page rendering.
 
-The default HTML document is a native PHP view with its own small stylesheet. The diagnostic panel is a second native PHP view. They are located under `packages/framework/src/Modules/ErrorPages/Views` and are rendered directly through an isolated output buffer rather than Atom's view engine. If the error handler cannot be resolved or a view throws while rendering, the application falls back to a plain-text `500 Internal Server Error` response.
+The handler renders an `ErrorPageView` with a standalone `PageRenderer`. Atom finds `Views/ErrorPageView.atom.html` next to the Page class and wraps its output in the module-local `ErrorPages.Layout` component. The layout embeds `Resources/error.css` through `<ErrorPages.Styles />`. A private component registry and a fresh injection context keep error rendering independent of application components and request state. If the error handler cannot be resolved or rendering fails, the application falls back to a plain-text `500 Internal Server Error` response.
 
 ## Configuration
 
@@ -56,8 +56,8 @@ In a fresh Atom Starter app, add these imports to `app/Application.php`.
 
 ```php
 use Atom\Di\Injector;
+use Atom\Http\HttpException;
 use Atom\Http\Response;
-use Atom\Modules\ErrorPages\HttpException;
 use Atom\Router\Route;
 ```
 
@@ -106,7 +106,7 @@ Unexpected exceptions always produce a generic `500` message outside debug mode.
 The default module is registered before application modules. To customize it, copy the small module and handler classes into the application, change the HTML or behavior, and bind the same interface from an application module:
 
 ```php
-use Atom\Modules\ErrorPages\ErrorPageHandlerInterface;
+use Atom\Http\ErrorPageHandlerInterface;
 
 public function register(ModuleContext $context): void
 {

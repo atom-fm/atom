@@ -2,6 +2,8 @@
 
 An Atom route pairs an HTTP method and a URL with a PHP handler. Start with a health check, then add a controller that looks up articles by slug and previews a submitted title.
 
+For standalone matching, use a `RouteMatcher` with a `Router`. A successful match contains the route definition and request parameters. In a Framework application, Dispatcher runs middleware and invokes the matched handler with hydrated arguments and injected dependencies.
+
 ## Generate URLs from route names
 
 Name a route with `->name()` or with the `name` argument on a controller route attribute or `#[PageRoute]`. Once the route is registered, `Route::url()` returns its site-relative URL as a string. It includes any group or module prefixes.

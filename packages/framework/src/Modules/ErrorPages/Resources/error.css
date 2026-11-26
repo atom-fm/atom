@@ -1,0 +1,140 @@
+:root {
+    color-scheme: dark;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --atom-error-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    --atom-error-muted: #8d9aab;
+    --atom-error-border: #263240;
+    --atom-error-inset: clamp(1rem, 4vw, 1.75rem);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0;
+    padding: 1rem;
+    color: #d8dee9;
+    background: #0d1117;
+}
+
+.atom-error {
+    width: min(100%, 44rem);
+    margin: auto;
+    border: 1px solid var(--atom-error-border);
+    border-radius: 6px;
+    background: #111821;
+    overflow-wrap: anywhere;
+}
+
+.atom-error header,
+.atom-error-diagnostics {
+    padding: var(--atom-error-inset);
+}
+
+.atom-error-status {
+    display: inline-block;
+    margin: 0 0 0.75rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    color: #f6c177;
+    background: #332416;
+    font: 600 0.75rem/1.4 var(--atom-error-mono);
+}
+
+h1 {
+    margin: 0;
+    color: #f5f7fa;
+    font-size: 1.5rem;
+    line-height: 1.25;
+}
+
+.atom-error-message {
+    margin: 0.5rem 0 0;
+    color: #aab4c2;
+    line-height: 1.5;
+}
+
+.atom-error-reference {
+    margin: 1rem 0 0;
+    color: var(--atom-error-muted);
+    font: 0.8125rem/1.5 var(--atom-error-mono);
+}
+
+.atom-error-diagnostics {
+    border-top: 1px solid var(--atom-error-border);
+    border-radius: 0 0 6px 6px;
+    background: #0f151d;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+h2::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--atom-error-border);
+}
+
+dl {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.5rem 1rem;
+    margin: 0.875rem 0 0;
+}
+
+dt {
+    color: var(--atom-error-muted);
+}
+
+dd {
+    margin: 0;
+    font-family: var(--atom-error-mono);
+}
+
+details {
+    margin-top: 1rem;
+}
+
+summary {
+    width: fit-content;
+    color: #aab4c2;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+summary:focus-visible {
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+pre {
+    margin: 0.5rem 0 0;
+    padding: 0.75rem;
+    border-radius: 6px;
+    background: #070b12;
+    font: 0.8125rem/1.5 var(--atom-error-mono);
+    white-space: pre-wrap;
+}
+
+@media (max-width: 32rem) {
+    dl {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.125rem;
+    }
+
+    dt:not(:first-child) {
+        margin-top: 0.5rem;
+    }
+}

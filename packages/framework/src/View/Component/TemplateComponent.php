@@ -29,18 +29,11 @@ abstract class TemplateComponent implements ComponentInterface
 
         return Templates::remember(
             $template,
-            function () use ($template, $reflection): TemplateNode {
-                $source = file_get_contents($template);
-                if ($source === false) {
-                    throw new ViewRenderException("Cannot read component template '{$template}'.");
-                }
-
-                return Profile::measure(
-                    "view.parse",
-                    fn(): TemplateNode => (new ViewParser())->parse($source),
-                    ["component" => $reflection->getName(), "template" => $template]
-                );
-            }
+            fn(): TemplateNode => Profile::measure(
+                "view.parse",
+                fn(): TemplateNode => (new ViewParser())->parseFile($template),
+                ["component" => $reflection->getName(), "template" => $template]
+            )
         );
     }
 }

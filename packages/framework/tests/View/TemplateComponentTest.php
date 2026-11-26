@@ -37,6 +37,15 @@ final class TemplateComponentTest extends TestCase
         $this->assertSame("<section><h1>Hello &lt;Atom&gt;</h1></section>\n", $html);
     }
 
+    public function testRendersTemplateComponentByClassWithSuppliedProperties(): void
+    {
+        $html = (new ViewRenderer())->renderComponent(TestTemplateComponent::class, [
+            "title" => "Hello <Atom>",
+        ]);
+
+        $this->assertSame("<section><h1>Hello &lt;Atom&gt;</h1></section>\n", $html);
+    }
+
     public function testTemplateComponentCanRenderFragmentAsHtml(): void
     {
         $component = new TestShellTemplateComponent();

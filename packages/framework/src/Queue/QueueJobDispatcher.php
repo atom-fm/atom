@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Atom\Queue;
 
-final readonly class QueueJobDispatcher implements JobDispatcherInterface
+final readonly class QueueJobDispatcher implements OverlapAwareJobDispatcherInterface
 {
     public function __construct(private QueueInterface $queue, private QueueOptions $options)
     {

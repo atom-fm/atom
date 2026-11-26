@@ -7,6 +7,8 @@ namespace Atom\Tests\Module;
 use Atom\Application;
 use Atom\Di\Injector;
 use Atom\Di\InjectionContext;
+use Atom\Http\ErrorPageHandlerInterface;
+use Atom\Http\HttpException;
 use Atom\Http\Request;
 use Atom\Http\RequestIdOptions;
 use Atom\Http\Response;
@@ -15,12 +17,14 @@ use Atom\Module\ModuleContext;
 use Atom\Module\ModuleInterface;
 use Atom\Module\ModuleRegistry;
 use Atom\Modules\ErrorPages\DefaultErrorPageHandler;
-use Atom\Modules\ErrorPages\ErrorPageHandlerInterface;
 use Atom\Modules\ErrorPages\ErrorPagesOptions;
-use Atom\Modules\ErrorPages\HttpException;
 use Atom\Router\Route;
 use Atom\Router\MatchedRoute;
 use Atom\Router\RouteEntry;
+use Atom\View\Component\ComponentInterface;
+use Atom\View\Component\ComponentRegistry;
+use Atom\View\Parser\ViewParser;
+use Atom\View\Render\ViewRenderer;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Throwable;
@@ -45,6 +49,10 @@ final class ErrorPagesModuleTest extends TestCase
         $this->assertSame("text/html; charset=utf-8", $response->headers()->get("Content-Type"));
         $this->assertSame("no-store", $response->headers()->get("Cache-Control"));
         $this->assertStringContainsString("<!doctype html>", $response->getContent());
+        $stylesheet = file_get_contents(__DIR__ . "/../../src/Modules/ErrorPages/Resources/error.css");
+        $this->assertIsString($stylesheet);
+        $this->assertStringContainsString("<style>" . $stylesheet . "</style>", $response->getContent());
+        $this->assertStringContainsString("HTTP 404", $response->getContent());
         $this->assertStringContainsString("Page not found", $response->getContent());
         $this->assertStringNotContainsString("Reference:", $response->getContent());
         $this->assertStringNotContainsString("Diagnostics", $response->getContent());
@@ -64,6 +72,7 @@ final class ErrorPagesModuleTest extends TestCase
         $this->assertStringContainsString("DELETE", $response->getContent());
         $this->assertStringContainsString("/articles", $response->getContent());
         $this->assertStringContainsString("GET, POST", $response->getContent());
+        $this->assertStringNotContainsString("<summary>Stack trace</summary>", $response->getContent());
     }
 
     public function testJsonErrorsFollowAcceptHeader(): void
@@ -126,6 +135,7 @@ final class ErrorPagesModuleTest extends TestCase
         $this->assertSame(500, $response->getStatus());
         $this->assertStringContainsString("RuntimeException", $response->getContent());
         $this->assertStringContainsString("Failed &lt;unsafe&gt;", $response->getContent());
+        $this->assertStringContainsString("<summary>Stack trace</summary>", $response->getContent());
         $this->assertStringNotContainsString("Failed <unsafe>", $response->getContent());
         $this->assertStringContainsString("/explode", $response->getContent());
     }
@@ -167,6 +177,30 @@ final class ErrorPagesModuleTest extends TestCase
         $this->assertStringContainsString("route exploded", $response->getContent());
     }
 
+    public function testErrorPageUsesItsOwnComponentsAfterAnApplicationViewFails(): void
+    {
+        $_ENV["APP_DEBUG"] = "true";
+        $app = new ErrorTestApplication();
+        $app->initialize();
+        $components = $app->getInjector()->get(ComponentRegistry::class);
+        $this->assertFalse($components->has("ErrorPages.Layout"));
+        $this->assertFalse($components->has("ErrorPages.Summary"));
+        $this->assertFalse($components->has("ErrorPages.Diagnostics"));
+
+        $components->register("ErrorPages.Layout", BrokenAppSummary::class);
+        $components->register("ErrorPages.Summary", BrokenAppSummary::class);
+        Route::get("/broken-view", static fn(ViewRenderer $renderer): string =>
+            $renderer->render((new ViewParser())->parse("<ErrorPages.Summary />"))
+        );
+
+        $response = $app->handle(new Request("GET", "/broken-view"));
+
+        $this->assertSame(500, $response->getStatus());
+        $this->assertStringContainsString("<title>500 · Something went wrong</title>", $response->getContent());
+        $this->assertStringContainsString("<h1>Something went wrong</h1>", $response->getContent());
+        $this->assertStringContainsString("<dd>Application summary failed</dd>", $response->getContent());
+    }
+
     public function testApplicationModuleCanReplaceDefaultErrorHandler(): void
     {
         $app = new CustomErrorTestApplication();
@@ -175,6 +209,11 @@ final class ErrorPagesModuleTest extends TestCase
 
         $this->assertSame(404, $response->getStatus());
         $this->assertSame("custom:404", $response->getContent());
+
+        $exceptionResponse = $app->handle(new Request("GET", "/explode"));
+
+        $this->assertSame(500, $exceptionResponse->getStatus());
+        $this->assertSame("custom:500", $exceptionResponse->getContent());
     }
 
     public function testBrokenCustomExceptionHandlerUsesCoreFallback(): void
@@ -248,6 +287,14 @@ class ErrorTestApplication extends Application
         Route::get("/denied", static function (): never {
             throw new HttpException(403, "Permission denied.");
         });
+    }
+}
+
+final class BrokenAppSummary implements ComponentInterface
+{
+    public function render(): never
+    {
+        throw new RuntimeException("Application summary failed");
     }
 }
 

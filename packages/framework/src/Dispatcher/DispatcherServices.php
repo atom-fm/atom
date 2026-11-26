@@ -18,7 +18,6 @@ use Atom\Http\RequestIdMiddleware;
 use Atom\Http\RequestBodyLimitMiddleware;
 use Atom\Http\TrustedHostMiddleware;
 use Atom\Http\RateLimitMiddleware;
-use Atom\Hydrator\DtoTypeFactory;
 use Atom\Router\Router;
 
 final class DispatcherServices implements ServiceProviderInterface

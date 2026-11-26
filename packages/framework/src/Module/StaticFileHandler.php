@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Atom\Http;
+namespace Atom\Module;
 
+use Atom\Http\Response;
 use Atom\Router\MatchedRoute;
 use RuntimeException;
 

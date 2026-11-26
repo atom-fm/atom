@@ -120,7 +120,7 @@ use Atom\Logging\Log;
 Log::info("Report generated", ["report" => "daily", "rows" => 12]);
 ```
 
-The facade resolves the configured logger and falls back to `NullLogger` when no logger is available.
+The current application supplies the configured logger. Standalone calls and initialized applications with no logger binding use `NullLogger`.
 
 ## Container Bridge
 

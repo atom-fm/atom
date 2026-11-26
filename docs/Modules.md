@@ -120,7 +120,7 @@ Feature/
     Resources/
 ```
 
-Resources are served through the framework static file handler. A resource directory registers one wildcard `GET` route under the given path. With a module base path of `/tools/blog`, this call:
+A module registers one wildcard `GET` route to serve files from its resource directory. With a module base path of `/tools/blog`, this call:
 
 ```php
 $context->resources("/resources", __DIR__ . "/UI/Resources");
@@ -246,15 +246,15 @@ Then a module page template can render:
 
 ## Module Route Scope
 
-Every route, discovered page, page action, and new resource route registered through `ModuleContext` receives the same immutable `ModuleScope` metadata. A matched route exposes its owner directly:
+Every route, discovered page, page action, and new resource route registered through `ModuleContext` receives the same immutable `ModuleScope` metadata. Read it from the matched route's definition.
 
 ```php
-$scope = $matchedRoute->moduleScope();
+use Atom\Module\ModuleScope;
 
-$scope?->id;
-$scope?->module;
-$scope?->basePath;
-$scope?->components;
+$scope = $matchedRoute->getRouteEntry()->getMetadataOfType(ModuleScope::class);
+if ($scope instanceof ModuleScope) {
+    $components = $scope->components;
+}
 ```
 
 During dispatch, `ModuleScope` and its `ComponentRegistry` are available through dependency injection. Page rendering automatically uses that registry, including nested components and layouts. Routes registered directly on the application router have no module scope and use the application registry.

@@ -13,6 +13,7 @@ use Atom\Dispatcher\DispatcherServices;
 use Atom\Dispatcher\ResponseResultInterface;
 use Atom\Dispatcher\ResultConverter;
 use Atom\Dispatcher\ResultHandlerRegistry;
+use Atom\Http\ErrorPageHandlerInterface;
 use Atom\Http\MiddlewareInterface;
 use Atom\Http\Request;
 use Atom\Http\RequestHandlerInterface;
@@ -21,9 +22,9 @@ use Atom\Http\TrustedProxyMiddleware;
 use Atom\Http\TrustedProxyOptions;
 use Atom\Hydrator\Attributes\Dto;
 use Atom\Hydrator\Attributes\FromBody;
+use Atom\Hydrator\Attributes\FromQuery;
 use Atom\Hydrator\Attributes\FromRoute;
 use Atom\Modules\ErrorPages\DefaultErrorPageHandler;
-use Atom\Modules\ErrorPages\ErrorPageHandlerInterface;
 use Atom\Modules\ErrorPages\ErrorPagesOptions;
 use Atom\Router\RouteEntry;
 use Atom\Router\Router;
@@ -184,6 +185,20 @@ final class DispatcherTest extends TestCase
         ));
 
         $this->assertSame("42:Atom:1", $response->getContent());
+    }
+
+    public function testDispatcherReturnsBadRequestForInvalidQueryArgument(): void
+    {
+        $router = new Router();
+        $router->add(RouteEntry::get("/users", static fn(#[FromQuery] int $page): string => "page-{$page}"));
+        $dispatcher = $this->dispatcher($router);
+
+        $valid = $dispatcher->handle(new Request("GET", "/users", queryParams: ["page" => "2"]));
+        $invalid = $dispatcher->handle(new Request("GET", "/users", queryParams: ["page" => "invalid"]));
+
+        $this->assertSame(200, $valid->getStatus());
+        $this->assertSame("page-2", $valid->getContent());
+        $this->assertSame(400, $invalid->getStatus());
     }
 
     private function converter(Response $response): ResultConverter

@@ -33,8 +33,10 @@ final class RouteMatcherTest extends TestCase
         $result = (new RouteMatcher($router))->match("GET", "/api/users/42", ["tab" => "profile"]);
 
         $this->assertTrue($result->isFound());
+        $this->assertSame($route, $result->matchedRoute->getRouteEntry());
         $this->assertSame(["id" => "42"], $result->matchedRoute->getRouteParams());
         $this->assertSame(["tab" => "profile"], $result->matchedRoute->getQueryParams());
+        $this->assertSame(["tab" => "profile", "id" => "42"], $result->matchedRoute->getParams());
     }
 
     public function testMatcherHandlesMethodNotAllowed(): void

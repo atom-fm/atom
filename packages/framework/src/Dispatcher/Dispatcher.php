@@ -6,19 +6,16 @@ namespace Atom\Dispatcher;
 
 use Atom\Api\ApiErrorResponse;
 use Atom\Api\Responses\UnprocessableContent;
-use Atom\Hydrator\Exception\InvalidDtoBodyException;
 use Atom\Router\Router;
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
 use Atom\Router\MatchedRoute;
-use Atom\Router\InvalidRouteParameterException;
-use Atom\Router\InvalidQueryParameterException;
 use Atom\Router\RouteMatcher;
+use Atom\Http\ErrorPageHandlerInterface;
 use Atom\Http\Request;
 use Atom\Http\Response;
 use Atom\Http\MiddlewareInterface;
 use Atom\Http\RequestHandlerInterface;
-use Atom\Modules\ErrorPages\ErrorPageHandlerInterface;
 use Atom\Module\ModuleScope;
 use Atom\View\Component\ComponentRegistry;
 
@@ -85,7 +82,7 @@ final class Dispatcher implements RequestHandlerInterface
         $context = $this->context;
         $context->set(Request::class, $request);
         $context->set(MatchedRoute::class, $matchedRoute);
-        $scope = $matchedRoute->moduleScope();
+        $scope = $matchedRoute->getRouteEntry()->getMetadataOfType(ModuleScope::class);
         if ($scope instanceof ModuleScope) {
             $context->set(ModuleScope::class, $scope);
             $context->set(ComponentRegistry::class, $scope->components);

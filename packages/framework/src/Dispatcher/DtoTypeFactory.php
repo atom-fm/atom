@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Atom\Hydrator;
+namespace Atom\Dispatcher;
 
 use Atom\Di\InjectionContext;
 use Atom\Di\Injector;
@@ -11,7 +11,8 @@ use Atom\Di\TypeInfo;
 use Atom\Http\Request;
 use Atom\Hydrator\Attributes\Dto;
 use Atom\Hydrator\Exception\HydrationException;
-use Atom\Hydrator\Exception\InvalidDtoBodyException;
+use Atom\Hydrator\HydrationContext;
+use Atom\Hydrator\RequestHydrator;
 use Atom\Router\MatchedRoute;
 
 final readonly class DtoTypeFactory

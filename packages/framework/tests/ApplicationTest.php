@@ -24,7 +24,9 @@ use Atom\Http\Response;
 use Atom\Http\Cookie;
 use Atom\Http\CorsMiddleware;
 use Atom\Http\CorsOptions;
+use Atom\Http\MiddlewareInterface;
 use Atom\Http\MiddlewareRegistry;
+use Atom\Http\RequestHandlerInterface;
 use Atom\Http\RequestIdMiddleware;
 use Atom\Module\ModuleContext;
 use Atom\Module\ModuleInterface;
@@ -39,9 +41,12 @@ use Atom\Profiler\Profiler;
 use Atom\Router\Route;
 use Atom\Router\RouteEntry;
 use Atom\Router\RouteMatcher;
+use Atom\Router\Router;
 use Atom\Support\Paths;
 use Atom\View\Component\ComponentInterface;
 use Atom\View\Component\ComponentRegistry;
+use Atom\View\TemplateCache;
+use Atom\View\Templates;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
@@ -236,6 +241,39 @@ final class ApplicationTest extends TestCase
         );
     }
 
+    public function testMiddlewareWrapsRouteActionInRegistrationOrder(): void
+    {
+        $middleware = static fn(string $name): MiddlewareInterface => new class ($name) implements MiddlewareInterface {
+            public function __construct(private readonly string $name)
+            {
+            }
+
+            public function process(Request $request, RequestHandlerInterface $handler): Response
+            {
+                $order = $request->headers()->get("X-Middleware-Order") ?? "";
+                $response = $handler->handle($request->withHeader("X-Middleware-Order", $order . $this->name . ":"));
+
+                return $response->content($response->getContent() . ":" . $this->name);
+            }
+        };
+
+        $app = new TestApplication();
+        $app->initialize();
+        $app->getMiddlewares()->add($middleware("global"));
+        $router = $app->getRouter()->middleware($middleware("router"));
+        $group = (new Router("/group"))->middleware($middleware("group"));
+        $router->add($group);
+        $group->add(RouteEntry::get(
+            "/action",
+            static fn(Request $request): string => $request->headers()->get("X-Middleware-Order") . "action"
+        )->middleware($middleware("route")));
+
+        $response = $app->handle(new Request("GET", "/group/action"));
+
+        $this->assertSame(200, $response->getStatus());
+        $this->assertSame("global:router:group:route:action:route:group:router:global", $response->getContent());
+    }
+
     public function testQueuedCookieIsAppliedWhenActionReturnsDifferentResponse(): void
     {
         $app = new TestApplication();
@@ -247,6 +285,22 @@ final class ApplicationTest extends TestCase
             ["theme=dark; Path=/; HttpOnly; SameSite=Lax"],
             $response->headers()->all("Set-Cookie")
         );
+    }
+
+    public function testTemplatesShareTheApplicationCacheWhenAvailable(): void
+    {
+        $fallback = Templates::cache();
+        $app = new TestApplication();
+        $this->assertSame($fallback, Templates::cache());
+
+        $app->initialize();
+        $cache = $app->getInjector()->get(TemplateCache::class);
+
+        $this->assertNotSame($fallback, $cache);
+        $this->assertSame($cache, Templates::cache());
+
+        Application::$app = null;
+        $this->assertSame($fallback, Templates::cache());
     }
 
     public function testRunAddsProfilerHeadersAndBindsProfiler(): void

@@ -4,10 +4,22 @@ declare(strict_types=1);
 
 namespace Atom\Logging;
 
-use Atom\Container;
+use Closure;
 
-final readonly class Log
+final class Log
 {
+    /** @var (Closure(): ?LoggerInterface)|null */
+    private static ?Closure $resolver = null;
+
+    /**
+     * @internal
+     * @param (Closure(): ?LoggerInterface)|null $resolver
+     */
+    public static function resolveUsing(?Closure $resolver): void
+    {
+        self::$resolver = $resolver;
+    }
+
     /**
      * @param array<string, mixed> $context
      */
@@ -26,8 +38,6 @@ final readonly class Log
 
     private static function logger(): LoggerInterface
     {
-        return Container::has(LoggerInterface::class)
-            ? Container::get(LoggerInterface::class)
-            : new NullLogger();
+        return self::$resolver?->__invoke() ?? new NullLogger();
     }
 }
