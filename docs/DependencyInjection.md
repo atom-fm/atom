@@ -2,7 +2,7 @@
 
 [Atom Framework](Index.md)
 
-Atom uses a small constructor-injection container under `Atom\Di`.
+Atom uses a small constructor-injection container under `Atom\Di`, provided by the `atom-fm/di` package. Framework uses the same container to wire requests, pages, and modules.
 
 The main pieces are:
 

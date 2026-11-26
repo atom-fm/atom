@@ -12,7 +12,8 @@
         "symfony/mailer": "^8.0.12",
         "dragonmantank/cron-expression": "^3.6",
         "atom-fm/validation": "^0.1",
-        "atom-fm/view": "^0.1"
+        "atom-fm/view": "^0.1",
+        "atom-fm/di": "^0.1"
     },
     "require-dev": {
         "phpunit/phpunit": "^11.0",
@@ -87,6 +88,17 @@
                 "symlink": true,
                 "versions": {
                     "atom-fm/view": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
+        },
+        {
+            "type": "path",
+            "url": "../di",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/di": "0.1.x-dev"
                 },
                 "reference": "none"
             }

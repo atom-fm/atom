@@ -74,6 +74,17 @@
                 },
                 "reference": "none"
             }
+        },
+        {
+            "type": "path",
+            "url": "../../packages/di",
+            "options": {
+                "symlink": true,
+                "versions": {
+                    "atom-fm/di": "0.1.x-dev"
+                },
+                "reference": "none"
+            }
         }
     ],
     "require": {
